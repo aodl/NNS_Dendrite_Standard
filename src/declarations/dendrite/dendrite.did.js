@@ -26,6 +26,7 @@ export const idlFactory = ({ IDL }) => {
     'rule_id' : IDL.Text,
     'relevant_topic' : IDL.Opt(IDL.Int32),
   });
+  const SummaryField = IDL.Record({ 'label' : IDL.Text, 'value' : IDL.Text });
   const ComplianceSnapshot = IDL.Record({
     'manager_ids' : IDL.Vec(IDL.Nat64),
     'source_errors' : IDL.Vec(IDL.Text),
@@ -40,6 +41,8 @@ export const idlFactory = ({ IDL }) => {
     'checked_at_timestamp_seconds' : IDL.Nat64,
     'standard_version' : IDL.Text,
     'neuron_id' : IDL.Nat64,
+    'summary_fields' : IDL.Opt(IDL.Vec(SummaryField)),
+    'warnings' : IDL.Opt(IDL.Vec(IDL.Text)),
   });
   const RefreshCounters = IDL.Record({
     'low_cycle_rejections' : IDL.Nat64,

@@ -16,7 +16,10 @@ export interface ComplianceSnapshot {
   'checked_at_timestamp_seconds' : bigint,
   'standard_version' : string,
   'neuron_id' : bigint,
+  'summary_fields' : [] | [Array<SummaryField>],
+  'warnings' : [] | [Array<string>],
 }
+export interface SummaryField { 'label' : string, 'value' : string }
 export type ComplianceStatus = { 'Indeterminate' : null } |
   { 'NonCompliant' : null } |
   { 'StandardUpdateRequired' : null } |

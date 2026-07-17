@@ -20,12 +20,12 @@ This checklist tracks production behaviour required for the anonymous verifier t
 ## 2. Complete pure standard engine
 
 - [ ] Split topics, bounds, evidence, results, rules, digest, and fixture helpers into reviewable modules.
-- [ ] Implement every mandatory stable rule ID with exhaustive non-short-circuit output.
-- [ ] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
-- [ ] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
-- [ ] Canonically hash normalized evidence, configuration, provenance, and complete output.
-- [ ] Add compliant and focused mutation fixtures; meet the specified coverage floor. (The pure engine passes at 99.30% regions, 98.94% lines, and 98.94% branches using the separately pinned coverage-only nightly; whole-workspace stable line coverage remains below 85%.)
-- [ ] Commit this checkpoint separately.
+- [x] Implement every mandatory stable rule ID with exhaustive non-short-circuit output.
+- [x] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
+- [x] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
+- [x] Canonically hash normalized evidence, configuration, provenance, and complete output.
+- [x] Add compliant and focused mutation fixtures; meet the specified pure-engine coverage floor. (The pure engine passes at 99.30% regions, 98.94% lines, and 98.94% branches using the separately pinned coverage-only nightly; whole-workspace stable line coverage remains below 85%.)
+- [x] Commit this checkpoint separately.
 
 ## 3. Live bounded evidence collection
 
@@ -40,10 +40,10 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 - [x] Replace the heap map with versioned `ic-stable-structures` state capped at 256 snapshots.
 - [ ] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, schema metadata, malformed/unsupported-schema rejection, and same-memory reopen are tested; a future-version migration fixture and PocketIC upgrade remain.)
-- [ ] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
+- [x] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
 - [x] Persist intended counters/configuration; remove proposal-history runtime flags/state.
 - [ ] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades.
-- [ ] Commit this checkpoint separately.
+- [x] Commit this checkpoint separately.
 
 ## 5. Embedded certified frontend
 
@@ -51,16 +51,16 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [x] Embed and serve assets from the sole `dendrite` Rust canister.
 - [x] Implement certified GET/HEAD, SPA/404 routing, MIME/cache policy, ETags, and security headers.
 - [x] Add `http_request` to exported/checked-in Candid and test certification witnesses/body hashes.
-- [ ] Commit this checkpoint separately.
+- [x] Commit this checkpoint separately.
 
 ## 6. Functional anonymous neuron page
 
 - [x] Generate/check declarations and create an anonymous Dendrite actor.
 - [x] Implement canonical-string routing, cache-first load, live/explicit refresh, and typed errors.
-- [ ] Render complete snapshot evidence and every rule using text-safe DOM APIs and safe URLs.
+- [x] Render complete snapshot evidence and every rule using text-safe DOM APIs and safe URLs.
 - [x] Add accessibility, stale provenance, XSS, precision, behavior, and coverage tests.
-- [ ] Isolate/remove misleading experimental authenticated/proposal UI; make deferral explicit.
-- [ ] Commit this checkpoint separately.
+- [x] Isolate misleading experimental authenticated/proposal helpers from the production UI and make deferral explicit.
+- [x] Commit this checkpoint separately.
 
 ## 7. Release verification and reviewer/operator material
 

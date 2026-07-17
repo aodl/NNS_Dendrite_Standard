@@ -213,6 +213,8 @@ mod tests {
             source_revision: "r".into(),
             source_errors: vec![],
             evidence_digest: vec![0; 32],
+            summary_fields: None,
+            warnings: None,
         }
     }
     #[test]

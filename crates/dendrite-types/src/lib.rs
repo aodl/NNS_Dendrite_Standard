@@ -54,6 +54,14 @@ pub struct RuleResult {
 pub struct KnownNeuron {
     pub id: u64,
     pub name: String,
+    pub description: Option<String>,
+    pub links: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct SummaryField {
+    pub label: String,
+    pub value: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
@@ -108,6 +116,8 @@ pub struct ComplianceSnapshot {
     pub source_revision: String,
     pub source_errors: Vec<String>,
     pub evidence_digest: Vec<u8>,
+    pub summary_fields: Option<Vec<SummaryField>>,
+    pub warnings: Option<Vec<String>>,
 }
 
 pub const RECOGNISED_TOPICS: [i32; 18] =
@@ -572,6 +582,117 @@ fn finish(
     h.update(revision.as_bytes());
     h.update(serde_json::to_vec(evidence).expect("bounded evidence serializes"));
     h.update(serde_json::to_vec(&rules).expect("bounded rule output serializes"));
+    let mut summary_fields = Vec::new();
+    let mut push_summary = |label: &str, value: String| {
+        if summary_fields.len() < 128 {
+            summary_fields.push(SummaryField {
+                label: label.chars().take(96).collect(),
+                value: value.chars().take(512).collect(),
+            });
+        }
+    };
+    if let Some(target) = &evidence.target {
+        push_summary(
+            "Known-neuron name",
+            target
+                .known_data
+                .as_ref()
+                .map_or_else(|| "Unavailable".into(), |known| known.name.clone()),
+        );
+        if let Some(known) = &target.known_data {
+            push_summary(
+                "Known-neuron description",
+                known.description.clone().unwrap_or_else(|| "None".into()),
+            );
+            for (index, link) in known.links.iter().take(16).enumerate() {
+                push_summary(&format!("Known-neuron link {}", index + 1), link.clone());
+            }
+        }
+        push_summary(
+            "Neuron state",
+            match target.dissolving {
+                Some(true) => "Dissolving",
+                Some(false) => "Not dissolving",
+                None => "Unavailable",
+            }
+            .into(),
+        );
+        for (label, value) in [
+            ("Effective stake (e8s)", target.effective_stake_e8s),
+            ("Dissolve delay (seconds)", target.dissolve_delay_seconds),
+            (
+                "Voting-power refresh timestamp",
+                target.voting_power_refreshed_timestamp_seconds,
+            ),
+            ("Potential voting power", target.potential_voting_power),
+            ("Deciding voting power", target.deciding_voting_power),
+        ] {
+            push_summary(
+                label,
+                value.map_or_else(|| "Unavailable".into(), |value| value.to_string()),
+            );
+        }
+        push_summary(
+            "Voting-power refresh age (seconds)",
+            target
+                .voting_power_refreshed_timestamp_seconds
+                .and_then(|timestamp| evidence.now_seconds.checked_sub(timestamp))
+                .map_or_else(|| "Unavailable".into(), |value| value.to_string()),
+        );
+        push_summary(
+            "Controller principal",
+            target
+                .controller
+                .map_or_else(|| "Unavailable".into(), |value| value.to_text()),
+        );
+        push_summary("Hotkeys", format!("{:?}", target.hot_keys));
+        push_summary(
+            "not_for_profit",
+            target
+                .not_for_profit
+                .map_or_else(|| "Unavailable".into(), |value| value.to_string()),
+        );
+        if let Some(controller) = &evidence.controller {
+            push_summary(
+                "Controller canister lookup",
+                controller.call_succeeded.to_string(),
+            );
+            push_summary(
+                "Controller module hash",
+                controller.module_hash.as_ref().map_or_else(
+                    || "Absent".into(),
+                    |hash| format!("Present ({} bytes)", hash.len()),
+                ),
+            );
+            push_summary("Controller list", format!("{:?}", controller.controllers));
+        }
+        for manager in &managers {
+            push_summary(
+                &format!("Manager {manager}"),
+                evidence
+                    .known_neurons
+                    .get(manager)
+                    .map_or_else(|| "Not a known neuron".into(), |known| known.name.clone()),
+            );
+        }
+        for topic in &topics {
+            push_summary(
+                &format!("Committed topic {topic} delegates"),
+                format!(
+                    "{:?}",
+                    target.followees.get(topic).cloned().unwrap_or_default()
+                ),
+            );
+        }
+    }
+    let warnings = if evidence.unknown_committed_topics > 0 {
+        vec![format!(
+            "{} committed-topic variant(s) require a standard update",
+            evidence.unknown_committed_topics
+        )]
+    } else {
+        vec![]
+    };
     ComplianceSnapshot {
         schema_version: 1,
         standard_version: STANDARD_VERSION.into(),
@@ -591,6 +712,8 @@ fn finish(
             .map(|s| s.chars().take(512).collect())
             .collect(),
         evidence_digest: h.finalize().to_vec(),
+        summary_fields: Some(summary_fields),
+        warnings: Some(warnings),
     }
 }
 
@@ -613,6 +736,8 @@ mod tests {
             known_data: Some(KnownNeuron {
                 id: 42,
                 name: "Dendrite".into(),
+                description: Some("A compliant target".into()),
+                links: vec!["https://example.com/dendrite".into()],
             }),
             hot_keys: vec![],
             not_for_profit: Some(false),
@@ -642,6 +767,8 @@ mod tests {
                     known_data: Some(KnownNeuron {
                         id: *id,
                         name: format!("known-{id}"),
+                        description: None,
+                        links: vec![],
                     }),
                     hot_keys: vec![],
                     not_for_profit: Some(false),
@@ -661,6 +788,8 @@ mod tests {
             KnownNeuron {
                 id: 42,
                 name: "Dendrite".into(),
+                description: Some("A compliant target".into()),
+                links: vec!["https://example.com/dendrite".into()],
             },
         ))
         .chain(dependencies.keys().map(|id| {
@@ -669,6 +798,8 @@ mod tests {
                 KnownNeuron {
                     id: *id,
                     name: format!("known-{id}"),
+                    description: None,
+                    links: vec![],
                 },
             )
         }))
@@ -736,6 +867,23 @@ mod tests {
                 .all(|rule| rule.status == RuleStatus::Pass)
         );
         assert_eq!(snapshot.quorum_threshold, Some(3));
+        let summaries = snapshot.summary_fields.as_ref().unwrap();
+        assert!(
+            summaries
+                .iter()
+                .any(|field| field.label == "Known-neuron name" && field.value == "Dendrite")
+        );
+        assert!(
+            summaries
+                .iter()
+                .any(|field| field.label == "Controller module hash" && field.value == "Absent")
+        );
+        assert!(summaries.iter().any(|field| field.label == "Manager 100"));
+        assert!(
+            summaries
+                .iter()
+                .any(|field| field.label == "Committed topic 4 delegates")
+        );
     }
     #[test]
     fn transport_missing_target_is_indeterminate_not_factual_failure() {
