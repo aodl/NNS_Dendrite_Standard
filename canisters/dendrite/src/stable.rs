@@ -196,7 +196,7 @@ pub fn set_counters(counters: RefreshCounters) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dendrite_types::ComplianceStatus;
+    use dendrite_types::{ComplianceStatus, RuleResult};
     use ic_stable_structures::VectorMemory;
     fn snapshot(id: u64, checked_at: u64) -> ComplianceSnapshot {
         ComplianceSnapshot {
@@ -298,5 +298,43 @@ mod tests {
             counters.set(expected);
         }
         assert_eq!(CounterStore::init(memory).get(), expected);
+    }
+    #[derive(candid::CandidType)]
+    struct LegacySnapshotV1 {
+        schema_version: u16,
+        standard_version: String,
+        neuron_id: u64,
+        checked_at_timestamp_seconds: u64,
+        overall_status: ComplianceStatus,
+        stale_after_timestamp_seconds: u64,
+        rules: Vec<RuleResult>,
+        manager_ids: Vec<u64>,
+        committed_topics: Vec<i32>,
+        quorum_threshold: Option<u8>,
+        source_revision: String,
+        source_errors: Vec<String>,
+        evidence_digest: Vec<u8>,
+    }
+    #[test]
+    fn legacy_snapshot_without_optional_summaries_decodes_safely() {
+        let legacy = LegacySnapshotV1 {
+            schema_version: 1,
+            standard_version: "v1".into(),
+            neuron_id: 77,
+            checked_at_timestamp_seconds: 10,
+            overall_status: ComplianceStatus::Compliant,
+            stale_after_timestamp_seconds: 20,
+            rules: vec![],
+            manager_ids: vec![],
+            committed_topics: vec![],
+            quorum_threshold: None,
+            source_revision: "revision".into(),
+            source_errors: vec![],
+            evidence_digest: vec![0; 32],
+        };
+        let decoded: ComplianceSnapshot = decode_one(&encode_one(legacy).unwrap()).unwrap();
+        assert_eq!(decoded.neuron_id, 77);
+        assert_eq!(decoded.summary_fields, None);
+        assert_eq!(decoded.warnings, None);
     }
 }
