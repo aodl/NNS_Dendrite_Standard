@@ -1,0 +1,4 @@
+type CanisterInfoRequest = record { canister_id : principal; num_requested_changes : opt nat64 };
+type CanisterInfoResponse = record { total_num_changes : nat64; recent_changes : vec record {}; module_hash : opt blob; controllers : vec principal };
+service : (CanisterInfoRequest) -> (CanisterInfoResponse);
+
