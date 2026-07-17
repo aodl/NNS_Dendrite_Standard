@@ -30,9 +30,9 @@ This checklist tracks production behaviour required for the anonymous verifier t
 ## 3. Live bounded evidence collection
 
 - [ ] Implement the shared deterministic collector pipeline and fake-client seams.
-- [ ] Implement production fixed-destination Governance/economics/controller collection.
-- [ ] Detect rejections, missing/contradictory records, unknown variants, and bounds violations.
-- [ ] Replace the production placeholder in `refresh_compliance` with the real pipeline.
+- [x] Implement production fixed-destination Governance/economics/controller collection.
+- [x] Detect rejections, missing/contradictory records, unknown variants, and bounds violations.
+- [x] Replace the production placeholder in `refresh_compliance` with the real pipeline.
 - [ ] Add integration tests for compliant, defective, rejected, incomplete, unknown, and oversized graphs.
 - [ ] Commit this checkpoint separately.
 
@@ -68,8 +68,8 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [x] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
 - [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
 - [x] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.
-- [ ] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
+- [x] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
 - [ ] Run every required command without suppressing failures and record exact hashes/results.
-- [ ] Confirm no proposal history, timers, generic outbound proxy, delegation custody, or JS `number` conversion exists.
-- [ ] Explicitly document Internet Identity, authority recognition, onboarding, and the authenticated control panel as incomplete next-tranche work.
+- [x] Confirm no proposal history, timers, generic outbound proxy, delegation custody, or JS `number` conversion exists.
+- [x] Explicitly document Internet Identity, authority recognition, onboarding, and the authenticated control panel as incomplete next-tranche work.
 - [ ] Commit final hardening/documentation separately.
