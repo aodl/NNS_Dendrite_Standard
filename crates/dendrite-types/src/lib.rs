@@ -448,6 +448,50 @@ pub fn evaluate(
         evidence.source_errors.is_empty(),
         "no missing evidence was inferred as passing",
     ));
+    let source_failed = |method: &str| {
+        evidence
+            .source_errors
+            .iter()
+            .any(|error| error.contains(method))
+    };
+    let missing_requested = evidence
+        .requested_neuron_ids
+        .iter()
+        .any(|id| *id != neuron_id && !evidence.dependencies.contains_key(id));
+    for result in &mut out {
+        let unavailable = match result.rule_id.as_str() {
+            "DENDRITE-KNOWN-002" | "DENDRITE-NM-004" | "DENDRITE-NM-005" => {
+                source_failed("list_known_neurons")
+            }
+            "DENDRITE-LOCK-001" => target.dissolving.is_none(),
+            "DENDRITE-LOCK-002" => target.dissolve_delay_seconds.is_none(),
+            "DENDRITE-LOCK-003" => target.effective_stake_e8s.is_none(),
+            "DENDRITE-ACTIVE-001" => {
+                target.voting_power_refreshed_timestamp_seconds.is_none()
+                    || evidence.start_reducing_voting_power_after_seconds.is_none()
+            }
+            "DENDRITE-ACTIVE-002" => {
+                target.potential_voting_power.is_none() || target.deciding_voting_power.is_none()
+            }
+            "DENDRITE-CONTROL-001" | "DENDRITE-CONTROL-002" | "DENDRITE-CONTROL-003" => {
+                target.controller.is_some()
+                    && evidence
+                        .controller
+                        .as_ref()
+                        .is_none_or(|value| !value.call_succeeded)
+            }
+            "DENDRITE-CONTROL-005" => target.not_for_profit.is_none(),
+            "DENDRITE-COMMIT-004" => missing_requested,
+            "DENDRITE-DATA-001" | "DENDRITE-DATA-003" => {
+                !evidence.source_errors.is_empty() || missing_requested
+            }
+            _ => false,
+        };
+        if unavailable && result.status == RuleStatus::Fail {
+            result.status = RuleStatus::Indeterminate;
+            result.summary = format!("{}; mandatory evidence was unavailable", result.summary);
+        }
+    }
     let quorum = u8::try_from(managers.len() / 2 + 1).ok();
     finish(
         neuron_id,
@@ -663,6 +707,49 @@ mod tests {
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
         assert_eq!(snapshot.rules[0].status, RuleStatus::Indeterminate);
+    }
+    #[test]
+    fn rejected_controller_call_is_indeterminate_not_blackhole_failure() {
+        let mut evidence = compliant_evidence();
+        evidence.controller = Some(ControllerEvidence {
+            call_succeeded: false,
+            module_hash: None,
+            controllers: vec![],
+        });
+        evidence
+            .source_errors
+            .push("aaaaa-aa canister_info: rejected".into());
+        let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+        assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
+        for id in [
+            "DENDRITE-CONTROL-001",
+            "DENDRITE-CONTROL-002",
+            "DENDRITE-CONTROL-003",
+        ] {
+            assert!(
+                snapshot
+                    .rules
+                    .iter()
+                    .any(|rule| rule.rule_id == id && rule.status == RuleStatus::Indeterminate)
+            );
+        }
+    }
+    #[test]
+    fn incomplete_dependency_response_is_indeterminate() {
+        let mut evidence = compliant_evidence();
+        evidence.dependencies.remove(&100);
+        evidence
+            .source_errors
+            .push("list_neurons response omitted requested neuron 100".into());
+        let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+        assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
+        assert!(
+            snapshot
+                .rules
+                .iter()
+                .any(|rule| rule.rule_id == "DENDRITE-DATA-001"
+                    && rule.status == RuleStatus::Indeterminate)
+        );
     }
     #[test]
     fn unknown_committed_variant_requires_standard_update() {

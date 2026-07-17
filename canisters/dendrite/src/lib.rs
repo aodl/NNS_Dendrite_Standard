@@ -222,24 +222,33 @@ fn normalize_neuron(neuron: Neuron) -> (NeuronEvidence, usize) {
 
 async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
     let now = ic_cdk::api::time() / 1_000_000_000;
-    let catalogue = ic_clients::fetch_known_neuron_catalogue()
-        .await
-        .map_err(|e| DendriteError::Upstream(e.to_string()))?;
+    let mut source_errors = Vec::new();
+    let catalogue = match ic_clients::fetch_known_neuron_catalogue().await {
+        Ok(value) => Some(value),
+        Err(error) => {
+            source_errors.push(error.to_string());
+            None
+        }
+    };
     let known_neurons: BTreeMap<u64, KnownNeuron> = catalogue
-        .known_neurons
         .into_iter()
+        .flat_map(|value| value.known_neurons)
         .filter_map(|known| {
             let id = known.id?.id;
             let data = known.known_neuron_data?;
             Some((id, known_data(&data, id)))
         })
         .collect();
-    let target_response = ic_clients::fetch_public_full_neurons(vec![neuron_id])
-        .await
-        .map_err(|e| DendriteError::Upstream(e.to_string()))?;
+    let target_response = match ic_clients::fetch_public_full_neurons(vec![neuron_id]).await {
+        Ok(value) => Some(value),
+        Err(error) => {
+            source_errors.push(error.to_string());
+            None
+        }
+    };
     let target_raw = target_response
-        .full_neurons
         .into_iter()
+        .flat_map(|value| value.full_neurons)
         .find(|n| n.id.as_ref().is_some_and(|id| id.id == neuron_id));
     let Some(target_raw) = target_raw else {
         let evidence = EvaluationEvidence {
@@ -249,7 +258,7 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
             known_neurons,
             controller: None,
             start_reducing_voting_power_after_seconds: None,
-            source_errors: vec![],
+            source_errors,
             unknown_committed_topics: 0,
             requested_neuron_ids: vec![neuron_id],
         };
@@ -263,33 +272,42 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
     }
     requested.sort_unstable();
     requested.dedup();
-    let dependency_response = ic_clients::fetch_public_full_neurons(requested.clone())
-        .await
-        .map_err(|e| DendriteError::Upstream(e.to_string()))?;
+    let dependency_response = match ic_clients::fetch_public_full_neurons(requested.clone()).await {
+        Ok(value) => Some(value),
+        Err(error) => {
+            source_errors.push(error.to_string());
+            None
+        }
+    };
     let dependencies = dependency_response
-        .full_neurons
         .into_iter()
+        .flat_map(|value| value.full_neurons)
         .map(normalize_neuron)
         .map(|(n, _)| (n.id, n))
         .collect();
-    let economics = ic_clients::fetch_network_economics()
-        .await
-        .map_err(|e| DendriteError::Upstream(e.to_string()))?;
+    let economics = match ic_clients::fetch_network_economics().await {
+        Ok(value) => Some(value),
+        Err(error) => {
+            source_errors.push(error.to_string());
+            None
+        }
+    };
     let controller = match target.controller {
-        Some(principal) => Some(
-            ic_clients::inspect_controller_canister(principal)
-                .await
-                .map(|info| ControllerEvidence {
-                    call_succeeded: true,
-                    module_hash: info.module_hash,
-                    controllers: info.controllers,
-                })
-                .unwrap_or_else(|_| ControllerEvidence {
+        Some(principal) => match ic_clients::inspect_controller_canister(principal).await {
+            Ok(info) => Some(ControllerEvidence {
+                call_succeeded: true,
+                module_hash: info.module_hash,
+                controllers: info.controllers,
+            }),
+            Err(error) => {
+                source_errors.push(error.to_string());
+                Some(ControllerEvidence {
                     call_succeeded: false,
                     module_hash: None,
                     controllers: vec![],
-                }),
-        ),
+                })
+            }
+        },
         None => None,
     };
     let evidence = EvaluationEvidence {
@@ -299,9 +317,9 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
         known_neurons,
         controller,
         start_reducing_voting_power_after_seconds: economics
-            .voting_power_economics
+            .and_then(|value| value.voting_power_economics)
             .and_then(|v| v.start_reducing_voting_power_after_seconds),
-        source_errors: vec![],
+        source_errors,
         unknown_committed_topics,
         requested_neuron_ids: requested,
     };
