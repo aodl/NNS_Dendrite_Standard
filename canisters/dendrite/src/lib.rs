@@ -18,10 +18,12 @@ thread_local! { static REFRESH_STATE: RefCell<RefreshState> = RefCell::new(Refre
 
 #[ic_cdk::init]
 fn init() {
+    stable::assert_compatible();
     assets::certify_assets();
 }
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
+    stable::assert_compatible();
     assets::certify_assets();
 }
 #[ic_cdk::query]
@@ -81,7 +83,9 @@ fn get_cached_compliance(neuron_id: u64) -> Option<ComplianceSnapshot> {
 #[ic_cdk::query]
 fn get_public_status() -> PublicStatus {
     PublicStatus {
-        schema_version: 1,
+        schema_version: stable::metadata()
+            .expect("stable metadata was validated during initialization")
+            .schema_version,
         cached_snapshots: stable::len() as u16,
         refresh_counters: REFRESH_STATE.with_borrow(|state| state.counters),
     }

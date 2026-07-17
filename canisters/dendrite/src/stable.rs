@@ -1,13 +1,15 @@
 use candid::{decode_one, encode_one};
-use dendrite_types::{ComplianceSnapshot, MAX_CACHED_SNAPSHOTS};
+use dendrite_types::{ComplianceSnapshot, MAX_CACHED_SNAPSHOTS, SOURCE_REVISION, STANDARD_VERSION};
 use ic_stable_structures::{
-    DefaultMemoryImpl, Memory, StableBTreeMap, Storable,
+    DefaultMemoryImpl, Memory, StableBTreeMap, StableCell, Storable,
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     storable::Bound,
 };
 use std::{borrow::Cow, cell::RefCell};
 
 const MAX_SNAPSHOT_BYTES: u32 = 1_048_576;
+const MAX_METADATA_BYTES: u32 = 4_096;
+pub const STABLE_SCHEMA_VERSION: u16 = 1;
 type CanisterMemory = VirtualMemory<DefaultMemoryImpl>;
 
 #[derive(Clone)]
@@ -26,6 +28,65 @@ impl Storable for StableBytes {
         max_size: MAX_SNAPSHOT_BYTES,
         is_fixed_size: false,
     };
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, candid::CandidType, candid::Deserialize)]
+pub struct StableMetadata {
+    pub schema_version: u16,
+    pub standard_version: String,
+    pub source_revision: String,
+}
+
+impl StableMetadata {
+    fn current() -> Self {
+        Self {
+            schema_version: STABLE_SCHEMA_VERSION,
+            standard_version: STANDARD_VERSION.into(),
+            source_revision: SOURCE_REVISION.into(),
+        }
+    }
+}
+
+#[derive(Clone)]
+struct MetadataBytes(Vec<u8>);
+impl Storable for MetadataBytes {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
+        Cow::Borrowed(&self.0)
+    }
+    fn into_bytes(self) -> Vec<u8> {
+        self.0
+    }
+    fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
+        Self(bytes.into_owned())
+    }
+    const BOUND: Bound = Bound::Bounded {
+        max_size: MAX_METADATA_BYTES,
+        is_fixed_size: false,
+    };
+}
+
+struct MetadataStore<M: Memory> {
+    cell: StableCell<MetadataBytes, M>,
+}
+impl<M: Memory> MetadataStore<M> {
+    fn init(memory: M) -> Self {
+        let default = MetadataBytes(
+            encode_one(StableMetadata::current()).expect("current stable metadata must encode"),
+        );
+        let cell = StableCell::init(memory, default);
+        Self { cell }
+    }
+    fn get(&self) -> Result<StableMetadata, String> {
+        let metadata: StableMetadata = decode_one(&self.cell.get().0)
+            .map_err(|_| "stable metadata is malformed".to_string())?;
+        if metadata.schema_version != STABLE_SCHEMA_VERSION {
+            return Err(format!(
+                "unsupported stable schema version {}",
+                metadata.schema_version
+            ));
+        }
+        Ok(metadata)
+    }
 }
 
 struct StableCache<M: Memory> {
@@ -80,6 +141,9 @@ thread_local! {
     static CACHE: RefCell<StableCache<CanisterMemory>> = RefCell::new(
         MANAGER.with(|manager| StableCache::init(manager.borrow().get(MemoryId::new(0))))
     );
+    static METADATA: RefCell<MetadataStore<CanisterMemory>> = RefCell::new(
+        MANAGER.with(|manager| MetadataStore::init(manager.borrow().get(MemoryId::new(1))))
+    );
 }
 pub fn get(neuron_id: u64) -> Option<ComplianceSnapshot> {
     CACHE.with_borrow(|cache| cache.get(neuron_id))
@@ -89,6 +153,12 @@ pub fn len() -> u64 {
 }
 pub fn put(snapshot: ComplianceSnapshot) -> bool {
     CACHE.with_borrow_mut(|cache| cache.put(snapshot))
+}
+pub fn metadata() -> Result<StableMetadata, String> {
+    METADATA.with_borrow(|metadata| metadata.get())
+}
+pub fn assert_compatible() {
+    metadata().expect("stable metadata is incompatible with this canister build");
 }
 
 #[cfg(test)]
@@ -147,5 +217,38 @@ mod tests {
         }
         let reopened = StableCache::init(memory);
         assert_eq!(reopened.get(7).unwrap().checked_at_timestamp_seconds, 11);
+    }
+    #[test]
+    fn metadata_reopens_over_the_same_memory() {
+        let memory = VectorMemory::default();
+        let expected = {
+            let metadata = MetadataStore::init(memory.clone());
+            metadata.get().unwrap()
+        };
+        let reopened = MetadataStore::init(memory);
+        assert_eq!(reopened.get().unwrap(), expected);
+        assert_eq!(expected.schema_version, STABLE_SCHEMA_VERSION);
+    }
+    #[test]
+    fn old_metadata_schema_fails_safely() {
+        let memory = VectorMemory::default();
+        let old = StableMetadata {
+            schema_version: 0,
+            standard_version: "old".into(),
+            source_revision: "old".into(),
+        };
+        StableCell::new(memory.clone(), MetadataBytes(encode_one(old).unwrap()));
+        let reopened = MetadataStore::init(memory);
+        assert_eq!(
+            reopened.get().unwrap_err(),
+            "unsupported stable schema version 0"
+        );
+    }
+    #[test]
+    fn malformed_metadata_fails_safely() {
+        let memory = VectorMemory::default();
+        StableCell::new(memory.clone(), MetadataBytes(vec![1, 2, 3]));
+        let reopened = MetadataStore::init(memory);
+        assert_eq!(reopened.get().unwrap_err(), "stable metadata is malformed");
     }
 }
