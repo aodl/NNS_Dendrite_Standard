@@ -39,7 +39,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 ## 4. Stable bounded cache and abuse controls
 
 - [ ] Replace the heap map with versioned `ic-stable-structures` state capped at 256 snapshots.
-- [ ] Implement deterministic eviction, record bounds, migrations, and upgrade tests.
+- [ ] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, malformed-record safety, and same-memory reopen are tested; explicit version migration and PocketIC upgrade remain.)
 - [ ] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
 - [ ] Persist intended counters/configuration; remove proposal-history runtime flags/state.
 - [ ] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades.
