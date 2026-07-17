@@ -294,6 +294,7 @@ async fn collect_with(
             None
         }
     };
+    let catalogue_succeeded = catalogue.is_some();
     let mut known_neurons = BTreeMap::new();
     for known in catalogue.into_iter().flat_map(|value| value.known_neurons) {
         let (Some(id), Some(data)) = (known.id, known.known_neuron_data) else {
@@ -349,6 +350,20 @@ async fn collect_with(
         return Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION));
     };
     let (target, unknown_committed_topics) = normalize_neuron(target_raw);
+    if catalogue_succeeded && !known_neurons.contains_key(&neuron_id) {
+        let evidence = EvaluationEvidence {
+            now_seconds: now,
+            target: Some(target),
+            dependencies: BTreeMap::new(),
+            known_neurons,
+            controller: None,
+            start_reducing_voting_power_after_seconds: None,
+            source_errors,
+            unknown_committed_topics,
+            requested_neuron_ids: vec![neuron_id],
+        };
+        return Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION));
+    }
     let mut requested = vec![ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
     requested.extend(target.followees.get(&1).into_iter().flatten().copied());
     for topic in &target.committed_topics {
@@ -788,5 +803,27 @@ mod tests {
             dendrite_types::ComplianceStatus::Indeterminate
         );
         assert!(snapshot.source_errors[0].contains("exceeds bound"));
+    }
+    #[test]
+    fn collector_skips_dependencies_when_target_is_conclusively_not_known() {
+        let target = raw_neuron(42, vec![]);
+        let client = FakeClient {
+            known: Ok(ListKnownNeuronsResponse {
+                known_neurons: vec![],
+            }),
+            neurons: TestRefCell::new(VecDeque::from([
+                Ok(response(vec![target])),
+                Err("dependency call must not occur".into()),
+            ])),
+        };
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.overall_status,
+            dendrite_types::ComplianceStatus::NonCompliant
+        );
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-KNOWN-002" && rule.status == dendrite_types::RuleStatus::Fail
+        }));
+        assert_eq!(client.neurons.borrow().len(), 1);
     }
 }

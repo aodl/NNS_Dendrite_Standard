@@ -1,6 +1,6 @@
 # Known limitations and roadmap
 
-The remaining anonymous-verifier work is tracked in `docs/development/implementation-plan.md`, notably the shared fake-client collector suite, the remaining rule mutation coverage and summaries, a future-version stable migration fixture, and deterministic PocketIC outbound-call/upgrade tests. Certified asset witnesses are now independently reconstructed in native tests, but browser end-to-end and PocketIC certificate verification are still outstanding.
+The remaining anonymous-verifier work is tracked in `docs/development/implementation-plan.md`, notably the remaining rule mutation coverage and summaries, a future-version stable migration fixture, and deterministic PocketIC outbound-call/upgrade tests. The shared fake-client collector suite now covers compliant, defective, rejected, incomplete, unknown, and bounded-error graphs. Certified asset witnesses are independently reconstructed in native tests, but browser end-to-end and PocketIC certificate verification are still outstanding.
 
 Internet Identity, derivation-origin finalization, exact authenticated manager recognition, controller-only hotkey onboarding, proposal simulation/submission, and voting controls are deliberately deferred to the next tranche. No UI text should claim these are complete.
 
