@@ -193,6 +193,7 @@ pub fn http_request(request: HttpRequest) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ic_certified_map::labeled;
     fn get(url: &str) -> HttpResponse {
         http_request(HttpRequest {
             method: "GET".into(),
@@ -247,5 +248,31 @@ mod tests {
         assert!(response.body.is_empty());
         request.method = "POST".into();
         assert_eq!(http_request(request).status_code, 405);
+    }
+    #[test]
+    fn every_body_hash_and_witness_reconstructs_the_certified_root() {
+        HASHES.with_borrow(|hashes| {
+            let certified_root = labeled_hash(CERT_LABEL, &hashes.root_hash());
+            for (path, body) in all_certified_routes() {
+                assert_eq!(hashes.get(path.as_bytes()), Some(&sha256(&body)), "{path}");
+                assert_eq!(
+                    labeled(CERT_LABEL, hashes.witness(path.as_bytes())).reconstruct(),
+                    certified_root,
+                    "{path}"
+                );
+                let response = get(&path);
+                assert_eq!(response.body, body, "{path}");
+                let etag = response
+                    .headers
+                    .iter()
+                    .find(|header| header.0 == "ETag")
+                    .unwrap();
+                assert_eq!(
+                    etag.1,
+                    format!("\"{}\"", hex::encode(sha256(&response.body))),
+                    "{path}"
+                );
+            }
+        });
     }
 }

@@ -50,7 +50,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [x] Deterministically build content-hashed frontend assets before Wasm compilation.
 - [x] Embed and serve assets from the sole `dendrite` Rust canister.
 - [x] Implement certified GET/HEAD, SPA/404 routing, MIME/cache policy, ETags, and security headers.
-- [ ] Add `http_request` to exported/checked-in Candid and test certification witnesses/body hashes.
+- [x] Add `http_request` to exported/checked-in Candid and test certification witnesses/body hashes.
 - [ ] Commit this checkpoint separately.
 
 ## 6. Functional anonymous neuron page
