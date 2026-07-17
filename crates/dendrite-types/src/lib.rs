@@ -245,6 +245,15 @@ pub fn evaluate(
             evidence.unknown_committed_topics
         ));
     }
+    if target
+        .committed_topics
+        .iter()
+        .any(|topic| !RECOGNISED_TOPICS.contains(topic))
+        && let Some(last) = out.last_mut()
+    {
+        last.status = RuleStatus::StandardUpdateRequired;
+        last.summary = "committed topic uses an unknown or reserved topic code".into();
+    }
     out.push(rule(
         now,
         "DENDRITE-LOCK-001",
@@ -814,5 +823,128 @@ mod tests {
             evaluate(42, &changed, SOURCE_REVISION).evidence_digest
         );
         assert_ne!(digest, evaluate(42, &evidence, "different").evidence_digest);
+    }
+    fn assert_rule(evidence: EvaluationEvidence, rule_id: &str, status: RuleStatus) {
+        let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+        assert!(
+            snapshot
+                .rules
+                .iter()
+                .any(|rule| rule.rule_id == rule_id && rule.status == status),
+            "expected {rule_id}={status:?}"
+        );
+    }
+    #[test]
+    fn focused_target_posture_mutations_fail_their_rules() {
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().dissolving = Some(true);
+        assert_rule(e, "DENDRITE-LOCK-001", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().dissolve_delay_seconds = Some(1);
+        assert_rule(e, "DENDRITE-LOCK-002", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().effective_stake_e8s = Some(0);
+        assert_rule(e, "DENDRITE-LOCK-003", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.now_seconds = 20_000_000;
+        assert_rule(e, "DENDRITE-ACTIVE-001", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().deciding_voting_power = Some(9);
+        assert_rule(e, "DENDRITE-ACTIVE-002", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.controller.as_mut().unwrap().module_hash = Some(vec![1]);
+        assert_rule(e, "DENDRITE-CONTROL-002", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.controller
+            .as_mut()
+            .unwrap()
+            .controllers
+            .push(Principal::anonymous());
+        assert_rule(e, "DENDRITE-CONTROL-003", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target
+            .as_mut()
+            .unwrap()
+            .hot_keys
+            .push(Principal::anonymous());
+        assert_rule(e, "DENDRITE-CONTROL-004", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().not_for_profit = Some(true);
+        assert_rule(e, "DENDRITE-CONTROL-005", RuleStatus::Fail);
+    }
+    #[test]
+    fn focused_manager_and_delegate_mutations_fail_their_rules() {
+        let mut e = compliant_evidence();
+        e.target
+            .as_mut()
+            .unwrap()
+            .followees
+            .get_mut(&1)
+            .unwrap()
+            .truncate(4);
+        assert_rule(e, "DENDRITE-NM-001", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().followees.get_mut(&1).unwrap()[0] = 42;
+        assert_rule(e, "DENDRITE-NM-003", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.known_neurons.remove(&100);
+        assert_rule(e, "DENDRITE-NM-004", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.known_neurons.remove(&ALPHA_VOTE_NEURON_ID);
+        assert_rule(e, "DENDRITE-NM-005", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target
+            .as_mut()
+            .unwrap()
+            .followees
+            .get_mut(&4)
+            .unwrap()
+            .truncate(2);
+        assert_rule(e, "DENDRITE-COMMIT-001", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().followees.get_mut(&4).unwrap()[2] = 100;
+        assert_rule(e, "DENDRITE-COMMIT-002", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().followees.get_mut(&4).unwrap()[2] = 999;
+        assert_rule(e, "DENDRITE-COMMIT-003", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.dependencies
+            .get_mut(&100)
+            .unwrap()
+            .followees
+            .insert(4, vec![OMEGA_REJECT_NEURON_ID, 7]);
+        assert_rule(e, "DENDRITE-COMMIT-004", RuleStatus::Fail);
+    }
+    #[test]
+    fn focused_topic_mutations_are_fail_closed() {
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().committed_topics.clear();
+        assert_rule(e, "DENDRITE-KNOWN-003", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().committed_topics = vec![0];
+        assert_rule(e, "DENDRITE-KNOWN-004", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().committed_topics = vec![1];
+        assert_rule(e, "DENDRITE-KNOWN-004", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().committed_topics = vec![11];
+        assert_rule(e, "DENDRITE-KNOWN-004", RuleStatus::StandardUpdateRequired);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().followees.insert(3, vec![7]);
+        assert_rule(e, "DENDRITE-DEFAULT-001", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target
+            .as_mut()
+            .unwrap()
+            .followees
+            .insert(0, vec![ALPHA_VOTE_NEURON_ID, 7]);
+        assert_rule(e, "DENDRITE-DEFAULT-002", RuleStatus::Fail);
+        let mut e = compliant_evidence();
+        e.target.as_mut().unwrap().followees.insert(99, vec![7]);
+        assert_rule(
+            e,
+            "DENDRITE-DEFAULT-003",
+            RuleStatus::StandardUpdateRequired,
+        );
     }
 }
