@@ -41,7 +41,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [x] Replace the heap map with versioned `ic-stable-structures` state capped at 256 snapshots.
 - [ ] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, schema metadata, malformed/unsupported-schema rejection, and same-memory reopen are tested; a future-version migration fixture and PocketIC upgrade remain.)
 - [ ] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
-- [ ] Persist intended counters/configuration; remove proposal-history runtime flags/state.
+- [x] Persist intended counters/configuration; remove proposal-history runtime flags/state.
 - [ ] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades.
 - [ ] Commit this checkpoint separately.
 

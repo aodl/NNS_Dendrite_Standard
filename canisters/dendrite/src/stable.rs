@@ -7,6 +7,8 @@ use ic_stable_structures::{
 };
 use std::{borrow::Cow, cell::RefCell};
 
+use crate::rate_limit::RefreshCounters;
+
 const MAX_SNAPSHOT_BYTES: u32 = 1_048_576;
 const MAX_METADATA_BYTES: u32 = 4_096;
 pub const STABLE_SCHEMA_VERSION: u16 = 1;
@@ -67,6 +69,27 @@ impl Storable for MetadataBytes {
 
 struct MetadataStore<M: Memory> {
     cell: StableCell<MetadataBytes, M>,
+}
+
+struct CounterStore<M: Memory> {
+    cell: StableCell<MetadataBytes, M>,
+}
+impl<M: Memory> CounterStore<M> {
+    fn init(memory: M) -> Self {
+        let default = MetadataBytes(
+            encode_one(RefreshCounters::default()).expect("default counters must encode"),
+        );
+        Self {
+            cell: StableCell::init(memory, default),
+        }
+    }
+    fn get(&self) -> RefreshCounters {
+        decode_one(&self.cell.get().0).unwrap_or_default()
+    }
+    fn set(&mut self, counters: RefreshCounters) {
+        let encoded = encode_one(counters).expect("refresh counters must encode");
+        self.cell.set(MetadataBytes(encoded));
+    }
 }
 impl<M: Memory> MetadataStore<M> {
     fn init(memory: M) -> Self {
@@ -144,6 +167,9 @@ thread_local! {
     static METADATA: RefCell<MetadataStore<CanisterMemory>> = RefCell::new(
         MANAGER.with(|manager| MetadataStore::init(manager.borrow().get(MemoryId::new(1))))
     );
+    static COUNTERS: RefCell<CounterStore<CanisterMemory>> = RefCell::new(
+        MANAGER.with(|manager| CounterStore::init(manager.borrow().get(MemoryId::new(2))))
+    );
 }
 pub fn get(neuron_id: u64) -> Option<ComplianceSnapshot> {
     CACHE.with_borrow(|cache| cache.get(neuron_id))
@@ -159,6 +185,12 @@ pub fn metadata() -> Result<StableMetadata, String> {
 }
 pub fn assert_compatible() {
     metadata().expect("stable metadata is incompatible with this canister build");
+}
+pub fn counters() -> RefreshCounters {
+    COUNTERS.with_borrow(CounterStore::get)
+}
+pub fn set_counters(counters: RefreshCounters) {
+    COUNTERS.with_borrow_mut(|store| store.set(counters));
 }
 
 #[cfg(test)]
@@ -250,5 +282,19 @@ mod tests {
         StableCell::new(memory.clone(), MetadataBytes(vec![1, 2, 3]));
         let reopened = MetadataStore::init(memory);
         assert_eq!(reopened.get().unwrap_err(), "stable metadata is malformed");
+    }
+    #[test]
+    fn counters_reopen_over_the_same_memory() {
+        let memory = VectorMemory::default();
+        let expected = RefreshCounters {
+            accepted_refreshes: 9,
+            cache_hits: 4,
+            ..RefreshCounters::default()
+        };
+        {
+            let mut counters = CounterStore::init(memory.clone());
+            counters.set(expected);
+        }
+        assert_eq!(CounterStore::init(memory).get(), expected);
     }
 }

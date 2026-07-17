@@ -38,6 +38,12 @@ pub struct RefreshState {
     pub counters: RefreshCounters,
 }
 impl RefreshState {
+    pub fn with_counters(counters: RefreshCounters) -> Self {
+        Self {
+            counters,
+            ..Self::default()
+        }
+    }
     pub fn cache_hit(&mut self) {
         self.counters.cache_hits = self.counters.cache_hits.saturating_add(1);
     }
