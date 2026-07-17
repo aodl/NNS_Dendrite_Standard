@@ -1,5 +1,5 @@
 [workspace]
-members = ["canisters/dendrite", "crates/dendrite-types", "tools/xtask"]
+members = ["canisters/dendrite", "crates/dendrite-types", "crates/ic-clients", "tools/xtask"]
 resolver = "2"
 
 [workspace.package]

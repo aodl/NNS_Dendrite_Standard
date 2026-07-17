@@ -2,7 +2,9 @@
 
 Dendrite's checked-in NNS and management-canister interface subsets are reviewed
 against the official [`dfinity/ic`](https://github.com/dfinity/ic) repository at
-commit `a8d582a62b8aa5b958786f7f595e0572f888f1f8` (master observed 17 July 2026).
+commit `d55a0f4d4edfabe49d8fd543aff473084cb741f2`. GitHub reports this
+official commit as signed and verified; it is the immutable research baseline named by
+`DENDRITE_BUILD_SPEC.md`.
 
 Pinned paths:
 
@@ -15,7 +17,7 @@ Pinned paths:
 - `rs/execution_environment/src/execution_environment.rs`
 - `rs/execution_environment/src/ic00_permissions.rs`
 
-The prior product research baseline was
-`d55a0f4d4edfabe49d8fd543aff473084cb741f2`. Interface drift is checked against
-the newer immutable revision above.
-
+`tools/scripts/check-interface-drift.sh` downloads only these official pinned
+sources, uses Candid structural compatibility for Governance, extracts the
+official management request/response Candid documentation and checks strict
+structural equality, and proves deliberately incompatible fixtures are rejected.

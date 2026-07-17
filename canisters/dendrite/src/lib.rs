@@ -3,12 +3,11 @@
 use candid::{CandidType, Deserialize};
 use dendrite_types::{
     ALPHA_VOTE_NEURON_ID, ComplianceSnapshot, MAX_CACHED_SNAPSHOTS, OMEGA_REJECT_NEURON_ID,
-    STANDARD_VERSION,
+    SOURCE_REVISION, STANDARD_VERSION,
 };
 use std::{cell::RefCell, collections::BTreeMap};
 
 const NNS_GOVERNANCE_CANISTER_ID: &str = "rrkah-fqaaa-aaaaa-aaaaq-cai";
-const SOURCE_REVISION: &str = "a8d582a62b8aa5b958786f7f595e0572f888f1f8";
 
 #[derive(Clone, CandidType, Deserialize)]
 pub struct StandardConfig {

@@ -11,11 +11,11 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 ## 1. Exact fixed external interfaces
 
-- [ ] Verify one immutable official `dfinity/ic` revision and use it everywhere.
-- [ ] Rebuild the minimal Governance and management Candid subsets from that revision, including real committed-topic variants and `canister_info` service shape.
-- [ ] Add fixed-destination, method-specific typed Rust clients with bounded conversion and errors.
-- [ ] Replace grep drift checks with structural compatibility checks; prove incompatible fixtures fail.
-- [ ] Add representative decode tests and commit this checkpoint separately.
+- [x] Verify one immutable official `dfinity/ic` revision and use it everywhere.
+- [x] Rebuild the minimal Governance and management Candid subsets from that revision, including real committed-topic variants and `canister_info` service shape.
+- [x] Add fixed-destination, method-specific typed Rust clients with bounded conversion and errors.
+- [x] Replace grep drift checks with structural compatibility checks; prove incompatible fixtures fail.
+- [x] Add representative decode tests and commit this checkpoint separately.
 
 ## 2. Complete pure standard engine
 

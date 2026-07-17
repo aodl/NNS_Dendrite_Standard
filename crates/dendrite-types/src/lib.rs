@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const STANDARD_VERSION: &str = "nns-dendrite/1.0-draft";
+pub const SOURCE_REVISION: &str = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 pub const ALPHA_VOTE_NEURON_ID: u64 = 2_947_465_672_511_369;
 pub const OMEGA_REJECT_NEURON_ID: u64 = 18_422_777_432_977_120_264;
 pub const MAX_DISSOLVE_DELAY_SECONDS: u64 = 63_072_000;

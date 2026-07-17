@@ -1,13 +1,54 @@
 #!/bin/sh
 set -eu
-revision=a8d582a62b8aa5b958786f7f595e0572f888f1f8
-base="https://raw.githubusercontent.com/dfinity/ic/$revision"
-governance=$(curl --fail --silent --show-error "$base/rs/nns/governance/canister/governance.did")
-for method in list_known_neurons list_neurons get_network_economics_parameters list_proposals get_pending_proposals get_proposal_info simulate_manage_neuron manage_neuron; do
-  printf '%s' "$governance" | grep -q "${method}" || { echo "missing upstream method: $method" >&2; exit 1; }
-done
-management=$(curl --fail --silent --show-error "$base/rs/types/management_canister_types/src/lib.rs")
-printf '%s' "$management" | grep -q 'CanisterInfoRequest' || { echo 'canister_info request drifted' >&2; exit 1; }
-printf '%s' "$management" | grep -q 'CanisterInfoResponse' || { echo 'canister_info response drifted' >&2; exit 1; }
-echo "interface anchors present at $revision"
 
+revision=d55a0f4d4edfabe49d8fd543aff473084cb741f2
+base="https://raw.githubusercontent.com/dfinity/ic/$revision"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
+
+curl --fail --silent --show-error \
+  "$base/rs/nns/governance/canister/governance.did" > "$tmp_dir/governance.did"
+curl --fail --silent --show-error \
+  "$base/rs/types/management_canister_types/src/lib.rs" > "$tmp_dir/management.rs"
+
+# Candid service subtyping structurally proves every method-specific request and
+# response in our consumer subset remains wire-compatible with the official API.
+didc check "$tmp_dir/governance.did" candid/nns-governance/governance.subset.did
+
+# The management interface is documented as Candid in the official Rust source.
+# Extract those two authoritative code blocks and compare them structurally.
+awk '
+  /`CandidType` for `CanisterInfoRequest`/ { wanted = 1; next }
+  wanted && /```text/ { in_block = 1; next }
+  in_block && /```/ { exit }
+  in_block { print }
+' "$tmp_dir/management.rs" | sed 's|^/// ||' > "$tmp_dir/request.did"
+awk '
+  /pub struct CanisterInfoRequest/ { request_seen = 1 }
+  request_seen && /`CandidType` for `CanisterInfoRequest`/ { wanted = 1; next }
+  wanted && /```text/ { in_block = 1; next }
+  in_block && /```/ { exit }
+  in_block { print }
+' "$tmp_dir/management.rs" | sed 's|^/// ||' > "$tmp_dir/response.did"
+
+{
+  printf 'type CanisterInfoRequest = '
+  cat "$tmp_dir/request.did"
+  printf ';\ntype change = reserved;\ntype CanisterInfoResponse = '
+  sed 's/vec change/vec reserved/' "$tmp_dir/response.did"
+  printf ';\nservice : { canister_info : (CanisterInfoRequest) -> (CanisterInfoResponse) };\n'
+} > "$tmp_dir/management.did"
+didc check --strict "$tmp_dir/management.did" candid/management/canister-info.subset.did
+
+# These fixtures intentionally change a required wire type. A checker that
+# accepts either fixture is not a semantic drift checker.
+if didc check "$tmp_dir/governance.did" tools/interface-fixtures/governance-incompatible.did >/dev/null 2>&1; then
+  echo 'incompatible Governance fixture unexpectedly passed' >&2
+  exit 1
+fi
+if didc check --strict "$tmp_dir/management.did" tools/interface-fixtures/management-incompatible.did >/dev/null 2>&1; then
+  echo 'incompatible management fixture unexpectedly passed' >&2
+  exit 1
+fi
+
+echo "semantic interface compatibility passed at dfinity/ic@$revision"
