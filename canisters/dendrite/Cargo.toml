@@ -21,3 +21,6 @@ include_dir.workspace = true
 serde.workspace = true
 ciborium.workspace = true
 sha2.workspace = true
+
+[dev-dependencies]
+pocket-ic.workspace = true

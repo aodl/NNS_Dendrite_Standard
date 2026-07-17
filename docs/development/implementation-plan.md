@@ -39,10 +39,10 @@ This checklist tracks production behaviour required for the anonymous verifier t
 ## 4. Stable bounded cache and abuse controls
 
 - [x] Replace the heap map with versioned `ic-stable-structures` state capped at 256 snapshots.
-- [ ] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, schema metadata, malformed/unsupported-schema rejection, same-memory reopen, and legacy snapshot compatibility are tested; PocketIC upgrade remains.)
+- [x] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, schema metadata, malformed/unsupported-schema rejection, same-memory reopen, legacy snapshot compatibility, and production-Wasm PocketIC upgrade are tested.)
 - [x] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
 - [x] Persist intended counters/configuration; remove proposal-history runtime flags/state.
-- [ ] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades.
+- [x] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades across native and PocketIC suites.
 - [x] Commit this checkpoint separately.
 
 ## 5. Embedded certified frontend
@@ -64,7 +64,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 ## 7. Release verification and reviewer/operator material
 
-- [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP.
+- [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP. (Anonymous API, fixed-upstream rejection, indeterminate non-caching, cooldown, certified HTTP/security headers, and production-Wasm upgrade pass; mocked successful NNS dependencies, low cycles, and concurrency remain native-only.)
 - [x] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
 - [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
 - [x] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.

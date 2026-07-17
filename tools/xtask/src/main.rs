@@ -27,7 +27,23 @@ fn main() -> ExitCode {
                 )
                 && run("npm", &["test"])
         }
-        "test" => run("cargo", &["test", "--workspace"]) && run("npm", &["test"]),
+        "test" => {
+            run("sh", &["tools/scripts/ensure-pocketic.sh"])
+                && run("npm", &["run", "build"])
+                && run(
+                    "cargo",
+                    &[
+                        "build",
+                        "--release",
+                        "--target",
+                        "wasm32-unknown-unknown",
+                        "-p",
+                        "dendrite",
+                    ],
+                )
+                && run("cargo", &["test", "--workspace"])
+                && run("npm", &["test"])
+        }
         "coverage" => run("sh", &["tools/scripts/coverage.sh"]),
         "build" => {
             run("npm", &["run", "build"])
