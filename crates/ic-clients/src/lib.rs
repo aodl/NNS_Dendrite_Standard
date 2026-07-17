@@ -346,6 +346,27 @@ pub async fn inspect_controller_canister(
 mod tests {
     use super::*;
     use candid::{decode_one, encode_one};
+    use std::{
+        future::Future,
+        pin::pin,
+        sync::Arc,
+        task::{Context, Poll, Wake, Waker},
+    };
+    struct NoopWake;
+    impl Wake for NoopWake {
+        fn wake(self: Arc<Self>) {}
+    }
+    fn block_on<T>(future: impl Future<Output = T>) -> T {
+        let waker = Waker::from(Arc::new(NoopWake));
+        let mut context = Context::from_waker(&waker);
+        let mut future = pin!(future);
+        loop {
+            match future.as_mut().poll(&mut context) {
+                Poll::Ready(value) => return value,
+                Poll::Pending => std::thread::yield_now(),
+            }
+        }
+    }
     #[test]
     fn official_shapes_decode() {
         let known = ListKnownNeuronsResponse {
@@ -392,5 +413,51 @@ mod tests {
     fn fixed_destinations_are_exact() {
         assert_eq!(NNS_GOVERNANCE.to_text(), "rrkah-fqaaa-aaaaa-aaaaq-cai");
         assert_eq!(MANAGEMENT_CANISTER, Principal::management_canister());
+    }
+    #[test]
+    fn source_errors_are_typed_and_bounded() {
+        let rejected = call_error(NNS_GOVERNANCE, "method", "x".repeat(600));
+        assert_eq!(rejected.kind, SourceErrorKind::Rejected);
+        assert_eq!(rejected.message.chars().count(), 512);
+        assert!(rejected.to_string().contains("method"));
+        let decoded = decode_error(MANAGEMENT_CANISTER, "canister_info", "bad wire");
+        assert_eq!(decoded.kind, SourceErrorKind::Decode);
+        assert_eq!(decoded.message, "bad wire");
+    }
+    #[test]
+    fn known_neuron_nested_bounds_fail_closed() {
+        let response = |data| ListKnownNeuronsResponse {
+            known_neurons: vec![KnownNeuron {
+                id: Some(NeuronId { id: 1 }),
+                known_neuron_data: Some(data),
+            }],
+        };
+        let base = KnownNeuronData {
+            name: "ok".into(),
+            description: None,
+            links: None,
+            committed_topics: None,
+        };
+        assert!(validate_known(response(base.clone())).is_ok());
+        let mut long = base.clone();
+        long.description = Some("x".repeat(MAX_TEXT_BYTES + 1));
+        assert_eq!(
+            validate_known(response(long)).unwrap_err().kind,
+            SourceErrorKind::Bounds
+        );
+        let mut links = base;
+        links.links = Some(vec!["https://example.com".into(); MAX_LINKS + 1]);
+        assert_eq!(
+            validate_known(response(links)).unwrap_err().kind,
+            SourceErrorKind::Bounds
+        );
+    }
+    #[test]
+    fn invalid_request_count_never_reaches_an_outbound_call() {
+        for ids in [vec![], vec![1; MAX_REQUESTED_NEURONS + 1]] {
+            let error = block_on(fetch_public_full_neurons(ids)).unwrap_err();
+            assert_eq!(error.kind, SourceErrorKind::Bounds);
+            assert_eq!(error.method, "list_neurons");
+        }
     }
 }
