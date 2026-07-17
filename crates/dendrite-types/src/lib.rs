@@ -46,6 +46,7 @@ pub struct RuleResult {
     pub observed: Option<String>,
     pub expected: Option<String>,
     pub related_neuron_ids: Vec<u64>,
+    pub relevant_topic: Option<i32>,
     pub source: EvidenceSource,
 }
 
@@ -133,6 +134,7 @@ fn rule(now: u64, id: &str, ok: bool, summary: &str) -> RuleResult {
         observed: None,
         expected: None,
         related_neuron_ids: vec![],
+        relevant_topic: None,
         source: source(now),
     }
 }
@@ -373,18 +375,33 @@ pub fn evaluate(
             delegates.len() >= 3,
             "committed topic has at least three delegates",
         ));
+        if let Some(result) = out.last_mut() {
+            result.relevant_topic = Some(topic);
+            result.related_neuron_ids = delegates.clone();
+            result.observed = Some(delegates.len().to_string());
+            result.expected = Some("at least 3".into());
+        }
         out.push(rule(
             now,
             "DENDRITE-COMMIT-002",
             distinct(&delegates),
             "committed delegates are distinct",
         ));
+        if let Some(result) = out.last_mut() {
+            result.relevant_topic = Some(topic);
+            result.related_neuron_ids = delegates.clone();
+        }
         out.push(rule(
             now,
             "DENDRITE-COMMIT-003",
             delegates.iter().all(|id| managers.contains(id)),
             "committed delegates are managers only",
         ));
+        if let Some(result) = out.last_mut() {
+            result.relevant_topic = Some(topic);
+            result.related_neuron_ids = delegates.clone();
+            result.expected = Some("all delegates are raw Neuron Management managers".into());
+        }
         out.push(rule(
             now,
             "DENDRITE-COMMIT-004",
@@ -396,6 +413,11 @@ pub fn evaluate(
             }),
             "each delegate follows omega-reject exactly",
         ));
+        if let Some(result) = out.last_mut() {
+            result.relevant_topic = Some(topic);
+            result.related_neuron_ids = delegates.clone();
+            result.expected = Some(format!("exact singleton [{OMEGA_REJECT_NEURON_ID}]"));
+        }
     }
     for topic in RECOGNISED_TOPICS {
         if topic != 0 && topic != 1 && !target.committed_topics.contains(&topic) {
@@ -405,6 +427,12 @@ pub fn evaluate(
                 singleton(target.followees.get(&topic), ALPHA_VOTE_NEURON_ID),
                 "non-committed topic follows alpha-vote exactly",
             ));
+            if let Some(result) = out.last_mut() {
+                result.relevant_topic = Some(topic);
+                result.related_neuron_ids =
+                    target.followees.get(&topic).cloned().unwrap_or_default();
+                result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
+            }
         }
     }
     out.push(rule(
@@ -413,6 +441,11 @@ pub fn evaluate(
         singleton(target.followees.get(&0), ALPHA_VOTE_NEURON_ID),
         "CatchAll follows alpha-vote exactly",
     ));
+    if let Some(result) = out.last_mut() {
+        result.relevant_topic = Some(0);
+        result.related_neuron_ids = target.followees.get(&0).cloned().unwrap_or_default();
+        result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
+    }
     let unknown = target
         .followees
         .iter()

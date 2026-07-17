@@ -24,6 +24,7 @@ export const idlFactory = ({ IDL }) => {
     'expected' : IDL.Opt(IDL.Text),
     'summary' : IDL.Text,
     'rule_id' : IDL.Text,
+    'relevant_topic' : IDL.Opt(IDL.Int32),
   });
   const ComplianceSnapshot = IDL.Record({
     'manager_ids' : IDL.Vec(IDL.Nat64),

@@ -1,7 +1,7 @@
 type ComplianceStatus = variant { Compliant; NonCompliant; Indeterminate; StandardUpdateRequired };
 type RuleStatus = variant { Pass; Fail; Warning; Indeterminate; StandardUpdateRequired };
 type EvidenceSource = record { method : text; observed_at_seconds : nat64 };
-type RuleResult = record { rule_id : text; status : RuleStatus; summary : text; observed : opt text; expected : opt text; related_neuron_ids : vec nat64; source : EvidenceSource };
+type RuleResult = record { rule_id : text; status : RuleStatus; summary : text; observed : opt text; expected : opt text; related_neuron_ids : vec nat64; relevant_topic : opt int32; source : EvidenceSource };
 type ComplianceSnapshot = record { schema_version : nat16; standard_version : text; neuron_id : nat64; checked_at_timestamp_seconds : nat64; overall_status : ComplianceStatus; stale_after_timestamp_seconds : nat64; rules : vec RuleResult; manager_ids : vec nat64; committed_topics : vec int32; quorum_threshold : opt nat8; source_revision : text; source_errors : vec text; evidence_digest : blob };
 type StandardConfig = record { standard_version : text; alpha_vote_neuron_id : nat64; omega_reject_neuron_id : nat64; max_cached_snapshots : nat16; governance_canister_id : text; source_revision : text };
 type RefreshCounters = record { accepted_refreshes : nat64; cache_hits : nat64; cooldown_rejections : nat64; global_rate_rejections : nat64; concurrency_rejections : nat64; duplicate_in_flight_requests : nat64; low_cycle_rejections : nat64; upstream_failures : nat64; successful_refreshes : nat64; cache_evictions : nat64 };

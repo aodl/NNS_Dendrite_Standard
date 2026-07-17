@@ -348,8 +348,16 @@ mod tests {
         let exported = __export_service();
         std::fs::write(&path, &exported).expect("write temporary Candid export");
         let checked = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("dendrite.did");
-        let status = std::process::Command::new("didc").args(["check", "--strict"]).arg(&path).arg(checked).status().expect("run didc");
+        let status = std::process::Command::new("didc")
+            .args(["check", "--strict"])
+            .arg(&path)
+            .arg(checked)
+            .status()
+            .expect("run didc");
         let _ = std::fs::remove_file(path);
-        assert!(status.success(), "Rust Candid export drifted from dendrite.did:\n{exported}");
+        assert!(
+            status.success(),
+            "Rust Candid export drifted from dendrite.did:\n{exported}"
+        );
     }
 }

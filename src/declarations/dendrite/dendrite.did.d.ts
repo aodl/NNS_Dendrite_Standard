@@ -72,6 +72,7 @@ export interface RuleResult {
   'expected' : [] | [string],
   'summary' : string,
   'rule_id' : string,
+  'relevant_topic' : [] | [number],
 }
 export type RuleStatus = { 'Fail' : null } |
   { 'Pass' : null } |
