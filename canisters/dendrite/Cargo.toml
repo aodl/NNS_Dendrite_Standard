@@ -10,8 +10,14 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 candid.workspace = true
+base64.workspace = true
 dendrite-types = { path = "../../crates/dendrite-types" }
+hex.workspace = true
 ic-cdk.workspace = true
+ic-certified-map.workspace = true
 ic-clients = { path = "../../crates/ic-clients" }
 ic-stable-structures.workspace = true
+include_dir.workspace = true
 serde.workspace = true
+serde_cbor.workspace = true
+sha2.workspace = true

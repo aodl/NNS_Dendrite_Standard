@@ -1,6 +1,20 @@
 import { build } from "esbuild";
-import { mkdir, copyFile } from "node:fs/promises";
-await mkdir("canisters/dendrite/public/generated", { recursive: true });
-await build({ entryPoints: ["canisters/dendrite/web/src/main.js"], bundle: true, minify: true, sourcemap: false, outfile: "canisters/dendrite/public/generated/app.8f6d8f.js", target: "es2022", legalComments: "none" });
-await copyFile("canisters/dendrite/web/src/styles.css", "canisters/dendrite/public/generated/styles.5a4e1d.css");
+import { createHash } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
+const root = "canisters/dendrite";
+const generated = `${root}/public/generated`;
+const digest = (bytes) => createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+await rm(generated, { recursive: true, force: true });
+await mkdir(generated, { recursive: true });
+const result = await build({ entryPoints: [`${root}/web/src/main.js`], bundle: true, minify: true, sourcemap: false, write: false, target: "es2022", legalComments: "none", format: "esm" });
+const js = result.outputFiles[0].contents;
+const css = await readFile(`${root}/web/src/styles.css`);
+const jsName = `app.${digest(js)}.js`, cssName = `styles.${digest(css)}.css`;
+await writeFile(`${generated}/${jsName}`, js);
+await writeFile(`${generated}/${cssName}`, css);
+let html = await readFile(`${root}/web/index.template.html`, "utf8");
+html = html.replace("__APP_JS__", `/generated/${jsName}`).replace("__APP_CSS__", `/generated/${cssName}`);
+await writeFile(`${root}/public/index.html`, html);
+const manifest = { "app.js": `/generated/${jsName}`, "styles.css": `/generated/${cssName}` };
+await writeFile(`${root}/public/asset-manifest.json`, `${JSON.stringify(manifest, Object.keys(manifest).sort(), 2)}\n`);

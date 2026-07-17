@@ -1,15 +1,14 @@
 import { parseNeuronId, formatNeuronId } from "./ids.js";
-import { clear, element } from "./dom.js";
+import { clear, element, safeHttpsLink } from "./dom.js";
+import { createAnonymousActor } from "./actor.js";
+import { errorMessage, renderSnapshot } from "./compliance-view.js";
 
 const app = document.querySelector("#app");
-function landing() {
-  clear(app); app.append(element("h1", "Dendrite"), element("p", "Verify quorum-managed, blackholed-controller NNS known neurons. Dendrite never custodies keys, ICP, neurons, rewards, or proposal history."));
-  const form = document.createElement("form"), label = element("label", "NNS neuron ID "), input = document.createElement("input"), button = element("button", "Inspect");
-  input.name = "neuron"; input.inputMode = "numeric"; input.required = true; label.append(input); form.append(label, button);
-  form.addEventListener("submit", (event) => { event.preventDefault(); try { location.hash = `#/neuron/${formatNeuronId(parseNeuronId(input.value))}`; } catch (error) { input.setCustomValidity(error.message); input.reportValidity(); } });
-  app.append(form, element("p", "Committed topics use selected managers; every other topic falls back exactly to alpha-vote, while delegates prove omega-reject liveness."));
-}
-function neuron(id) { clear(app); app.append(element("h1", `Neuron ${id}`), element("p", "Live compliance evidence is loaded from the Dendrite canister. Cached observations always retain their exact timestamp and stale boundary."), element("div", "Loading…", "status")); }
-function route() { const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash); if (!match) return landing(); try { neuron(formatNeuronId(parseNeuronId(match[1]))); } catch { landing(); } }
+let actorPromise;
+const actor = () => actorPromise ??= createAnonymousActor();
+function resources() { const p = document.createElement("p"); p.append(safeHttpsLink("Standard", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/standard/NNS_DENDRITE_STANDARD.md"), document.createTextNode(" · "), safeHttpsLink("Source", "https://github.com/aodl/NNS_Dendrite_Standard"), document.createTextNode(" · "), safeHttpsLink("Reproducible builds", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/development/reproducible-builds.md"), document.createTextNode(" · "), safeHttpsLink("Security model", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/security/threat-model.md")); return p; }
+function landing() { clear(app); app.append(element("h1", "Dendrite"), element("p", "Verify quorum-managed, blackholed-controller NNS known neurons. Dendrite never custodies keys, ICP, neurons, rewards, or proposal history.")); const form = document.createElement("form"), label = element("label", "NNS neuron ID "), input = document.createElement("input"), button = element("button", "Inspect"); input.name = "neuron"; input.inputMode = "numeric"; input.required = true; label.append(input); form.append(label, button); form.addEventListener("submit", (event) => { event.preventDefault(); input.setCustomValidity(""); try { location.hash = `#/neuron/${formatNeuronId(parseNeuronId(input.value))}`; } catch (error) { input.setCustomValidity(error.message); input.reportValidity(); } }); app.append(form, element("p", "Committed topics use selected managers; every other topic follows alpha-vote exactly, while delegates follow omega-reject exactly."), resources()); }
+function showError(message) { const box = element("div", message, "error"); box.tabIndex = -1; app.append(box); box.focus(); }
+async function loadNeuron(id, force = false) { clear(app); app.setAttribute("aria-busy", "true"); app.append(element("h1", `Neuron ${id}`), element("div", "Loading compliance evidence…", "status")); try { const api = await actor(); let snapshot; if (!force) { const cached = await api.get_cached_compliance(BigInt(id)); snapshot = cached[0]; } if (!snapshot) { const result = await api.refresh_compliance(BigInt(id)); if ("Err" in result) throw result.Err; snapshot = result.Ok; } renderSnapshot(app, snapshot); const refresh = element("button", "Request live refresh"); refresh.addEventListener("click", () => loadNeuron(id, true)); app.append(refresh, resources()); } catch (error) { clear(app); app.append(element("h1", `Neuron ${id}`)); showError(errorMessage(error)); const retry = element("button", "Try again"); retry.addEventListener("click", () => loadNeuron(id, true)); app.append(retry, resources()); } finally { app.removeAttribute("aria-busy"); } }
+function route() { const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash); if (!match) return landing(); try { const id = formatNeuronId(parseNeuronId(match[1])); loadNeuron(id); } catch { landing(); } }
 addEventListener("hashchange", route); route();
-

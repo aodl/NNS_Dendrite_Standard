@@ -1,2 +1,0 @@
-:root{font-family:system-ui,sans-serif;color:#17221c;background:#f4f7f4}body{margin:0}main{max-width:64rem;margin:auto;padding:2rem}h1{color:#154c35}form{display:flex;gap:.5rem;align-items:end}input,button{font:inherit;padding:.65rem;border:1px solid #587466;border-radius:.3rem}button{background:#154c35;color:white}.status{padding:1rem;background:white;border-left:4px solid #588d70}@media(max-width:35rem){form{align-items:stretch;flex-direction:column}}
-

@@ -9,11 +9,25 @@ use dendrite_types::{
 use ic_clients::{DissolveState, KnownNeuronData, Neuron, TopicToFollow};
 use std::{cell::RefCell, collections::BTreeMap};
 
+mod assets;
 mod rate_limit;
 mod stable;
 use rate_limit::{RefreshCounters, RefreshState, Rejection};
 
 thread_local! { static REFRESH_STATE: RefCell<RefreshState> = RefCell::new(RefreshState::default()); }
+
+#[ic_cdk::init]
+fn init() {
+    assets::certify_assets();
+}
+#[ic_cdk::post_upgrade]
+fn post_upgrade() {
+    assets::certify_assets();
+}
+#[ic_cdk::query]
+fn http_request(request: assets::HttpRequest) -> assets::HttpResponse {
+    assets::http_request(request)
+}
 
 const NNS_GOVERNANCE_CANISTER_ID: &str = "rrkah-fqaaa-aaaaa-aaaaq-cai";
 
