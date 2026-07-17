@@ -11,13 +11,13 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 candid.workspace = true
 base64.workspace = true
-dendrite-types = { path = "../../crates/dendrite-types" }
+dendrite-types = { version = "=0.1.0", path = "../../crates/dendrite-types" }
 hex.workspace = true
 ic-cdk.workspace = true
 ic-certified-map.workspace = true
-ic-clients = { path = "../../crates/ic-clients" }
+ic-clients = { version = "=0.1.0", path = "../../crates/ic-clients" }
 ic-stable-structures.workspace = true
 include_dir.workspace = true
 serde.workspace = true
-serde_cbor.workspace = true
+ciborium.workspace = true
 sha2.workspace = true

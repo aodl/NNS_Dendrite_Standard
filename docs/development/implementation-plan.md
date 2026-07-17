@@ -66,8 +66,8 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 - [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP.
 - [ ] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
-- [ ] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
-- [ ] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.
+- [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
+- [x] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.
 - [ ] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
 - [ ] Run every required command without suppressing failures and record exact hashes/results.
 - [ ] Confirm no proposal history, timers, generic outbound proxy, delegation custody, or JS `number` conversion exists.

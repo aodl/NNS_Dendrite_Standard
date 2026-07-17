@@ -75,7 +75,13 @@ fn certification_header(_path: &str) -> Option<HeaderField> {
 fn certification_header(path: &str) -> Option<HeaderField> {
     let certificate = ic_cdk::api::data_certificate()?;
     let tree = HASHES.with_borrow(|hashes| {
-        serde_cbor::to_vec(&labeled(CERT_LABEL, hashes.witness(path.as_bytes()))).ok()
+        let mut bytes = Vec::new();
+        ciborium::into_writer(
+            &labeled(CERT_LABEL, hashes.witness(path.as_bytes())),
+            &mut bytes,
+        )
+        .ok()
+        .map(|()| bytes)
     })?;
     Some(HeaderField(
         "IC-Certificate".into(),

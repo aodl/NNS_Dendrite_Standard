@@ -1,3 +1,4 @@
-# No vulnerability exceptions. Any future entry requires an owner, exposure
-# analysis, compensating control, and expiry date.
-
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0436"
+ignoreUntil = 2026-10-17
+reason = "Unmaintained compile-time-only paste macro is transitive through pinned Candid; see docs/security/dependency-exceptions.md."

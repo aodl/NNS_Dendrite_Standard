@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1.7
+FROM docker.io/library/node:24.15.0-bookworm-slim@sha256:4e6b70dd6cbfc88c8157ba19aa3d9f9cce6ba4703576d55459e45efcbc9c5f5d AS frontend
+WORKDIR /src
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY canisters/dendrite/web canisters/dendrite/web
+COPY canisters/dendrite/public canisters/dendrite/public
+COPY src/declarations src/declarations
+RUN npm run build
+
+FROM docker.io/library/rust:1.94.1-slim-bookworm@sha256:cf9dd0ec73e75f827fe59123fff9dc65af1a1c8363c3c31ee8d7f8ad0b6a5fb2 AS builder
+ARG DFX_VERSION=0.27.0
+ENV SOURCE_DATE_EPOCH=0
+WORKDIR /src
+RUN rustup target add wasm32-unknown-unknown
+COPY . .
+COPY --from=frontend /src/canisters/dendrite/public canisters/dendrite/public
+RUN cargo build --locked --release --target wasm32-unknown-unknown -p dendrite
+RUN sha256sum target/wasm32-unknown-unknown/release/dendrite.wasm canisters/dendrite/public/asset-manifest.json > /artifacts.sha256
+
+FROM scratch AS artifacts
+COPY --from=builder /src/target/wasm32-unknown-unknown/release/dendrite.wasm /dendrite.wasm
+COPY --from=builder /src/canisters/dendrite/public /frontend
+COPY --from=builder /artifacts.sha256 /artifacts.sha256
