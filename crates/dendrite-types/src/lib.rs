@@ -238,9 +238,8 @@ pub fn evaluate(
         committed_ok,
         "committed topics are recognised, concrete, and distinct",
     ));
-    if evidence.unknown_committed_topics > 0
-        && let Some(last) = out.last_mut()
-    {
+    if evidence.unknown_committed_topics > 0 {
+        let last = out.last_mut().expect("committed-topic rule was just added");
         last.status = RuleStatus::StandardUpdateRequired;
         last.observed = Some(format!(
             "{} unknown committed-topic variant(s)",
@@ -251,8 +250,8 @@ pub fn evaluate(
         .committed_topics
         .iter()
         .any(|topic| !RECOGNISED_TOPICS.contains(topic))
-        && let Some(last) = out.last_mut()
     {
+        let last = out.last_mut().expect("committed-topic rule was just added");
         last.status = RuleStatus::StandardUpdateRequired;
         last.summary = "committed topic uses an unknown or reserved topic code".into();
     }
@@ -375,33 +374,34 @@ pub fn evaluate(
             delegates.len() >= 3,
             "committed topic has at least three delegates",
         ));
-        if let Some(result) = out.last_mut() {
-            result.relevant_topic = Some(topic);
-            result.related_neuron_ids = delegates.clone();
-            result.observed = Some(delegates.len().to_string());
-            result.expected = Some("at least 3".into());
-        }
+        let result = out.last_mut().expect("delegate-count rule was just added");
+        result.relevant_topic = Some(topic);
+        result.related_neuron_ids = delegates.clone();
+        result.observed = Some(delegates.len().to_string());
+        result.expected = Some("at least 3".into());
         out.push(rule(
             now,
             "DENDRITE-COMMIT-002",
             distinct(&delegates),
             "committed delegates are distinct",
         ));
-        if let Some(result) = out.last_mut() {
-            result.relevant_topic = Some(topic);
-            result.related_neuron_ids = delegates.clone();
-        }
+        let result = out
+            .last_mut()
+            .expect("delegate-distinctness rule was just added");
+        result.relevant_topic = Some(topic);
+        result.related_neuron_ids = delegates.clone();
         out.push(rule(
             now,
             "DENDRITE-COMMIT-003",
             delegates.iter().all(|id| managers.contains(id)),
             "committed delegates are managers only",
         ));
-        if let Some(result) = out.last_mut() {
-            result.relevant_topic = Some(topic);
-            result.related_neuron_ids = delegates.clone();
-            result.expected = Some("all delegates are raw Neuron Management managers".into());
-        }
+        let result = out
+            .last_mut()
+            .expect("delegate-manager rule was just added");
+        result.relevant_topic = Some(topic);
+        result.related_neuron_ids = delegates.clone();
+        result.expected = Some("all delegates are raw Neuron Management managers".into());
         out.push(rule(
             now,
             "DENDRITE-COMMIT-004",
@@ -413,11 +413,10 @@ pub fn evaluate(
             }),
             "each delegate follows omega-reject exactly",
         ));
-        if let Some(result) = out.last_mut() {
-            result.relevant_topic = Some(topic);
-            result.related_neuron_ids = delegates.clone();
-            result.expected = Some(format!("exact singleton [{OMEGA_REJECT_NEURON_ID}]"));
-        }
+        let result = out.last_mut().expect("delegate-follow rule was just added");
+        result.relevant_topic = Some(topic);
+        result.related_neuron_ids = delegates.clone();
+        result.expected = Some(format!("exact singleton [{OMEGA_REJECT_NEURON_ID}]"));
     }
     for topic in RECOGNISED_TOPICS {
         if topic != 0 && topic != 1 && !target.committed_topics.contains(&topic) {
@@ -427,12 +426,10 @@ pub fn evaluate(
                 singleton(target.followees.get(&topic), ALPHA_VOTE_NEURON_ID),
                 "non-committed topic follows alpha-vote exactly",
             ));
-            if let Some(result) = out.last_mut() {
-                result.relevant_topic = Some(topic);
-                result.related_neuron_ids =
-                    target.followees.get(&topic).cloned().unwrap_or_default();
-                result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
-            }
+            let result = out.last_mut().expect("default-follow rule was just added");
+            result.relevant_topic = Some(topic);
+            result.related_neuron_ids = target.followees.get(&topic).cloned().unwrap_or_default();
+            result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
         }
     }
     out.push(rule(
@@ -441,11 +438,10 @@ pub fn evaluate(
         singleton(target.followees.get(&0), ALPHA_VOTE_NEURON_ID),
         "CatchAll follows alpha-vote exactly",
     ));
-    if let Some(result) = out.last_mut() {
-        result.relevant_topic = Some(0);
-        result.related_neuron_ids = target.followees.get(&0).cloned().unwrap_or_default();
-        result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
-    }
+    let result = out.last_mut().expect("CatchAll-follow rule was just added");
+    result.relevant_topic = Some(0);
+    result.related_neuron_ids = target.followees.get(&0).cloned().unwrap_or_default();
+    result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
     let unknown = target
         .followees
         .iter()
@@ -802,6 +798,67 @@ mod tests {
             snapshot.overall_status,
             ComplianceStatus::StandardUpdateRequired
         );
+    }
+    #[test]
+    fn edge_semantics_cover_fail_closed_short_circuits() {
+        let mut evidence = compliant_evidence();
+        evidence.target = None;
+        evidence.source_errors.clear();
+        assert_eq!(
+            evaluate(42, &evidence, SOURCE_REVISION).overall_status,
+            ComplianceStatus::NonCompliant
+        );
+
+        let mut evidence = compliant_evidence();
+        evidence.target.as_mut().unwrap().known_data = None;
+        assert_rule(evidence, "DENDRITE-KNOWN-002", RuleStatus::Fail);
+
+        let mut evidence = compliant_evidence();
+        let future_refresh = evidence.now_seconds + 1;
+        evidence
+            .target
+            .as_mut()
+            .unwrap()
+            .voting_power_refreshed_timestamp_seconds = Some(future_refresh);
+        assert_rule(evidence, "DENDRITE-ACTIVE-001", RuleStatus::Fail);
+
+        let mut evidence = compliant_evidence();
+        evidence.target.as_mut().unwrap().potential_voting_power = Some(0);
+        assert_rule(evidence, "DENDRITE-ACTIVE-002", RuleStatus::Fail);
+
+        let mut evidence = compliant_evidence();
+        evidence.target.as_mut().unwrap().controller = None;
+        assert_rule(evidence, "DENDRITE-CONTROL-001", RuleStatus::Fail);
+
+        let mut evidence = compliant_evidence();
+        evidence
+            .target
+            .as_mut()
+            .unwrap()
+            .followees
+            .insert(99, vec![]);
+        evidence.requested_neuron_ids.push(42);
+        let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+        for rule_id in ["DENDRITE-DEFAULT-003", "DENDRITE-DATA-001"] {
+            assert!(
+                snapshot
+                    .rules
+                    .iter()
+                    .any(|rule| { rule.rule_id == rule_id && rule.status == RuleStatus::Pass })
+            );
+        }
+
+        let mut evidence = compliant_evidence();
+        evidence
+            .target
+            .as_mut()
+            .unwrap()
+            .voting_power_refreshed_timestamp_seconds = None;
+        assert_rule(evidence, "DENDRITE-ACTIVE-001", RuleStatus::Indeterminate);
+
+        let mut evidence = compliant_evidence();
+        evidence.target.as_mut().unwrap().potential_voting_power = None;
+        assert_rule(evidence, "DENDRITE-ACTIVE-002", RuleStatus::Indeterminate);
     }
     #[test]
     fn duplicate_managers_and_extra_omega_followee_fail_focused_rules() {
