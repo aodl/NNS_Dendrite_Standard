@@ -24,7 +24,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [ ] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
 - [ ] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
 - [ ] Canonically hash normalized evidence, configuration, provenance, and complete output.
-- [ ] Add compliant and focused mutation fixtures; meet the specified coverage floor.
+- [ ] Add compliant and focused mutation fixtures; meet the specified coverage floor. (Pure-engine stable coverage is 98.48% regions and 98.75% lines; branch instrumentation requires a pinned nightly workflow and whole-workspace line coverage remains 79.76%.)
 - [ ] Commit this checkpoint separately.
 
 ## 3. Live bounded evidence collection

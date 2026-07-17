@@ -12,6 +12,7 @@ Use Rust `1.94.1`, Node `24.15.0`, npm `11.12.1`, dfx `0.27.0`, and `DFX_IDENTIT
 npm ci
 cargo xtask check
 cargo xtask test
+cargo xtask coverage
 cargo xtask build
 cargo xtask security-scan
 cargo xtask sbom

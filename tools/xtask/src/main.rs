@@ -28,6 +28,7 @@ fn main() -> ExitCode {
                 && run("npm", &["test"])
         }
         "test" => run("cargo", &["test", "--workspace"]) && run("npm", &["test"]),
+        "coverage" => run("sh", &["tools/scripts/coverage.sh"]),
         "build" => {
             run("npm", &["run", "build"])
                 && run(
@@ -48,7 +49,7 @@ fn main() -> ExitCode {
         "sbom" => run("sh", &["tools/scripts/sbom.sh"]),
         _ => {
             eprintln!(
-                "usage: cargo xtask <check|test|build|build-reproducible|verify-reproducible|security-scan|sbom>"
+                "usage: cargo xtask <check|test|coverage|build|build-reproducible|verify-reproducible|security-scan|sbom>"
             );
             false
         }
