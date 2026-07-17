@@ -230,15 +230,22 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
             None
         }
     };
-    let known_neurons: BTreeMap<u64, KnownNeuron> = catalogue
-        .into_iter()
-        .flat_map(|value| value.known_neurons)
-        .filter_map(|known| {
-            let id = known.id?.id;
-            let data = known.known_neuron_data?;
-            Some((id, known_data(&data, id)))
-        })
-        .collect();
+    let mut known_neurons = BTreeMap::new();
+    for known in catalogue.into_iter().flat_map(|value| value.known_neurons) {
+        let (Some(id), Some(data)) = (known.id, known.known_neuron_data) else {
+            source_errors.push("list_known_neurons returned an incomplete catalogue entry".into());
+            continue;
+        };
+        if known_neurons
+            .insert(id.id, known_data(&data, id.id))
+            .is_some()
+        {
+            source_errors.push(format!(
+                "list_known_neurons returned duplicate neuron ID {}",
+                id.id
+            ));
+        }
+    }
     let target_response = match ic_clients::fetch_public_full_neurons(vec![neuron_id]).await {
         Ok(value) => Some(value),
         Err(error) => {
@@ -246,10 +253,17 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
             None
         }
     };
-    let target_raw = target_response
+    let mut target_matches: Vec<_> = target_response
         .into_iter()
         .flat_map(|value| value.full_neurons)
-        .find(|n| n.id.as_ref().is_some_and(|id| id.id == neuron_id));
+        .filter(|neuron| neuron.id.as_ref().is_some_and(|id| id.id == neuron_id))
+        .collect();
+    if target_matches.len() > 1 {
+        source_errors.push(format!(
+            "list_neurons returned duplicate target neuron ID {neuron_id}"
+        ));
+    }
+    let target_raw = target_matches.pop();
     let Some(target_raw) = target_raw else {
         let evidence = EvaluationEvidence {
             now_seconds: now,
@@ -279,12 +293,42 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteErro
             None
         }
     };
-    let dependencies = dependency_response
+    let mut dependencies = BTreeMap::new();
+    for raw in dependency_response
         .into_iter()
         .flat_map(|value| value.full_neurons)
-        .map(normalize_neuron)
-        .map(|(n, _)| (n.id, n))
-        .collect();
+    {
+        let (neuron, unknown) = normalize_neuron(raw);
+        if neuron.id == 0 {
+            source_errors.push("list_neurons returned dependency without an ID".into());
+            continue;
+        }
+        if !requested.contains(&neuron.id) {
+            source_errors.push(format!(
+                "list_neurons returned unrequested neuron ID {}",
+                neuron.id
+            ));
+        }
+        if unknown > 0 {
+            source_errors.push(format!(
+                "dependency neuron {} contained an unknown committed-topic variant",
+                neuron.id
+            ));
+        }
+        let id = neuron.id;
+        if dependencies.insert(id, neuron).is_some() {
+            source_errors.push(format!(
+                "list_neurons returned duplicate dependency neuron ID {id}"
+            ));
+        }
+    }
+    for id in &requested {
+        if !dependencies.contains_key(id) {
+            source_errors.push(format!(
+                "list_neurons omitted requested dependency neuron ID {id}"
+            ));
+        }
+    }
     let economics = match ic_clients::fetch_network_economics().await {
         Ok(value) => Some(value),
         Err(error) => {
