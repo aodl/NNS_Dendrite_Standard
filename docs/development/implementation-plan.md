@@ -29,12 +29,12 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 ## 3. Live bounded evidence collection
 
-- [ ] Implement the shared deterministic collector pipeline and fake-client seams.
+- [x] Implement the shared deterministic collector pipeline and fake-client seams.
 - [x] Implement production fixed-destination Governance/economics/controller collection.
 - [x] Detect rejections, missing/contradictory records, unknown variants, and bounds violations.
 - [x] Replace the production placeholder in `refresh_compliance` with the real pipeline.
-- [ ] Add integration tests for compliant, defective, rejected, incomplete, unknown, and oversized graphs.
-- [ ] Commit this checkpoint separately.
+- [x] Add integration tests for compliant, defective, rejected, incomplete, unknown, and oversized graphs.
+- [x] Commit this checkpoint separately.
 
 ## 4. Stable bounded cache and abuse controls
 
