@@ -182,6 +182,11 @@ fn known_data(data: &KnownNeuronData, id: u64) -> KnownNeuron {
     KnownNeuron {
         id,
         name: data.name.chars().take(256).collect(),
+        description: data
+            .description
+            .as_ref()
+            .map(|value| value.chars().take(2_048).collect()),
+        links: data.links.clone().unwrap_or_default(),
     }
 }
 
