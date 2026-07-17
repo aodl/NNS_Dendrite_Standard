@@ -24,7 +24,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [x] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
 - [x] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
 - [x] Canonically hash normalized evidence, configuration, provenance, and complete output.
-- [x] Add compliant and focused mutation fixtures; meet the specified pure-engine coverage floor. (The pure engine passes at 99.30% regions, 98.94% lines, and 98.94% branches using the separately pinned coverage-only nightly; whole-workspace stable line coverage remains below 85%.)
+- [x] Add compliant and focused mutation fixtures; meet the specified pure-engine coverage floor. (The pure engine passes at 98.84% regions, 98.58% lines, and 96.30% branches using the separately pinned coverage-only nightly; whole-workspace stable line coverage remains below 85%.)
 - [x] Commit this checkpoint separately.
 
 ## 3. Live bounded evidence collection
@@ -67,9 +67,9 @@ This checklist tracks production behaviour required for the anonymous verifier t
 - [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP. (Anonymous API, fixed-upstream rejection, indeterminate non-caching, cooldown, certified HTTP/security headers, and production-Wasm upgrade pass; mocked successful NNS dependencies, low cycles, and concurrency remain native-only.)
 - [x] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
 - [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
-- [x] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.
+- [ ] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability. (SBOMs and traceability pass. The scan executes but currently fails because pinned PocketIC 15.0.0 brings the unmaintained `backoff`, `instant`, and `serde_cbor` crates as test-only transitive dependencies; no blanket advisory suppression was added.)
 - [x] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
-- [ ] Run every required command without suppressing failures and record exact hashes/results.
+- [x] Run every required command without suppressing failures and record exact hashes/results. (`cargo xtask security-scan` is the sole failing required command; the failure is recorded above. Workspace Rust line coverage is 83.44%, below the unchanged 85% floor.)
 - [x] Confirm no proposal history, timers, generic outbound proxy, delegation custody, or JS `number` conversion exists.
 - [x] Explicitly document Internet Identity, authority recognition, onboarding, and the authenticated control panel as incomplete next-tranche work.
-- [ ] Commit final hardening/documentation separately.
+- [x] Commit final hardening/documentation separately.
