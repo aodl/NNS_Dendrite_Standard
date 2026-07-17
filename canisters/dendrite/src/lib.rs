@@ -7,9 +7,13 @@ use dendrite_types::{
     STANDARD_VERSION, evaluate,
 };
 use ic_clients::{DissolveState, KnownNeuronData, Neuron, TopicToFollow};
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap};
 
+mod rate_limit;
 mod stable;
+use rate_limit::{RefreshCounters, RefreshState, Rejection};
+
+thread_local! { static REFRESH_STATE: RefCell<RefreshState> = RefCell::new(RefreshState::default()); }
 
 const NNS_GOVERNANCE_CANISTER_ID: &str = "rrkah-fqaaa-aaaaa-aaaaq-cai";
 
@@ -26,12 +30,18 @@ pub struct StandardConfig {
 pub struct PublicStatus {
     schema_version: u16,
     cached_snapshots: u16,
+    refresh_counters: RefreshCounters,
 }
 #[derive(Clone, CandidType, Deserialize)]
 pub enum DendriteError {
     InvalidNeuronId(String),
     TemporarilyUnavailable(String),
     Upstream(String),
+    Cooldown { retry_after_seconds: u64 },
+    GlobalRateLimit { retry_after_seconds: u64 },
+    ConcurrencyLimit,
+    DuplicateInFlight,
+    LowCycles,
 }
 
 #[ic_cdk::query]
@@ -59,6 +69,7 @@ fn get_public_status() -> PublicStatus {
     PublicStatus {
         schema_version: 1,
         cached_snapshots: stable::len() as u16,
+        refresh_counters: REFRESH_STATE.with_borrow(|state| state.counters),
     }
 }
 
@@ -74,13 +85,38 @@ async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, Dendri
     if let Some(snapshot) = stable::get(neuron_id) {
         let now = ic_cdk::api::time() / 1_000_000_000;
         if now <= snapshot.stale_after_timestamp_seconds {
+            REFRESH_STATE.with_borrow_mut(RefreshState::cache_hit);
             return Ok(snapshot);
         }
     }
-    let snapshot = collect_live(neuron_id).await?;
+    let now = ic_cdk::api::time() / 1_000_000_000;
+    let cycles = ic_cdk::api::canister_liquid_cycle_balance();
+    REFRESH_STATE
+        .with_borrow_mut(|state| state.begin(neuron_id, now, cycles))
+        .map_err(|rejection| match rejection {
+            Rejection::Cooldown(retry_after_seconds) => DendriteError::Cooldown {
+                retry_after_seconds,
+            },
+            Rejection::GlobalRate(retry_after_seconds) => DendriteError::GlobalRateLimit {
+                retry_after_seconds,
+            },
+            Rejection::Concurrency => DendriteError::ConcurrencyLimit,
+            Rejection::Duplicate => DendriteError::DuplicateInFlight,
+            Rejection::LowCycles => DendriteError::LowCycles,
+        })?;
+    let collected = collect_live(neuron_id).await;
+    let snapshot = match collected {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            REFRESH_STATE.with_borrow_mut(|state| state.finish(neuron_id, false, false));
+            return Err(error);
+        }
+    };
+    let mut evicted = false;
     if snapshot.overall_status != dendrite_types::ComplianceStatus::Indeterminate {
-        stable::put(snapshot.clone());
+        evicted = stable::put(snapshot.clone());
     }
+    REFRESH_STATE.with_borrow_mut(|state| state.finish(neuron_id, true, evicted));
     Ok(snapshot)
 }
 
