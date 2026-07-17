@@ -91,6 +91,11 @@ export interface StandardConfig {
   'standard_version' : string,
 }
 export interface _SERVICE {
+  'force_refresh_compliance' : ActorMethod<
+    [bigint],
+    { 'Ok' : ComplianceSnapshot } |
+      { 'Err' : DendriteError }
+  >,
   'get_cached_compliance' : ActorMethod<[bigint], [] | [ComplianceSnapshot]>,
   'get_public_status' : ActorMethod<[], PublicStatus>,
   'get_standard_config' : ActorMethod<[], StandardConfig>,

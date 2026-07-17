@@ -112,14 +112,26 @@ fn get_public_status() -> PublicStatus {
 // bounded adapter is intentionally unavailable on non-wasm test builds.
 #[ic_cdk::update]
 async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
+    refresh(neuron_id, true).await
+}
+
+#[ic_cdk::update]
+async fn force_refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
+    refresh(neuron_id, false).await
+}
+
+async fn refresh(
+    neuron_id: u64,
+    allow_fresh_cache: bool,
+) -> Result<ComplianceSnapshot, DendriteError> {
     if neuron_id == 0 {
         return Err(DendriteError::InvalidNeuronId(
             "neuron ID must be non-zero".into(),
         ));
     }
-    if let Some(snapshot) = stable::get(neuron_id) {
+    if allow_fresh_cache && let Some(snapshot) = stable::get(neuron_id) {
         let now = ic_cdk::api::time() / 1_000_000_000;
-        if now <= snapshot.stale_after_timestamp_seconds {
+        if cache_is_fresh(&snapshot, now) {
             mutate_refresh_state(RefreshState::cache_hit);
             return Ok(snapshot);
         }
@@ -153,6 +165,10 @@ async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, Dendri
     }
     mutate_refresh_state(|state| state.finish(neuron_id, true, evicted));
     Ok(snapshot)
+}
+
+fn cache_is_fresh(snapshot: &ComplianceSnapshot, now: u64) -> bool {
+    now <= snapshot.stale_after_timestamp_seconds
 }
 
 fn topic_code(topic: &TopicToFollow) -> i32 {
@@ -649,6 +665,18 @@ mod tests {
     #[test]
     fn public_status_contains_only_operational_state() {
         assert_eq!(get_public_status().schema_version, 1);
+    }
+    #[test]
+    fn cache_freshness_boundary_is_exact() {
+        let snapshot = block_on(collect_with(&compliant_client(), 42, 1_000_000)).unwrap();
+        assert!(cache_is_fresh(
+            &snapshot,
+            snapshot.stale_after_timestamp_seconds
+        ));
+        assert!(!cache_is_fresh(
+            &snapshot,
+            snapshot.stale_after_timestamp_seconds + 1
+        ));
     }
     #[test]
     fn checked_in_candid_is_structurally_equal_to_rust_export() {

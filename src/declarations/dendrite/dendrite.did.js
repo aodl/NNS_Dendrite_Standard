@@ -94,6 +94,11 @@ export const idlFactory = ({ IDL }) => {
     'DuplicateInFlight' : IDL.Null,
   });
   return IDL.Service({
+    'force_refresh_compliance' : IDL.Func(
+        [IDL.Nat64],
+        [IDL.Variant({ 'Ok' : ComplianceSnapshot, 'Err' : DendriteError })],
+        [],
+      ),
     'get_cached_compliance' : IDL.Func(
         [IDL.Nat64],
         [IDL.Opt(ComplianceSnapshot)],
