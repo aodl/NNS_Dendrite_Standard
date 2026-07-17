@@ -1,0 +1,10 @@
+/target/
+/dist/
+/coverage/
+/node_modules/
+/.dfx/
+*.wasm
+*.wasm.gz
+*.pem
+.env*
+

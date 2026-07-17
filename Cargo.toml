@@ -1,0 +1,25 @@
+[workspace]
+members = ["canisters/dendrite", "crates/dendrite-types", "tools/xtask"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/OWNER/dendrite"
+rust-version = "1.94.1"
+
+[workspace.dependencies]
+candid = "=0.10.24"
+hex = "=0.4.3"
+ic-cdk = "=0.20.2"
+ic-stable-structures = "=0.7.2"
+serde = { version = "=1.0.228", features = ["derive"] }
+sha2 = "=0.10.9"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
