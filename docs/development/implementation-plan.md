@@ -19,7 +19,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 
 ## 2. Complete pure standard engine
 
-- [ ] Split topics, bounds, evidence, results, rules, digest, and fixture helpers into reviewable modules.
+- [ ] Split topics, bounds, evidence, results, rules, digest, and fixture helpers into reviewable modules. (Public evidence/result models and topic semantics are now separate modules; engine, digest, bounds, and fixture extraction remains.)
 - [x] Implement every mandatory stable rule ID with exhaustive non-short-circuit output.
 - [x] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
 - [x] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
