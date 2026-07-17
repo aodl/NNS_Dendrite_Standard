@@ -342,4 +342,14 @@ mod tests {
     fn public_status_contains_only_operational_state() {
         assert_eq!(get_public_status().schema_version, 1);
     }
+    #[test]
+    fn checked_in_candid_is_structurally_equal_to_rust_export() {
+        let path = std::env::temp_dir().join(format!("dendrite-export-{}.did", std::process::id()));
+        let exported = __export_service();
+        std::fs::write(&path, &exported).expect("write temporary Candid export");
+        let checked = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("dendrite.did");
+        let status = std::process::Command::new("didc").args(["check", "--strict"]).arg(&path).arg(checked).status().expect("run didc");
+        let _ = std::fs::remove_file(path);
+        assert!(status.success(), "Rust Candid export drifted from dendrite.did:\n{exported}");
+    }
 }

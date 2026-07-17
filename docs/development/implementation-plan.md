@@ -65,7 +65,7 @@ This checklist tracks production behaviour required for the anonymous verifier t
 ## 7. Release verification and reviewer/operator material
 
 - [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP.
-- [ ] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
+- [x] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
 - [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
 - [x] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability.
 - [ ] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
