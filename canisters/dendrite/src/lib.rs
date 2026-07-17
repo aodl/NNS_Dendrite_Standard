@@ -7,7 +7,9 @@ use dendrite_types::{
     STANDARD_VERSION, evaluate,
 };
 use ic_clients::{DissolveState, KnownNeuronData, Neuron, TopicToFollow};
-use std::{cell::RefCell, collections::BTreeMap};
+use std::collections::BTreeMap;
+
+mod stable;
 
 const NNS_GOVERNANCE_CANISTER_ID: &str = "rrkah-fqaaa-aaaaa-aaaaq-cai";
 
@@ -24,7 +26,6 @@ pub struct StandardConfig {
 pub struct PublicStatus {
     schema_version: u16,
     cached_snapshots: u16,
-    proposal_history_stored: bool,
 }
 #[derive(Clone, CandidType, Deserialize)]
 pub enum DendriteError {
@@ -32,8 +33,6 @@ pub enum DendriteError {
     TemporarilyUnavailable(String),
     Upstream(String),
 }
-
-thread_local! { static CACHE: RefCell<BTreeMap<u64, ComplianceSnapshot>> = const { RefCell::new(BTreeMap::new()) }; }
 
 #[ic_cdk::query]
 fn get_standard_config() -> StandardConfig {
@@ -52,15 +51,14 @@ fn get_cached_compliance(neuron_id: u64) -> Option<ComplianceSnapshot> {
     if neuron_id == 0 {
         return None;
     }
-    CACHE.with_borrow(|cache| cache.get(&neuron_id).cloned())
+    stable::get(neuron_id)
 }
 
 #[ic_cdk::query]
 fn get_public_status() -> PublicStatus {
     PublicStatus {
         schema_version: 1,
-        cached_snapshots: CACHE.with_borrow(|c| c.len() as u16),
-        proposal_history_stored: false,
+        cached_snapshots: stable::len() as u16,
     }
 }
 
@@ -73,7 +71,7 @@ async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, Dendri
             "neuron ID must be non-zero".into(),
         ));
     }
-    if let Some(snapshot) = CACHE.with_borrow(|c| c.get(&neuron_id).cloned()) {
+    if let Some(snapshot) = stable::get(neuron_id) {
         let now = ic_cdk::api::time() / 1_000_000_000;
         if now <= snapshot.stale_after_timestamp_seconds {
             return Ok(snapshot);
@@ -81,18 +79,7 @@ async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, Dendri
     }
     let snapshot = collect_live(neuron_id).await?;
     if snapshot.overall_status != dendrite_types::ComplianceStatus::Indeterminate {
-        CACHE.with_borrow_mut(|cache| {
-            if cache.len() >= MAX_CACHED_SNAPSHOTS
-                && !cache.contains_key(&neuron_id)
-                && let Some(oldest) = cache
-                    .values()
-                    .min_by_key(|s| (s.checked_at_timestamp_seconds, s.neuron_id))
-                    .map(|s| s.neuron_id)
-            {
-                cache.remove(&oldest);
-            }
-            cache.insert(neuron_id, snapshot.clone());
-        });
+        stable::put(snapshot.clone());
     }
     Ok(snapshot)
 }
@@ -284,7 +271,7 @@ mod tests {
         assert_eq!(c.governance_canister_id, "rrkah-fqaaa-aaaaa-aaaaq-cai");
     }
     #[test]
-    fn no_history_state() {
-        assert!(!get_public_status().proposal_history_stored);
+    fn public_status_contains_only_operational_state() {
+        assert_eq!(get_public_status().schema_version, 1);
     }
 }

@@ -13,4 +13,5 @@ candid.workspace = true
 dendrite-types = { path = "../../crates/dendrite-types" }
 ic-cdk.workspace = true
 ic-clients = { path = "../../crates/ic-clients" }
+ic-stable-structures.workspace = true
 serde.workspace = true
