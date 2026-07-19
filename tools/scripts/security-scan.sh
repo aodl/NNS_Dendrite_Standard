@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-cargo audit --locked
+cargo audit
 cargo deny check
 tools/scripts/check-production-dependencies.sh
 osv-scanner scan source -r .

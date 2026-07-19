@@ -19,6 +19,7 @@ toolchain expression used by a transitive build dependency.
 ## Dev/test PocketIC advisories
 
 - Owner: Dendrite maintainers.
+- Review date: 2026-10-17.
 - Scope: `pocket-ic 15.0.0` dev dependency and its `backoff 0.4.0`, `instant 0.1.13`,
   and `serde_cbor 0.11.2` transitive dependencies.
 - Classification: dev-test-only for `pocket-ic`, `backoff`, and `instant`; they are
