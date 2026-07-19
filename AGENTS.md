@@ -2,85 +2,87 @@
 
 ## Mission
 
-Build Dendrite: a minimal, security-focused, single-production-canister Internet Computer application that verifies the NNS Dendrite Standard and helps authorised manager-neuron operators construct and submit NNS Neuron Management proposals.
-
-Read `DENDRITE_BUILD_SPEC.md` completely before changing files. Treat it as the product and engineering contract. Do not quietly weaken a MUST requirement. Record unavoidable deviations in an ADR and surface them in the final report.
+Build Dendrite as the smallest credible anonymous verifier of the NNS Dendrite
+Standard. This tranche is one certified Rust canister, one live verification update
+method, and no application data storage. Read `DENDRITE_BUILD_SPEC.md` completely
+before changing files and do not weaken a MUST requirement silently.
 
 ## Working method
 
-- Start by initialising Git and creating a short implementation plan in `docs/development/implementation-plan.md`.
-- Work through the plan autonomously. Do not stop after scaffolding or leave core features as TODOs.
-- Make small, reviewable commits at useful checkpoints.
-- Run the relevant checks after every meaningful change and the full verification suite before finishing.
-- Prefer the smallest design that satisfies the specification. Avoid frameworks, abstraction layers, code generation systems, and production dependencies that do not earn their complexity.
-- Never vendor private keys, Internet Identity delegations, access tokens, generated identities, or mainnet credentials.
-- Do not modify the protocol constants below without a clearly documented standards update.
+- Keep changes small and reviewable and commit useful checkpoints.
+- Prefer deletion, direct calls, compile-time constants, and one narrow client trait.
+- Preserve useful pure-rule, interface, frontend-safety, reproducibility, and test work.
+- Run relevant checks after meaningful changes and the full suite before completion.
+- Never vendor keys, delegations, tokens, identities, or mainnet credentials.
+- Do not deploy to mainnet unless explicitly requested.
 
 ## Fixed protocol constants
 
-- `ALPHA_VOTE_NEURON_ID = 2_947_465_672_511_369u64`
-- `OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264u64`
-- The omega neuron is **omega-reject**, not omega-vote.
-- In JavaScript, encode neuron and proposal IDs as decimal strings or `bigint`; never use `number` for NNS IDs.
-- The target Dendrite neuron MUST have `hot_keys = []`.
-- The target Dendrite neuron MUST have `not_for_profit = false`.
-- Proposal-history indexing and durable proposal-history storage are out of scope. Do not add them.
+- `ALPHA_VOTE_NEURON_ID = 2_947_465_672_511_369u64`.
+- `OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264u64`.
+- Omega-reject is not omega-vote.
+- The pinned source revision is `d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
+- The maximum dissolve delay is `63_072_000` seconds, derived from that revision.
+- The active refresh threshold is six nominal months.
+- A target has no hotkeys, has `not_for_profit = false`, and has at least five
+  distinct Neuron Management managers.
+- JavaScript NNS IDs are decimal strings or `bigint`, never `number`.
 
 ## Architecture constraints
 
 - Exactly one production canister named `dendrite`.
-- Rust canister embeds and serves certified frontend assets.
-- Frontend should be small vanilla JavaScript modules bundled with a pinned esbuild version unless a documented technical blocker requires otherwise.
-- Privileged NNS mutations are signed in the browser with the user's Internet Identity delegation and sent directly to NNS Governance. The Dendrite canister must never hold, relay, persist, or reconstruct a user delegation.
-- Canister outbound calls are fixed to NNS Governance and the IC management canister. Never accept arbitrary destination canister IDs, method names, or forwarded Candid blobs.
-- No off-chain database, hosted backend, analytics service, remote font, or third-party runtime dependency.
-- No unbounded stable data. Cache only a bounded number of latest compliance snapshots with deterministic eviction; do not use timers or build an indexer.
+- Public application methods are only update `check_neuron : (nat64) ->
+  (CheckResult)` and certified static-asset query `http_request`.
+- Every check is live and consensus-backed. Store no result, history, configuration,
+  counter, cache, or other application data in stable memory.
+- No timer, heartbeat, indexer, background job, off-chain service, analytics, remote
+  font, arbitrary outbound call, or generic transport exists.
+- Canister outbound calls are fixed to NNS Governance `list_neurons` and management
+  canister `canister_info` only.
+- The frontend is embedded and served with HTTP certification v2.
+- A tiny heap-only global abuse guard may reset on upgrade and has no public counters.
+- Future privileged operations are browser-to-NNS and never relay a delegation through
+  Dendrite. Authentication and governance controls are deliberately out of scope now.
 
-## Security rules
+## Verification rules
 
-- Treat every on-chain string, URL, error, name, and description as untrusted input. Render with text-safe DOM helpers; never use `innerHTML` with dynamic content.
-- Validate every decimal ID canonically and reject signs, whitespace, overflow, fractional forms, exponent notation, and leading ambiguity.
-- Fail closed on missing fields, rejected calls, unknown topic/command variants, Candid drift, stale mandatory evidence, or incomplete dependency reads.
-- Before every state-changing NNS call, show the exact decoded action, simulate the exact outer `manage_neuron` request, and require explicit confirmation.
-- High-risk actions need stronger warnings. A compliant Dendrite neuron cannot submit `Disburse` or `DisburseToNeuron` through Neuron Management while `not_for_profit` is false; simulation remains authoritative.
-- A manager is authorised only after exact comparison of the authenticated Dendrite principal against that manager neuron's `controller` or `hot_keys`. Do not infer authority from public visibility or from `get_neuron_ids` alone.
-- Adding a hotkey is controller-only under current NNS rules. Do not claim that an existing hotkey can add the Dendrite principal.
+- Use `Neuron.known_neuron_data`; do not call a known-neuron catalogue or economics API.
+- Preserve raw following vectors and detect duplicate IDs and duplicate topic-map keys
+  before constructing maps or sets.
+- Batch dependency `list_neurons` requests at 50 IDs or fewer and enforce the hard
+  graph bound derived from pinned topics and the 15-followee limit.
+- Successful omission of a target or dependency is factual evidence, not a transport
+  failure. Rejection/decode/unavailable evidence is indeterminate. Unknown protocol
+  semantics require a standard update.
+- Blackholing requires `canister_info` success, no Wasm, and no controllers.
+- Emit every independent rule supported by available evidence.
 
-## Engineering style
+## Security and engineering
 
-Follow the Jupiter Faucet archetype:
+- Treat all upstream strings and URLs as untrusted. Use text-safe DOM helpers, never
+  dynamic `innerHTML`, and allow only validated HTTPS links.
+- Validate decimal IDs canonically and reject signs, whitespace, overflow, fractions,
+  exponent notation, zero, and ambiguous leading zeros.
+- Use pinned tools and lockfiles, narrow checked-in Candid subsets with semantic drift
+  checks, strict Clippy, unit/PocketIC/frontend tests, reproducible builds, scans, and
+  SBOMs.
+- Keep PocketIC-only packages out of the production Wasm dependency tree and document
+  narrowly scoped dev/test exceptions.
 
-- pinned Rust toolchain and checked-in lockfiles;
-- narrow checked-in Candid subsets plus drift checks against upstream interfaces;
-- pure transformation/validation modules with explicit types and stable rule IDs;
-- `cargo fmt`, strict Clippy, unit tests, PocketIC integration tests, browser unit tests, and XSS regressions;
-- reproducible container build with digest-pinned base image and deterministic artifact verification;
-- `cargo audit`, `cargo deny`, OSV scanning, CycloneDX SBOM, documented exceptions, and production-dependency reachability review;
-- detailed architecture, threat model, deployment, upgrade, recovery, source-verification, and operator documentation.
-
-## Required top-level commands
-
-Provide stable commands, preferably through `cargo xtask` and package scripts, for:
+## Required root commands
 
 - `cargo xtask check`
 - `cargo xtask test`
+- `cargo xtask coverage`
 - `cargo xtask build`
 - `cargo xtask build-reproducible`
 - `cargo xtask verify-reproducible`
 - `cargo xtask security-scan`
 - `cargo xtask sbom`
 - `npm test`
+- `npm run test:coverage`
 
-They must work from the repository root and be documented.
-
-## Completion bar
-
-Do not report completion until:
-
-- all mandatory product flows in `DENDRITE_BUILD_SPEC.md` work;
-- all tests and static checks pass;
-- the production Wasm and frontend build successfully from a clean checkout;
-- two reproducible builds produce byte-identical Wasm and frontend artifacts;
-- no proposal-history tables, APIs, indexers, timers, or durable history remain;
-- no unsafe JavaScript numeric conversion of the omega-reject ID exists;
-- the final report lists commands run, test results, artifact hashes, known limitations, and any deferred work.
+Do not report completion until all mandatory flows and checks pass, two clean builds
+are byte-identical, Rust workspace line coverage exceeds 85%, frontend coverage passes,
+and the final report records commands, hashes, exceptions, limitations, and deferred
+Internet Identity/governance work.

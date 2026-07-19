@@ -1,75 +1,55 @@
-# Anonymous verifier tranche implementation plan
+# Aggressive simplification implementation plan
 
-This checklist tracks production behaviour required for the anonymous verifier tranche. The repository began this tranche as a partial scaffold: it had a small pure-rule prototype, draft Candid files, a heap-only cache, a placeholder live refresh, prebuilt static files that were not embedded or certified, and experimental frontend proposal helpers. A checked item means the production behaviour and its focused tests are complete; the existence of scaffold code alone does not qualify.
+This plan replaces the completed cache-oriented tranche. Net deletion and a smaller
+auditable surface are explicit success criteria.
 
-## 0. Preserve and baseline
+## 1. Governing design
 
-- [x] Read `AGENTS.md` and `DENDRITE_BUILD_SPEC.md` completely.
-- [x] Inspect Git status, branch, recent history, and remotes; preserve the untracked `CODEX_START_PROMPT.md`.
-- [x] Confirm `origin` is `https://github.com/aodl/NNS_Dendrite_Standard.git`.
-- [x] Record exact local tool versions and establish a passing baseline (`rustc/cargo 1.94.1`, Node `24.15.0`, npm `11.12.1`, dfx `0.27.0`; initial Rust and frontend tests pass).
+- [x] Inspect Git history, branch, status, and remote; preserve `CODEX_START_PROMPT.md`.
+- [x] Rewrite `AGENTS.md` and `DENDRITE_BUILD_SPEC.md` around a live, stateless verifier.
+- [ ] Reconcile existing standard, architecture, security, testing, build, deployment,
+  upgrade, and operator documents.
+- [ ] Commit as `docs: simplify Dendrite architecture`.
 
-## 1. Exact fixed external interfaces
+## 2. Stateless canister
 
-- [x] Verify one immutable official `dfinity/ic` revision and use it everywhere.
-- [x] Rebuild the minimal Governance and management Candid subsets from that revision, including real committed-topic variants and `canister_info` service shape.
-- [x] Add fixed-destination, method-specific typed Rust clients with bounded conversion and errors.
-- [x] Replace grep drift checks with structural compatibility checks; prove incompatible fixtures fail.
-- [x] Add representative decode tests and commit this checkpoint separately.
+- [ ] Remove stable snapshots, migrations, metadata, counters, digest encoding, stale
+  fields, cache APIs, and now-unused dependencies.
+- [ ] Replace abuse controls with a two-concurrent, same-neuron, global-window,
+  fixed-cycle-reserve heap guard that resets on upgrade.
+- [ ] Export only update `check_neuron` and query `http_request`.
+- [ ] Commit as `refactor: remove compliance cache and stable state`.
 
-## 2. Complete pure standard engine
+## 3. Live evidence and report
 
-- [ ] Split topics, bounds, evidence, results, rules, digest, and fixture helpers into reviewable modules. (Public evidence/result models and topic semantics are now separate modules; engine, digest, bounds, and fixture extraction remains.)
-- [x] Implement every mandatory stable rule ID with exhaustive non-short-circuit output.
-- [x] Distinguish factual failure, indeterminate evidence, and standard-update-required semantics.
-- [x] Preserve raw manager/delegate lists and provide bounded snapshot summaries and provenance.
-- [x] Canonically hash normalized evidence, configuration, provenance, and complete output.
-- [x] Add compliant and focused mutation fixtures; meet the specified pure-engine coverage floor. (The pure engine passes at 98.84% regions, 98.58% lines, and 96.30% branches using the separately pinned coverage-only nightly; whole-workspace stable line coverage remains below 85%.)
-- [x] Commit this checkpoint separately.
+- [ ] Reduce the client boundary to `list_neurons(ids)` and
+  `canister_info(controller)` with fixed production destinations.
+- [ ] Remove catalogue and economics calls; use `known_neuron_data`, the pinned maximum
+  dissolve delay, and the six-month threshold.
+- [ ] Implement target-first early exit and dependency batches of at most 50 with a
+  hard maximum of 257 unique dependencies.
+- [ ] Preserve raw vectors; detect duplicate topic keys, duplicate/unexpected records,
+  contradictions, and omissions with the specified semantics.
+- [ ] Commit live collection and explicit report-model simplification separately.
 
-## 3. Live bounded evidence collection
+## 4. Certified assets and frontend
 
-- [x] Implement the shared deterministic collector pipeline and fake-client seams.
-- [x] Implement production fixed-destination Governance/economics/controller collection.
-- [x] Detect rejections, missing/contradictory records, unknown variants, and bounds violations.
-- [x] Replace the production placeholder in `refresh_compliance` with the real pipeline.
-- [x] Add integration tests for compliant, defective, rejected, incomplete, unknown, and oversized graphs.
-- [x] Commit this checkpoint separately.
+- [ ] Replace custom certification with the official HTTP v2 `AssetRouter` pattern.
+- [ ] Serve only the required deterministic routes and security headers.
+- [ ] Replace cache-first UI with one live `check_neuron(BigInt(id))` flow.
+- [ ] Use deterministic build-time canister configuration for custom domains.
+- [ ] Delete `authority.js`, `proposals.js`, and `rewards.js`.
+- [ ] Commit certification and frontend simplification separately.
 
-## 4. Stable bounded cache and abuse controls
+## 5. Tests and release evidence
 
-- [x] Replace the heap map with versioned `ic-stable-structures` state capped at 256 snapshots.
-- [x] Implement deterministic eviction, record bounds, migrations, and upgrade tests. (Cap, deterministic eviction, schema metadata, malformed/unsupported-schema rejection, same-memory reopen, legacy snapshot compatibility, and production-Wasm PocketIC upgrade are tested.)
-- [x] Implement cooldown, global rate limiting, in-flight deduplication, concurrency and cycle-reserve checks.
-- [x] Persist intended counters/configuration; remove proposal-history runtime flags/state.
-- [x] Test fresh/stale/explicit refresh, all rejection paths, eviction, migration, and upgrades across native and PocketIC suites.
-- [x] Commit this checkpoint separately.
-
-## 5. Embedded certified frontend
-
-- [x] Deterministically build content-hashed frontend assets before Wasm compilation.
-- [x] Embed and serve assets from the sole `dendrite` Rust canister.
-- [x] Implement certified GET/HEAD, SPA/404 routing, MIME/cache policy, ETags, and security headers.
-- [x] Add `http_request` to exported/checked-in Candid and test certification witnesses/body hashes.
-- [x] Commit this checkpoint separately.
-
-## 6. Functional anonymous neuron page
-
-- [x] Generate/check declarations and create an anonymous Dendrite actor.
-- [x] Implement canonical-string routing, cache-first load, live/explicit refresh, and typed errors.
-- [x] Render complete snapshot evidence and every rule using text-safe DOM APIs and safe URLs.
-- [x] Add accessibility, stale provenance, XSS, precision, behavior, and coverage tests.
-- [x] Isolate misleading experimental authenticated/proposal helpers from the production UI and make deferral explicit.
-- [x] Commit this checkpoint separately.
-
-## 7. Release verification and reviewer/operator material
-
-- [ ] Add deterministic PocketIC coverage for API, outbound constraints, cache/upgrade, and certified HTTP. (Anonymous API, fixed-upstream rejection, indeterminate non-caching, cooldown, certified HTTP/security headers, and production-Wasm upgrade pass; mocked successful NNS dependencies, low cycles, and concurrency remain native-only.)
-- [x] Enforce Candid equality, semantic interface drift, Rust/frontend coverage, and strict checks.
-- [x] Repair clean two-build reproducibility outside `target/`; add digest-pinned `Dockerfile.repro`.
-- [ ] Complete security scans, whole-workspace/frontend SBOMs, and source/artifact traceability. (SBOMs and traceability pass. The scan executes but currently fails because pinned PocketIC 15.0.0 brings the unmaintained `backoff`, `instant`, and `serde_cbor` crates as test-only transitive dependencies; no blanket advisory suppression was added.)
-- [x] Complete architecture, security, development, deployment, upgrade, setup, and limitation docs.
-- [x] Run every required command without suppressing failures and record exact hashes/results. (`cargo xtask security-scan` is the sole failing required command; the failure is recorded above. Workspace Rust line coverage is 83.44%, below the unchanged 85% floor.)
-- [x] Confirm no proposal history, timers, generic outbound proxy, delegation custody, or JS `number` conversion exists.
-- [x] Explicitly document Internet Identity, authority recognition, onboarding, and the authenticated control panel as incomplete next-tranche work.
-- [x] Commit final hardening/documentation separately.
+- [ ] Add focused pure/collector tests, 50/51/>100 batching, omission semantics, exact
+  call recording, and omega-reject precision.
+- [ ] Add compliant/non-compliant/rejected PocketIC paths, real controller inspection,
+  certified landing page, and upgrade asset coverage.
+- [ ] Raise workspace Rust line coverage above 85% and retain frontend thresholds.
+- [ ] Prove PocketIC-only packages absent from the production dependency tree and add
+  narrow documented dev/test exceptions.
+- [ ] Run the complete required verification suite with `--locked` Cargo dispatch.
+- [ ] Record artifact, frontend, SBOM, and both reproducible-build hashes and byte
+  identity in existing release/operator documentation.

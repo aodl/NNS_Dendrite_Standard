@@ -1,7 +1,19 @@
 # Architecture overview
 
-The production output is exactly one canister, `dendrite`. The Rust canister owns five narrow responsibilities: fixed-destination typed reads, evidence normalization, pure rule evaluation, bounded stable snapshots, and certified HTTP assets. The browser uses an anonymous actor for cached and live compliance calls. It never sends an Internet Identity delegation to Dendrite.
+The production output is exactly one canister, `dendrite`. Its only application methods
+are update `check_neuron` and certified-asset query `http_request`. The Rust canister
+performs fixed-destination typed evidence calls, normalizes evidence, runs the pure rule
+engine, returns the complete live report, and stores no application data.
 
-Governance destination and method names are compile-time constants. The only other destination is the management canister, used solely for `canister_info` of the target controller. There is no public or internal caller-driven proxy primitive.
+One `EvidenceClient` boundary exposes only Governance `list_neurons(ids)` and management
+`canister_info(controller)`. Destinations and method names are compile-time constants;
+there is no generic transport. Dependency calls use batches of at most 50 and the graph
+is capped at 257 unique IDs. Known-neuron status comes from `Neuron.known_neuron_data`.
 
-The source interface baseline is `dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`; see `docs/standard/SOURCE_BASELINE.md`.
+The frontend is embedded and served through the official HTTP certification v2 asset
+router. A small heap-only abuse guard resets on upgrade. There is no stable application
+state, dynamic compliance certification, cache, timer, history, delegation custody, or
+authenticated control panel. Future privileged operations are browser-to-NNS.
+
+The interface baseline is `dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`;
+see `docs/standard/SOURCE_BASELINE.md`.

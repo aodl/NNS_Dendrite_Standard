@@ -1,12 +1,17 @@
 # Anonymous verification data flow
 
-1. Validate a non-zero `nat64` target ID.
-2. Return a fresh stable-cache entry when available.
-3. Enforce cycle reserve, cooldown, global window, in-flight, and concurrency limits.
-4. Read the known-neuron catalogue and target public full neuron from fixed NNS Governance.
-5. Preserve raw manager and committed-topic lists, then form a bounded unique dependency request including alpha-vote and omega-reject.
-6. Read network economics and inspect the target controller with management `canister_info` requesting zero changes.
-7. Normalize, evaluate all supported rules, compute a deterministic digest, and cache only eligible complete results.
-8. Return the timestamped snapshot. The frontend labels cached evidence stale after its exact stale boundary.
+1. Validate a non-zero `nat64` target ID and admit it through the heap-only global guard.
+2. Request the full public target with fixed Governance `list_neurons`.
+3. On successful target omission, return a completed non-compliant report immediately.
+4. Preserve raw manager/topic vectors, add alpha-vote and omega-reject, enforce the
+   257-ID graph bound, and split unique dependencies into batches of at most 50.
+5. Request each batch through fixed Governance `list_neurons`; omissions are factual
+   evidence, while rejected/undecodable calls remain typed source failures.
+6. Inspect the target controller with management `canister_info`, requesting zero
+   changes.
+7. Normalize evidence, evaluate every supported rule, return the timestamped report,
+   release the guard, and store nothing.
 
-No step accepts a destination, method, raw Candid payload, delegation, or proposal-history record from a caller.
+No step accepts a destination, method, raw Candid payload, delegation, configuration,
+or proposal record from a caller. No catalogue, economics, mutation, cache, timer,
+history, or background call exists.

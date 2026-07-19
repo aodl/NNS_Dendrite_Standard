@@ -1,7 +1,12 @@
 # Trust boundaries
 
-- NNS Governance and the management canister are evidence sources, not trusted text sources.
-- The Dendrite canister is trusted to normalize, bound, evaluate, cache, and certify anonymous results.
-- The browser is a presentation boundary. Future privileged calls must be signed there and sent directly to Governance.
-- Stable memory contains only bounded verifier state and operational metadata; it contains no delegations, secrets, proposal bodies, or proposal history.
-- Reproducible hashes and certification let reviewers connect source, Wasm, and served assets without trusting a hosted backend.
+- NNS Governance `list_neurons` and management `canister_info` are evidence sources,
+  not trusted text sources.
+- The Dendrite update call is trusted to bound, normalize, and evaluate one live report.
+- The browser safely presents that report and retains no privileged identity in this
+  tranche.
+- The canister stores no application data in stable memory. Its heap-only abuse guard
+  resets on upgrade and contains only transient IDs/timestamps.
+- Future privileged calls must be signed in the browser and sent directly to Governance.
+- Reproducible hashes and HTTP certification connect reviewed source, Wasm, and assets
+  without a hosted backend or dynamic compliance-proof tree.

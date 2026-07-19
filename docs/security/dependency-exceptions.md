@@ -8,4 +8,10 @@
 - Exposure: compile-time macro expansion only; it is not a runtime-reachable production component.
 - Compensating controls: exact lockfile pinning, source-registry restriction, Rust advisory scans, reproducible build comparison, and review whenever Candid is updated.
 
-The direct unmaintained `serde_cbor` dependency was removed in favor of maintained `ciborium`. The LLVM exception is accepted only as part of the standard Apache-2.0 LLVM toolchain expression used by a transitive build dependency.
+PocketIC dev/test-only exceptions must name the exact package, owner, dependency path,
+and removal condition. A production-reachability script must fail if `pocket-ic`,
+`backoff`, or `instant` enters the Dendrite Wasm normal/build dependency tree.
+`serde_cbor` reachability must distinguish PocketIC test tooling from any production
+path introduced by the official asset-certification libraries; blanket suppressions are
+forbidden. The LLVM exception is accepted only as part of the standard Apache-2.0 LLVM
+toolchain expression used by a transitive build dependency.

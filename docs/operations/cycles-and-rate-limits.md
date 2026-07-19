@@ -1,7 +1,11 @@
-# Cycles and refresh limits
+# Cycles and live-check limits
 
-Fresh cache entries avoid outbound calls. Live refresh requires at least 2,000,000,000,000 liquid cycles, permits at most four concurrent refreshes, deduplicates the same neuron, applies a 30-second per-neuron cooldown, and accepts at most 20 starts per 60-second global window. Public counters expose accepted, cached, rejected, failed, successful, and eviction totals.
+Each accepted `check_neuron` performs live consensus-backed outbound calls. Admission
+requires a fixed liquid-cycle reserve, permits at most two concurrent checks, rejects a
+second simultaneous check for the same neuron, and caps global starts in a short fixed
+window. Anonymous callers share this global guard; there is no per-user policy.
 
-A stale cached snapshot remains queryable with its original timestamps. It must not be described as live or current.
-
-`refresh_compliance` may return a still-fresh cache entry. `force_refresh_compliance` is the explicit user-refresh path: it bypasses only that cache shortcut and remains subject to every cooldown, global-rate, concurrency, in-flight, and cycle-reserve control.
+The guard is small heap-only transient state. It resets on upgrade, exposes no public
+counters, and never stores reports. Temporary rejection includes only a bounded suggested
+delay. There is no cache, cooldown record, persistent counter, mutable limit, timer, or
+background refill task.

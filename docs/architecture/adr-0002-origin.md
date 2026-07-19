@@ -1,10 +1,8 @@
 # ADR 0002: canonical Internet Identity derivation origin
 
-Status: operator value required before production deployment.
+Status: deferred.
 
-The build accepts one canonical HTTPS origin through an operator configuration
-value. The production operator must replace `https://dendrite.example` before any
-manager adds the resulting principal as a hotkey. Alternative origins must be
-listed in the certified well-known document and must retain the same derivation
-origin. Changing it later requires a hotkey migration.
-
+This anonymous tranche has no Internet Identity integration or mutable origin
+configuration. The certified alternative-origin file contains an empty list. A later
+reviewed browser-only identity tranche must choose a compile-time canonical derivation
+origin and migration policy before any manager adds a principal as a hotkey.

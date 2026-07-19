@@ -1,11 +1,20 @@
 # Threat model
 
-Untrusted inputs include every upstream neuron field, URL, principal, error, rule value, route, and neuron ID. Bounds in typed clients and snapshot construction limit response amplification. Unknown committed variants and reserved/unknown following topics fail closed. Transport failure is not rewritten as a factual compliance failure.
+Every upstream neuron field, name, description, URL, principal, error, topic vector,
+route, and neuron ID is untrusted. Typed clients bound messages and reject unexpected or
+duplicate records and topic keys before map construction. Unknown semantic variants
+require a standard update. Successful omission is factual evidence; transport/decode
+failure is never rewritten as a factual failure.
 
-The frontend uses `textContent`, constructed nodes, and HTTPS-only link validation; it contains no dynamic `innerHTML`. NNS identifiers remain strings or `bigint`, never JavaScript `number`. CSP disallows inline and third-party runtime content.
+Cycle exhaustion is limited by a fixed reserve, at most two concurrent checks,
+same-neuron in-flight rejection, and a short global start window. This tiny guard is
+heap-only, anonymous/global, exposes no counters, and resets on upgrade. There is no
+cache, persistent rate limit, stable application state, timer, or background work.
 
-Cycle exhaustion is mitigated by a reserve threshold, a global fixed window, per-neuron cooldown, maximum concurrency, same-neuron deduplication, and fresh-cache reuse. The cache has a hard 256-record cap and deterministic timestamp/neuron-ID eviction.
+The frontend uses constructed nodes and `textContent`, HTTPS-only link validation, and
+no dynamic `innerHTML`. NNS identifiers remain strings or `bigint`, never JavaScript
+`number`. CSP disallows inline and third-party runtime content.
 
-The controller is blackholed only when `canister_info` succeeds, `module_hash` is absent, and the controller list is empty. Failed lookup is not evidence of blackholing.
-
-Residual risks and incomplete functionality are recorded in `docs/operations/known-limitations.md`.
+The controller is blackholed only when `canister_info` succeeds, `module_hash` is absent,
+and controllers are empty. Failed lookup is indeterminate. The canister receives no
+delegations and exposes no arbitrary outbound primitive.

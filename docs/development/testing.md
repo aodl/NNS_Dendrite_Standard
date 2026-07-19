@@ -1,9 +1,23 @@
 # Test strategy and coverage
 
-Run `cargo xtask check` for formatting, warnings-denied Clippy, and frontend tests; `cargo xtask test` for workspace and frontend tests; `cargo xtask coverage` for pinned Rust coverage; and `npm run test:coverage` for frontend thresholds. Rust coverage requires `cargo-llvm-cov 0.6.16`, the stable `llvm-tools-preview` component, and the separately pinned `nightly-2026-07-17` toolchain with `llvm-tools-preview`; the command fails when these exact tools are unavailable. Nightly is used only for coverage instrumentation, never for the production build.
+Run `cargo xtask check` for formatting, warnings-denied Clippy, interface checks, and
+frontend tests; `cargo xtask test` for workspace and PocketIC tests; `cargo xtask
+coverage` for pinned Rust coverage; and `npm run test:coverage` for frontend thresholds.
+All xtask Cargo subprocesses use `--locked`.
 
-Required floors remain 95% line/branch for the pure rule engine, 90% for future payload/authority logic, and 85% overall Rust/frontend. Stable Rust 1.94.1 provides line and region measurements; the separately pinned nightly provides LLVM branch instrumentation. The command enforces all three pure-engine floors. The current measured pure-engine result is 98.84% regions, 98.58% lines, and 96.30% branches (85.88% functions). Current whole-workspace stable coverage is 85.69% regions and 83.44% lines, so the line floor remains unmet; native-unexecutable IC call intrinsics and xtask orchestration are included. Frontend coverage is 100% lines, 92.50% branches, and 92.59% functions and enforces unchanged 85% thresholds. Interface drift uses structural Candid compatibility and deliberate incompatible fixtures.
+Pure tests cover a compliant report and a focused mutation for every mandatory rule,
+duplicate raw managers/delegates/topic keys, unknown semantics, source rejection/decode,
+successful target/dependency omission, blackhole evidence, hotkeys,
+`not_for_profit`, batching at 50/51/>100, unexpected responses, and exact omega-reject
+`u64`. One recording fake asserts exact client call order and proves the boundary has no
+arbitrary destination or method.
 
-PocketIC mocking of a fully successful fixed-destination NNS graph and browser end-to-end coverage remain release blockers until listed complete in the implementation plan. Native tests cover the shared collector pipeline, deterministic cache eviction, same-memory cache/metadata/counter reopen, malformed stable records, unsupported schema rejection, legacy snapshot compatibility, and independent certified-asset witness reconstruction. PocketIC covers anonymous public queries, fixed-destination rejection handling, indeterminate non-caching, cooldown, certified HTTP delivery, security headers, and a stable upgrade of the production Wasm.
+PocketIC covers compliant, non-compliant, and rejected live checks, controller inspection
+where supported, certified landing assets, and certified assets after upgrade. Frontend
+tests cover canonical IDs, live success, every overall/error status, malicious text and
+links, custom-domain build configuration, no `innerHTML`, and no numeric ID conversion.
+No browser automation framework is required in this tranche.
 
-`cargo xtask test` provisions PocketIC server 15.0.0 from its versioned official release URL and accepts it only when the decompressed binary matches SHA-256 `29472ea4433b30a280676c4e22e369d79d5ba6ee1b4d48bab32ebe7d0ad2b4bb`. The integration test never permits PocketIC's implicit unverified runtime download path.
+Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine
+retains its 95% line/branch target. Coverage exclusions must be justified; modules are
+not split merely to alter percentages.

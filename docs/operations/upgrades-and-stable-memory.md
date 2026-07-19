@@ -1,5 +1,11 @@
-# Upgrades and stable memory
+# Upgrades and stateless operation
 
-Stable memory ID 0 contains a `StableBTreeMap<nat64, snapshot-record>`. Records use a hard 1 MiB encoded bound; the cache holds at most 256 entries. When full, eviction chooses the least recently checked snapshot, breaking ties by neuron ID. Stable memory ID 1 contains a bounded metadata cell recording the stable schema version, standard version, and pinned source revision. Stable memory ID 2 contains the operational refresh counters; in-flight, cooldown, and rolling-window bookkeeping intentionally resets on upgrade because no request remains in flight across an upgrade. Asset certification is re-established in `post_upgrade`.
+Dendrite has no stable application state and therefore no snapshot schema, migration,
+cache metadata, counters, configuration, or operational recovery data. Its heap-only
+abuse guard resets on upgrade. Embedded asset certification is deterministically rebuilt
+from the same content-hashed frontend files during initialization and post-upgrade.
 
-Before upgrading, build and verify Candid compatibility, stable schema compatibility, and reproducible hashes on a local replica. The canister validates metadata during both installation and `post_upgrade`; malformed metadata or an unsupported schema version traps instead of silently resetting state. Same-memory reopen, malformed metadata, unsupported-version behavior, and decoding a legacy v1 snapshot without newer optional summary fields are covered by native tests. New snapshot fields must remain optional or ship with an explicit record migration before incrementing the schema version. Do not deploy when migration tests fail. The current schema does not store proposal data or history.
+Before upgrading, verify the narrow Candid API, semantic upstream interface drift,
+PocketIC certified-asset upgrade test, full checks, and reproducible hashes. An upgrade
+does not preserve live checks in flight or any report; callers may submit another live
+`check_neuron` after the upgrade.
