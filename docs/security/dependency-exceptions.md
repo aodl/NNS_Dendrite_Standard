@@ -15,3 +15,20 @@ and removal condition. A production-reachability script must fail if `pocket-ic`
 path introduced by the official asset-certification libraries; blanket suppressions are
 forbidden. The LLVM exception is accepted only as part of the standard Apache-2.0 LLVM
 toolchain expression used by a transitive build dependency.
+
+## Dev/test PocketIC advisories
+
+- Owner: Dendrite maintainers.
+- Scope: `pocket-ic 15.0.0` dev dependency and its `backoff 0.4.0`, `instant 0.1.13`,
+  and `serde_cbor 0.11.2` transitive dependencies.
+- Classification: dev-test-only for `pocket-ic`, `backoff`, and `instant`; they are
+  absent from the normal/build Dendrite Wasm tree as enforced by
+  `tools/scripts/check-production-dependencies.sh`.
+- Removal condition: update when a compatible PocketIC release removes each package;
+  fail the build immediately if any becomes production-reachable.
+
+`serde_cbor 0.11.2` is also production-reachable only through the official
+`ic-http-certification 3.2.0` library (directly and via
+`ic-asset-certification 3.2.0`). This is required by the reviewed official HTTP
+certification v2 pattern. It is not directly used by Dendrite application code. Review
+and remove the exception when those maintained libraries replace that dependency.

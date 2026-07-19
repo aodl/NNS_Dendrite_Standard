@@ -18,6 +18,7 @@ fn main() -> ExitCode {
                     "cargo",
                     &[
                         "clippy",
+                        "--locked",
                         "--workspace",
                         "--all-targets",
                         "--",
@@ -34,6 +35,7 @@ fn main() -> ExitCode {
                     "cargo",
                     &[
                         "build",
+                        "--locked",
                         "--release",
                         "--target",
                         "wasm32-unknown-unknown",
@@ -41,7 +43,7 @@ fn main() -> ExitCode {
                         "dendrite",
                     ],
                 )
-                && run("cargo", &["test", "--workspace"])
+                && run("cargo", &["test", "--locked", "--workspace"])
                 && run("npm", &["test"])
         }
         "coverage" => run("sh", &["tools/scripts/coverage.sh"]),
@@ -51,6 +53,7 @@ fn main() -> ExitCode {
                     "cargo",
                     &[
                         "build",
+                        "--locked",
                         "--release",
                         "--target",
                         "wasm32-unknown-unknown",
