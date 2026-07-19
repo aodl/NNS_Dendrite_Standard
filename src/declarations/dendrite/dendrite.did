@@ -1,14 +1,17 @@
 type ComplianceStatus = variant { Compliant; NonCompliant; Indeterminate; StandardUpdateRequired };
 type RuleStatus = variant { Pass; Fail; Warning; Indeterminate; StandardUpdateRequired };
-type EvidenceSource = record { method : text; observed_at_seconds : nat64 };
-type RuleResult = record { rule_id : text; status : RuleStatus; summary : text; observed : opt text; expected : opt text; related_neuron_ids : vec nat64; relevant_topic : opt int32; source : EvidenceSource };
-type SummaryField = record { label : text; value : text };
-type ComplianceSnapshot = record { schema_version : nat16; standard_version : text; neuron_id : nat64; checked_at_timestamp_seconds : nat64; overall_status : ComplianceStatus; stale_after_timestamp_seconds : nat64; rules : vec RuleResult; manager_ids : vec nat64; committed_topics : vec int32; quorum_threshold : opt nat8; source_revision : text; source_errors : vec text; evidence_digest : blob; summary_fields : opt vec SummaryField; warnings : opt vec text };
-type StandardConfig = record { standard_version : text; alpha_vote_neuron_id : nat64; omega_reject_neuron_id : nat64; max_cached_snapshots : nat16; governance_canister_id : text; source_revision : text };
-type RefreshCounters = record { accepted_refreshes : nat64; cache_hits : nat64; cooldown_rejections : nat64; global_rate_rejections : nat64; concurrency_rejections : nat64; duplicate_in_flight_requests : nat64; low_cycle_rejections : nat64; upstream_failures : nat64; successful_refreshes : nat64; cache_evictions : nat64 };
-type PublicStatus = record { schema_version : nat16; cached_snapshots : nat16; refresh_counters : RefreshCounters };
+type RuleResult = record { rule_id : text; status : RuleStatus; message : text; observed : opt text; expected : opt text; related_neuron_ids : vec nat64; relevant_topic : opt int32 };
+type KnownNeuron = record { id : nat64; name : text; description : opt text; links : vec text };
+type TargetSummary = record { neuron_id : nat64; known_neuron : opt KnownNeuron; controller : opt principal; hot_keys : vec principal; not_for_profit : opt bool; dissolve_delay_seconds : opt nat64; dissolving : opt bool; effective_stake_e8s : opt nat64; voting_power_refreshed_timestamp_seconds : opt nat64; potential_voting_power : opt nat64; deciding_voting_power : opt nat64 };
+type ManagerSummary = record { neuron_id : nat64; known_neuron : opt KnownNeuron };
+type TopicSummary = record { topic : int32; delegate_ids : vec nat64 };
+type NonCommittedTopicCheck = record { topic : int32; followee_ids : vec nat64 };
+type ControllerSummary = record { "principal" : opt principal; call_succeeded : bool; module_hash : opt blob; controllers : vec principal };
+type SourceFailureKind = variant { Rejected; DecodeFailed; InvalidResponse; ResponseTooLarge };
+type SourceFailure = record { method : text; kind : SourceFailureKind; message : text };
+type ComplianceReport = record { standard_version : text; source_revision : text; neuron_id : nat64; checked_at_timestamp_seconds : nat64; target : opt TargetSummary; managers : vec ManagerSummary; committed_topics : vec TopicSummary; non_committed_topics : vec NonCommittedTopicCheck; controller : opt ControllerSummary; rules : vec RuleResult; source_failures : vec SourceFailure; quorum_threshold : opt nat8; overall_status : ComplianceStatus };
 type DendriteError = variant { InvalidNeuronId : text; TemporarilyUnavailable : text; Upstream : text; GlobalRateLimit : record { retry_after_seconds : nat64 }; ConcurrencyLimit; DuplicateInFlight; LowCycles };
 type HeaderField = record { text; text };
 type HttpRequest = record { method : text; url : text; headers : vec HeaderField; body : blob; certificate_version : opt nat16 };
 type HttpResponse = record { status_code : nat16; headers : vec HeaderField; body : blob; upgrade : opt bool };
-service : () -> { check_neuron : (nat64) -> (variant { Ok : ComplianceSnapshot; Err : DendriteError }); http_request : (HttpRequest) -> (HttpResponse) query }
+service : () -> { check_neuron : (nat64) -> (variant { Ok : ComplianceReport; Err : DendriteError }); http_request : (HttpRequest) -> (HttpResponse) query }

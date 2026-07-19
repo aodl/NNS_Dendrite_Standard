@@ -2,7 +2,6 @@
 
 #[cfg(test)]
 use candid::Principal;
-use sha2::{Digest, Sha256};
 #[cfg(test)]
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -18,15 +17,7 @@ pub const ALPHA_VOTE_NEURON_ID: u64 = 2_947_465_672_511_369;
 pub const OMEGA_REJECT_NEURON_ID: u64 = 18_422_777_432_977_120_264;
 pub const MAX_DISSOLVE_DELAY_SECONDS: u64 = 63_072_000;
 pub const SIX_NOMINAL_MONTHS_SECONDS: u64 = 15_768_000;
-pub const MAX_CACHED_SNAPSHOTS: usize = 256;
-
-fn source(now: u64) -> EvidenceSource {
-    EvidenceSource {
-        method: "live bounded evidence graph".into(),
-        observed_at_seconds: now,
-    }
-}
-fn rule(now: u64, id: &str, ok: bool, summary: &str) -> RuleResult {
+fn rule(_now: u64, id: &str, ok: bool, message: &str) -> RuleResult {
     RuleResult {
         rule_id: id.into(),
         status: if ok {
@@ -34,12 +25,11 @@ fn rule(now: u64, id: &str, ok: bool, summary: &str) -> RuleResult {
         } else {
             RuleStatus::Fail
         },
-        summary: summary.into(),
+        message: message.into(),
         observed: None,
         expected: None,
         related_neuron_ids: vec![],
         relevant_topic: None,
-        source: source(now),
     }
 }
 fn distinct(xs: &[u64]) -> bool {
@@ -63,7 +53,7 @@ pub fn evaluate(
     neuron_id: u64,
     evidence: &EvaluationEvidence,
     source_revision: &str,
-) -> ComplianceSnapshot {
+) -> ComplianceReport {
     let now = evidence.now_seconds;
     let mut out = Vec::new();
     let Some(target) = evidence.target.as_ref() else {
@@ -73,9 +63,9 @@ pub fn evaluate(
             false,
             "target neuron was not returned",
         );
-        if !evidence.source_errors.is_empty() {
+        if !evidence.source_failures.is_empty() {
             missing.status = RuleStatus::Indeterminate;
-            missing.summary = "target existence could not be established".into();
+            missing.message = "target existence could not be established".into();
         }
         out.push(missing);
         let mut complete = rule(
@@ -157,7 +147,7 @@ pub fn evaluate(
     {
         let last = out.last_mut().expect("committed-topic rule was just added");
         last.status = RuleStatus::StandardUpdateRequired;
-        last.summary = "committed topic uses an unknown or reserved topic code".into();
+        last.message = "committed topic uses an unknown or reserved topic code".into();
     }
     out.push(rule(
         now,
@@ -177,18 +167,14 @@ pub fn evaluate(
         target.effective_stake_e8s.is_some_and(|v| v > 0),
         "effective stake is positive",
     ));
-    let active = match (
-        target.voting_power_refreshed_timestamp_seconds,
-        evidence.start_reducing_voting_power_after_seconds,
-    ) {
-        (Some(ts), Some(limit)) => now >= ts && now - ts <= limit.min(SIX_NOMINAL_MONTHS_SECONDS),
-        _ => false,
-    };
+    let active = target
+        .voting_power_refreshed_timestamp_seconds
+        .is_some_and(|timestamp| now >= timestamp && now - timestamp <= SIX_NOMINAL_MONTHS_SECONDS);
     out.push(rule(
         now,
         "DENDRITE-ACTIVE-001",
         active,
-        "voting power was refreshed within both limits",
+        "voting power was refreshed within six nominal months",
     ));
     let powers = target
         .potential_voting_power
@@ -368,7 +354,7 @@ pub fn evaluate(
     out.push(rule(
         now,
         "DENDRITE-DATA-001",
-        evidence.source_errors.is_empty()
+        evidence.source_failures.is_empty()
             && dependency_ids
                 .iter()
                 .all(|id| evidence.dependencies.contains_key(id))
@@ -387,31 +373,19 @@ pub fn evaluate(
     out.push(rule(
         now,
         "DENDRITE-DATA-003",
-        evidence.source_errors.is_empty(),
+        evidence.source_failures.is_empty(),
         "no missing evidence was inferred as passing",
     ));
-    let source_failed = |method: &str| {
-        evidence
-            .source_errors
-            .iter()
-            .any(|error| error.contains(method))
-    };
     let missing_requested = evidence
         .requested_neuron_ids
         .iter()
         .any(|id| *id != neuron_id && !evidence.dependencies.contains_key(id));
     for result in &mut out {
         let unavailable = match result.rule_id.as_str() {
-            "DENDRITE-KNOWN-002" | "DENDRITE-NM-004" | "DENDRITE-NM-005" => {
-                source_failed("list_known_neurons")
-            }
             "DENDRITE-LOCK-001" => target.dissolving.is_none(),
             "DENDRITE-LOCK-002" => target.dissolve_delay_seconds.is_none(),
             "DENDRITE-LOCK-003" => target.effective_stake_e8s.is_none(),
-            "DENDRITE-ACTIVE-001" => {
-                target.voting_power_refreshed_timestamp_seconds.is_none()
-                    || evidence.start_reducing_voting_power_after_seconds.is_none()
-            }
+            "DENDRITE-ACTIVE-001" => target.voting_power_refreshed_timestamp_seconds.is_none(),
             "DENDRITE-ACTIVE-002" => {
                 target.potential_voting_power.is_none() || target.deciding_voting_power.is_none()
             }
@@ -425,13 +399,13 @@ pub fn evaluate(
             "DENDRITE-CONTROL-005" => target.not_for_profit.is_none(),
             "DENDRITE-COMMIT-004" => missing_requested,
             "DENDRITE-DATA-001" | "DENDRITE-DATA-003" => {
-                !evidence.source_errors.is_empty() || missing_requested
+                !evidence.source_failures.is_empty() || missing_requested
             }
             _ => false,
         };
         if unavailable && result.status == RuleStatus::Fail {
             result.status = RuleStatus::Indeterminate;
-            result.summary = format!("{}; mandatory evidence was unavailable", result.summary);
+            result.message = format!("{}; mandatory evidence was unavailable", result.message);
         }
     }
     let quorum = u8::try_from(managers.len() / 2 + 1).ok();
@@ -454,7 +428,7 @@ fn finish(
     topics: Vec<i32>,
     quorum: Option<u8>,
     rules: Vec<RuleResult>,
-) -> ComplianceSnapshot {
+) -> ComplianceReport {
     let overall_status = if rules.iter().any(|r| r.status == RuleStatus::Fail) {
         ComplianceStatus::NonCompliant
     } else if rules
@@ -467,147 +441,74 @@ fn finish(
     } else {
         ComplianceStatus::Compliant
     };
-    let mut h = Sha256::new();
-    h.update(STANDARD_VERSION.as_bytes());
-    h.update(ALPHA_VOTE_NEURON_ID.to_be_bytes());
-    h.update(OMEGA_REJECT_NEURON_ID.to_be_bytes());
-    h.update(MAX_DISSOLVE_DELAY_SECONDS.to_be_bytes());
-    h.update(SIX_NOMINAL_MONTHS_SECONDS.to_be_bytes());
-    h.update(revision.as_bytes());
-    h.update(serde_json::to_vec(evidence).expect("bounded evidence serializes"));
-    h.update(serde_json::to_vec(&rules).expect("bounded rule output serializes"));
-    let mut summary_fields = Vec::new();
-    let mut push_summary = |label: &str, value: String| {
-        if summary_fields.len() < 128 {
-            summary_fields.push(SummaryField {
-                label: label.chars().take(96).collect(),
-                value: value.chars().take(512).collect(),
-            });
-        }
-    };
-    if let Some(target) = &evidence.target {
-        push_summary(
-            "Known-neuron name",
-            target
-                .known_data
+    let target = evidence.target.as_ref().map(|target| TargetSummary {
+        neuron_id: target.id,
+        known_neuron: target.known_data.clone(),
+        controller: target.controller,
+        hot_keys: target.hot_keys.clone(),
+        not_for_profit: target.not_for_profit,
+        dissolve_delay_seconds: target.dissolve_delay_seconds,
+        dissolving: target.dissolving,
+        effective_stake_e8s: target.effective_stake_e8s,
+        voting_power_refreshed_timestamp_seconds: target.voting_power_refreshed_timestamp_seconds,
+        potential_voting_power: target.potential_voting_power,
+        deciding_voting_power: target.deciding_voting_power,
+    });
+    let manager_summaries = managers
+        .iter()
+        .map(|id| ManagerSummary {
+            neuron_id: *id,
+            known_neuron: evidence.known_neurons.get(id).cloned(),
+        })
+        .collect();
+    let committed_topics = topics
+        .iter()
+        .map(|topic| TopicSummary {
+            topic: *topic,
+            delegate_ids: evidence
+                .target
                 .as_ref()
-                .map_or_else(|| "Unavailable".into(), |known| known.name.clone()),
-        );
-        if let Some(known) = &target.known_data {
-            push_summary(
-                "Known-neuron description",
-                known.description.clone().unwrap_or_else(|| "None".into()),
-            );
-            for (index, link) in known.links.iter().take(16).enumerate() {
-                push_summary(&format!("Known-neuron link {}", index + 1), link.clone());
-            }
-        }
-        push_summary(
-            "Neuron state",
-            match target.dissolving {
-                Some(true) => "Dissolving",
-                Some(false) => "Not dissolving",
-                None => "Unavailable",
-            }
-            .into(),
-        );
-        for (label, value) in [
-            ("Effective stake (e8s)", target.effective_stake_e8s),
-            ("Dissolve delay (seconds)", target.dissolve_delay_seconds),
-            (
-                "Voting-power refresh timestamp",
-                target.voting_power_refreshed_timestamp_seconds,
-            ),
-            ("Potential voting power", target.potential_voting_power),
-            ("Deciding voting power", target.deciding_voting_power),
-        ] {
-            push_summary(
-                label,
-                value.map_or_else(|| "Unavailable".into(), |value| value.to_string()),
-            );
-        }
-        push_summary(
-            "Voting-power refresh age (seconds)",
-            target
-                .voting_power_refreshed_timestamp_seconds
-                .and_then(|timestamp| evidence.now_seconds.checked_sub(timestamp))
-                .map_or_else(|| "Unavailable".into(), |value| value.to_string()),
-        );
-        push_summary(
-            "Controller principal",
-            target
-                .controller
-                .map_or_else(|| "Unavailable".into(), |value| value.to_text()),
-        );
-        push_summary("Hotkeys", format!("{:?}", target.hot_keys));
-        push_summary(
-            "not_for_profit",
-            target
-                .not_for_profit
-                .map_or_else(|| "Unavailable".into(), |value| value.to_string()),
-        );
-        if let Some(controller) = &evidence.controller {
-            push_summary(
-                "Controller canister lookup",
-                controller.call_succeeded.to_string(),
-            );
-            push_summary(
-                "Controller module hash",
-                controller.module_hash.as_ref().map_or_else(
-                    || "Absent".into(),
-                    |hash| format!("Present ({} bytes)", hash.len()),
-                ),
-            );
-            push_summary("Controller list", format!("{:?}", controller.controllers));
-        }
-        for manager in &managers {
-            push_summary(
-                &format!("Manager {manager}"),
-                evidence
-                    .known_neurons
-                    .get(manager)
-                    .map_or_else(|| "Not a known neuron".into(), |known| known.name.clone()),
-            );
-        }
-        for topic in &topics {
-            push_summary(
-                &format!("Committed topic {topic} delegates"),
-                format!(
-                    "{:?}",
-                    target.followees.get(topic).cloned().unwrap_or_default()
-                ),
-            );
-        }
-    }
-    let warnings = if evidence.unknown_committed_topics > 0 {
-        vec![format!(
-            "{} committed-topic variant(s) require a standard update",
-            evidence.unknown_committed_topics
-        )]
-    } else {
-        vec![]
-    };
-    ComplianceSnapshot {
-        schema_version: 1,
+                .and_then(|target| target.followees.get(topic))
+                .cloned()
+                .unwrap_or_default(),
+        })
+        .collect();
+    let non_committed_topics = evidence.target.as_ref().map_or_else(Vec::new, |target| {
+        RECOGNISED_TOPICS
+            .into_iter()
+            .filter(|topic| *topic != 1 && !topics.contains(topic))
+            .map(|topic| NonCommittedTopicCheck {
+                topic,
+                followee_ids: target.followees.get(&topic).cloned().unwrap_or_default(),
+            })
+            .collect()
+    });
+    let controller = evidence
+        .controller
+        .as_ref()
+        .map(|controller| ControllerSummary {
+            principal: evidence
+                .target
+                .as_ref()
+                .and_then(|target| target.controller),
+            call_succeeded: controller.call_succeeded,
+            module_hash: controller.module_hash.clone(),
+            controllers: controller.controllers.clone(),
+        });
+    ComplianceReport {
         standard_version: STANDARD_VERSION.into(),
         neuron_id,
         checked_at_timestamp_seconds: evidence.now_seconds,
         overall_status,
-        stale_after_timestamp_seconds: evidence.now_seconds.saturating_add(300),
+        target,
+        managers: manager_summaries,
+        committed_topics,
+        non_committed_topics,
+        controller,
         rules,
-        manager_ids: managers,
-        committed_topics: topics,
         quorum_threshold: quorum,
         source_revision: revision.into(),
-        source_errors: evidence
-            .source_errors
-            .iter()
-            .take(32)
-            .map(|s| s.chars().take(512).collect())
-            .collect(),
-        evidence_digest: h.finalize().to_vec(),
-        summary_fields: Some(summary_fields),
-        warnings: Some(warnings),
+        source_failures: evidence.source_failures.iter().take(32).cloned().collect(),
     }
 }
 
@@ -708,8 +609,7 @@ mod tests {
                 module_hash: None,
                 controllers: vec![],
             }),
-            start_reducing_voting_power_after_seconds: Some(SIX_NOMINAL_MONTHS_SECONDS),
-            source_errors: vec![],
+            source_failures: vec![],
             unknown_committed_topics: 0,
             requested_neuron_ids: managers
                 .into_iter()
@@ -761,29 +661,30 @@ mod tests {
                 .all(|rule| rule.status == RuleStatus::Pass)
         );
         assert_eq!(snapshot.quorum_threshold, Some(3));
-        let summaries = snapshot.summary_fields.as_ref().unwrap();
-        assert!(
-            summaries
-                .iter()
-                .any(|field| field.label == "Known-neuron name" && field.value == "Dendrite")
+        assert_eq!(
+            snapshot
+                .target
+                .as_ref()
+                .and_then(|target| target.known_neuron.as_ref())
+                .map(|known| known.name.as_str()),
+            Some("Dendrite")
         );
-        assert!(
-            summaries
-                .iter()
-                .any(|field| field.label == "Controller module hash" && field.value == "Absent")
-        );
-        assert!(summaries.iter().any(|field| field.label == "Manager 100"));
-        assert!(
-            summaries
-                .iter()
-                .any(|field| field.label == "Committed topic 4 delegates")
+        assert_eq!(snapshot.controller.as_ref().unwrap().module_hash, None);
+        assert_eq!(snapshot.managers[0].neuron_id, 100);
+        assert_eq!(
+            snapshot.committed_topics[0].delegate_ids,
+            vec![100, 101, 102]
         );
     }
     #[test]
     fn transport_missing_target_is_indeterminate_not_factual_failure() {
         let mut evidence = compliant_evidence();
         evidence.target = None;
-        evidence.source_errors.push("list_neurons rejected".into());
+        evidence.source_failures.push(SourceFailure {
+            method: "list_neurons".into(),
+            kind: SourceFailureKind::Rejected,
+            message: "rejected".into(),
+        });
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
         assert_eq!(snapshot.rules[0].status, RuleStatus::Indeterminate);
@@ -796,9 +697,11 @@ mod tests {
             module_hash: None,
             controllers: vec![],
         });
-        evidence
-            .source_errors
-            .push("aaaaa-aa canister_info: rejected".into());
+        evidence.source_failures.push(SourceFailure {
+            method: "canister_info".into(),
+            kind: SourceFailureKind::Rejected,
+            message: "rejected".into(),
+        });
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
         for id in [
@@ -818,9 +721,11 @@ mod tests {
     fn incomplete_dependency_response_is_indeterminate() {
         let mut evidence = compliant_evidence();
         evidence.dependencies.remove(&100);
-        evidence
-            .source_errors
-            .push("list_neurons response omitted requested neuron 100".into());
+        evidence.source_failures.push(SourceFailure {
+            method: "list_neurons".into(),
+            kind: SourceFailureKind::Rejected,
+            message: "rejected".into(),
+        });
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
         assert!(
@@ -845,7 +750,7 @@ mod tests {
     fn edge_semantics_cover_fail_closed_short_circuits() {
         let mut evidence = compliant_evidence();
         evidence.target = None;
-        evidence.source_errors.clear();
+        evidence.source_failures.clear();
         assert_eq!(
             evaluate(42, &evidence, SOURCE_REVISION).overall_status,
             ComplianceStatus::NonCompliant
@@ -933,28 +838,6 @@ mod tests {
                 .iter()
                 .any(|r| r.rule_id == "DENDRITE-COMMIT-004" && r.status == RuleStatus::Fail)
         );
-    }
-    #[test]
-    fn digest_covers_evidence_order_and_revision() {
-        let evidence = compliant_evidence();
-        let digest = evaluate(42, &evidence, SOURCE_REVISION).evidence_digest;
-        let mut reordered = evidence.clone();
-        reordered.dependencies = reordered.dependencies.into_iter().rev().collect();
-        assert_eq!(
-            digest,
-            evaluate(42, &reordered, SOURCE_REVISION).evidence_digest
-        );
-        let mut changed = evidence.clone();
-        changed
-            .dependencies
-            .get_mut(&100)
-            .unwrap()
-            .effective_stake_e8s = Some(2);
-        assert_ne!(
-            digest,
-            evaluate(42, &changed, SOURCE_REVISION).evidence_digest
-        );
-        assert_ne!(digest, evaluate(42, &evidence, "different").evidence_digest);
     }
     fn assert_rule(evidence: EvaluationEvidence, rule_id: &str, status: RuleStatus) {
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);

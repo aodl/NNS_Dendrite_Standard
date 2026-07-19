@@ -328,8 +328,6 @@ version = "0.1.0"
 dependencies = [
  "candid",
  "serde",
- "serde_json",
- "sha2",
 ]
 
 [[package]]

@@ -22,21 +22,14 @@ pub enum ComplianceStatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
-pub struct EvidenceSource {
-    pub method: String,
-    pub observed_at_seconds: u64,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
 pub struct RuleResult {
     pub rule_id: String,
     pub status: RuleStatus,
-    pub summary: String,
+    pub message: String,
     pub observed: Option<String>,
     pub expected: Option<String>,
     pub related_neuron_ids: Vec<u64>,
     pub relevant_topic: Option<i32>,
-    pub source: EvidenceSource,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
@@ -48,9 +41,18 @@ pub struct KnownNeuron {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
-pub struct SummaryField {
-    pub label: String,
-    pub value: String,
+pub enum SourceFailureKind {
+    Rejected,
+    DecodeFailed,
+    InvalidResponse,
+    ResponseTooLarge,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct SourceFailure {
+    pub method: String,
+    pub kind: SourceFailureKind,
+    pub message: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
@@ -84,27 +86,65 @@ pub struct EvaluationEvidence {
     pub dependencies: BTreeMap<u64, NeuronEvidence>,
     pub known_neurons: BTreeMap<u64, KnownNeuron>,
     pub controller: Option<ControllerEvidence>,
-    pub start_reducing_voting_power_after_seconds: Option<u64>,
-    pub source_errors: Vec<String>,
+    pub source_failures: Vec<SourceFailure>,
     pub unknown_committed_topics: usize,
     pub requested_neuron_ids: Vec<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
-pub struct ComplianceSnapshot {
-    pub schema_version: u16,
+pub struct TargetSummary {
+    pub neuron_id: u64,
+    pub known_neuron: Option<KnownNeuron>,
+    pub controller: Option<Principal>,
+    pub hot_keys: Vec<Principal>,
+    pub not_for_profit: Option<bool>,
+    pub dissolve_delay_seconds: Option<u64>,
+    pub dissolving: Option<bool>,
+    pub effective_stake_e8s: Option<u64>,
+    pub voting_power_refreshed_timestamp_seconds: Option<u64>,
+    pub potential_voting_power: Option<u64>,
+    pub deciding_voting_power: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct ManagerSummary {
+    pub neuron_id: u64,
+    pub known_neuron: Option<KnownNeuron>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct TopicSummary {
+    pub topic: i32,
+    pub delegate_ids: Vec<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct NonCommittedTopicCheck {
+    pub topic: i32,
+    pub followee_ids: Vec<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct ControllerSummary {
+    pub principal: Option<Principal>,
+    pub call_succeeded: bool,
+    pub module_hash: Option<Vec<u8>>,
+    pub controllers: Vec<Principal>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub struct ComplianceReport {
     pub standard_version: String,
     pub neuron_id: u64,
     pub checked_at_timestamp_seconds: u64,
     pub overall_status: ComplianceStatus,
-    pub stale_after_timestamp_seconds: u64,
+    pub target: Option<TargetSummary>,
+    pub managers: Vec<ManagerSummary>,
+    pub committed_topics: Vec<TopicSummary>,
+    pub non_committed_topics: Vec<NonCommittedTopicCheck>,
+    pub controller: Option<ControllerSummary>,
     pub rules: Vec<RuleResult>,
-    pub manager_ids: Vec<u64>,
-    pub committed_topics: Vec<i32>,
     pub quorum_threshold: Option<u8>,
     pub source_revision: String,
-    pub source_errors: Vec<String>,
-    pub evidence_digest: Vec<u8>,
-    pub summary_fields: Option<Vec<SummaryField>>,
-    pub warnings: Option<Vec<String>>,
+    pub source_failures: Vec<SourceFailure>,
 }

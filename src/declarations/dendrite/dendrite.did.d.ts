@@ -2,40 +2,38 @@ import type { Principal } from '@dfinity/principal';
 import type { ActorMethod } from '@dfinity/agent';
 import type { IDL } from '@dfinity/candid';
 
-export interface ComplianceSnapshot {
-  'manager_ids' : BigUint64Array | bigint[],
-  'source_errors' : Array<string>,
+export interface ComplianceReport {
+  'controller' : [] | [ControllerSummary],
+  'managers' : Array<ManagerSummary>,
   'source_revision' : string,
-  'committed_topics' : Int32Array | number[],
+  'committed_topics' : Array<TopicSummary>,
   'overall_status' : ComplianceStatus,
-  'schema_version' : number,
-  'evidence_digest' : Uint8Array | number[],
-  'stale_after_timestamp_seconds' : bigint,
+  'source_failures' : Array<SourceFailure>,
+  'target' : [] | [TargetSummary],
   'rules' : Array<RuleResult>,
   'quorum_threshold' : [] | [number],
   'checked_at_timestamp_seconds' : bigint,
+  'non_committed_topics' : Array<NonCommittedTopicCheck>,
   'standard_version' : string,
   'neuron_id' : bigint,
-  'summary_fields' : [] | [Array<SummaryField>],
-  'warnings' : [] | [Array<string>],
 }
-export interface SummaryField { 'label' : string, 'value' : string }
 export type ComplianceStatus = { 'Indeterminate' : null } |
   { 'NonCompliant' : null } |
   { 'StandardUpdateRequired' : null } |
   { 'Compliant' : null };
+export interface ControllerSummary {
+  'principal' : [] | [Principal],
+  'controllers' : Array<Principal>,
+  'call_succeeded' : boolean,
+  'module_hash' : [] | [Uint8Array | number[]],
+}
 export type DendriteError = { 'TemporarilyUnavailable' : string } |
   { 'Upstream' : string } |
   { 'GlobalRateLimit' : { 'retry_after_seconds' : bigint } } |
   { 'InvalidNeuronId' : string } |
   { 'LowCycles' : null } |
   { 'ConcurrencyLimit' : null } |
-  { 'Cooldown' : { 'retry_after_seconds' : bigint } } |
   { 'DuplicateInFlight' : null };
-export interface EvidenceSource {
-  'method' : string,
-  'observed_at_seconds' : bigint,
-}
 export type HeaderField = [string, string];
 export interface HttpRequest {
   'url' : string,
@@ -50,30 +48,26 @@ export interface HttpResponse {
   'upgrade' : [] | [boolean],
   'status_code' : number,
 }
-export interface PublicStatus {
-  'cached_snapshots' : number,
-  'schema_version' : number,
-  'refresh_counters' : RefreshCounters,
+export interface KnownNeuron {
+  'id' : bigint,
+  'name' : string,
+  'description' : [] | [string],
+  'links' : Array<string>,
 }
-export interface RefreshCounters {
-  'low_cycle_rejections' : bigint,
-  'upstream_failures' : bigint,
-  'concurrency_rejections' : bigint,
-  'cooldown_rejections' : bigint,
-  'cache_evictions' : bigint,
-  'cache_hits' : bigint,
-  'successful_refreshes' : bigint,
-  'accepted_refreshes' : bigint,
-  'duplicate_in_flight_requests' : bigint,
-  'global_rate_rejections' : bigint,
+export interface ManagerSummary {
+  'known_neuron' : [] | [KnownNeuron],
+  'neuron_id' : bigint,
+}
+export interface NonCommittedTopicCheck {
+  'topic' : number,
+  'followee_ids' : BigUint64Array | bigint[],
 }
 export interface RuleResult {
   'status' : RuleStatus,
   'related_neuron_ids' : BigUint64Array | bigint[],
   'observed' : [] | [string],
-  'source' : EvidenceSource,
   'expected' : [] | [string],
-  'summary' : string,
+  'message' : string,
   'rule_id' : string,
   'relevant_topic' : [] | [number],
 }
@@ -82,29 +76,39 @@ export type RuleStatus = { 'Fail' : null } |
   { 'Indeterminate' : null } |
   { 'Warning' : null } |
   { 'StandardUpdateRequired' : null };
-export interface StandardConfig {
-  'source_revision' : string,
-  'omega_reject_neuron_id' : bigint,
-  'governance_canister_id' : string,
-  'max_cached_snapshots' : number,
-  'alpha_vote_neuron_id' : bigint,
-  'standard_version' : string,
+export interface SourceFailure {
+  'method' : string,
+  'kind' : SourceFailureKind,
+  'message' : string,
+}
+export type SourceFailureKind = { 'ResponseTooLarge' : null } |
+  { 'InvalidResponse' : null } |
+  { 'Rejected' : null } |
+  { 'DecodeFailed' : null };
+export interface TargetSummary {
+  'controller' : [] | [Principal],
+  'dissolve_delay_seconds' : [] | [bigint],
+  'voting_power_refreshed_timestamp_seconds' : [] | [bigint],
+  'potential_voting_power' : [] | [bigint],
+  'not_for_profit' : [] | [boolean],
+  'deciding_voting_power' : [] | [bigint],
+  'hot_keys' : Array<Principal>,
+  'effective_stake_e8s' : [] | [bigint],
+  'known_neuron' : [] | [KnownNeuron],
+  'dissolving' : [] | [boolean],
+  'neuron_id' : bigint,
+}
+export interface TopicSummary {
+  'topic' : number,
+  'delegate_ids' : BigUint64Array | bigint[],
 }
 export interface _SERVICE {
-  'force_refresh_compliance' : ActorMethod<
+  'check_neuron' : ActorMethod<
     [bigint],
-    { 'Ok' : ComplianceSnapshot } |
+    { 'Ok' : ComplianceReport } |
       { 'Err' : DendriteError }
   >,
-  'get_cached_compliance' : ActorMethod<[bigint], [] | [ComplianceSnapshot]>,
-  'get_public_status' : ActorMethod<[], PublicStatus>,
-  'get_standard_config' : ActorMethod<[], StandardConfig>,
   'http_request' : ActorMethod<[HttpRequest], HttpResponse>,
-  'refresh_compliance' : ActorMethod<
-    [bigint],
-    { 'Ok' : ComplianceSnapshot } |
-      { 'Err' : DendriteError }
-  >,
 }
 export declare const idlFactory: IDL.InterfaceFactory;
 export declare const init: (args: { IDL: typeof IDL }) => IDL.Type[];

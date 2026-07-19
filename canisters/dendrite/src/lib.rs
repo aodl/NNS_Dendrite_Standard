@@ -2,8 +2,9 @@
 
 use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{
-    ALPHA_VOTE_NEURON_ID, ComplianceSnapshot, ControllerEvidence, EvaluationEvidence, KnownNeuron,
-    NeuronEvidence, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, evaluate,
+    ALPHA_VOTE_NEURON_ID, ComplianceReport, ControllerEvidence, EvaluationEvidence, KnownNeuron,
+    NeuronEvidence, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, SourceFailure, SourceFailureKind,
+    evaluate,
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, SourceError,
@@ -47,7 +48,7 @@ pub enum DendriteError {
 }
 
 #[ic_cdk::update]
-async fn check_neuron(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
+async fn check_neuron(neuron_id: u64) -> Result<ComplianceReport, DendriteError> {
     if neuron_id == 0 {
         return Err(DendriteError::InvalidNeuronId(
             "neuron ID must be non-zero".into(),
@@ -177,6 +178,28 @@ trait EvidenceClient {
     ) -> Result<CanisterInfoResponse, SourceError>;
 }
 
+fn source_failure(error: SourceError) -> SourceFailure {
+    let kind = match error.kind {
+        ic_clients::SourceErrorKind::Rejected => SourceFailureKind::Rejected,
+        ic_clients::SourceErrorKind::DecodeFailed => SourceFailureKind::DecodeFailed,
+        ic_clients::SourceErrorKind::InvalidResponse => SourceFailureKind::InvalidResponse,
+        ic_clients::SourceErrorKind::ResponseTooLarge => SourceFailureKind::ResponseTooLarge,
+    };
+    SourceFailure {
+        method: error.method.into(),
+        kind,
+        message: error.message.chars().take(512).collect(),
+    }
+}
+
+fn invalid_failure(message: &str) -> SourceFailure {
+    SourceFailure {
+        method: "list_neurons".into(),
+        kind: SourceFailureKind::InvalidResponse,
+        message: message.chars().take(512).collect(),
+    }
+}
+
 fn dependency_batches(ids: &[u64]) -> Result<Vec<Vec<u64>>, DendriteError> {
     if ids.len() > 257 {
         return Err(DendriteError::Upstream(
@@ -200,7 +223,7 @@ impl EvidenceClient for ProductionEvidenceClient {
     }
 }
 
-async fn collect_live(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
+async fn collect_live(neuron_id: u64) -> Result<ComplianceReport, DendriteError> {
     collect_with(
         &ProductionEvidenceClient,
         neuron_id,
@@ -213,12 +236,12 @@ async fn collect_with(
     client: &impl EvidenceClient,
     neuron_id: u64,
     now: u64,
-) -> Result<ComplianceSnapshot, DendriteError> {
-    let mut source_errors = Vec::new();
+) -> Result<ComplianceReport, DendriteError> {
+    let mut source_failures = Vec::new();
     let target_response = match client.list_neurons(vec![neuron_id]).await {
         Ok(value) => Some(value),
         Err(error) => {
-            source_errors.push(error.to_string());
+            source_failures.push(source_failure(error));
             None
         }
     };
@@ -228,19 +251,23 @@ async fn collect_with(
         .flat_map(|response| response.full_neurons)
     {
         if has_duplicate_topic_keys(&neuron) {
-            source_errors.push("list_neurons target contains duplicate topic-map keys".into());
+            source_failures.push(invalid_failure(
+                "list_neurons target contains duplicate topic-map keys",
+            ));
             continue;
         }
         if neuron.id.as_ref().is_some_and(|id| id.id == neuron_id) {
             target_matches.push(neuron);
         } else {
-            source_errors.push("list_neurons returned an unexpected target record".into());
+            source_failures.push(invalid_failure(
+                "list_neurons returned an unexpected target record",
+            ));
         }
     }
     if target_matches.len() > 1 {
-        source_errors.push(format!(
+        source_failures.push(invalid_failure(&format!(
             "list_neurons returned duplicate target neuron ID {neuron_id}"
-        ));
+        )));
     }
     let Some(target_raw) = target_matches.pop() else {
         let evidence = EvaluationEvidence {
@@ -249,10 +276,7 @@ async fn collect_with(
             dependencies: BTreeMap::new(),
             known_neurons: BTreeMap::new(),
             controller: None,
-            start_reducing_voting_power_after_seconds: Some(
-                dendrite_types::SIX_NOMINAL_MONTHS_SECONDS,
-            ),
-            source_errors,
+            source_failures,
             unknown_committed_topics: 0,
             requested_neuron_ids: vec![neuron_id],
         };
@@ -272,34 +296,33 @@ async fn collect_with(
             Ok(response) => {
                 for raw in response.full_neurons {
                     if has_duplicate_topic_keys(&raw) {
-                        source_errors.push(
-                            "list_neurons dependency contains duplicate topic-map keys".into(),
-                        );
+                        source_failures.push(invalid_failure(
+                            "list_neurons dependency contains duplicate topic-map keys",
+                        ));
                         continue;
                     }
                     let (neuron, unknown) = normalize_neuron(raw);
                     if neuron.id == 0 || !batch.contains(&neuron.id) {
-                        source_errors.push(
-                            "list_neurons returned an invalid or unexpected dependency record"
-                                .into(),
-                        );
+                        source_failures.push(invalid_failure(
+                            "list_neurons returned an invalid or unexpected dependency record",
+                        ));
                         continue;
                     }
                     if unknown > 0 {
-                        source_errors.push(format!(
+                        source_failures.push(invalid_failure(&format!(
                             "dependency neuron {} contained an unknown committed-topic variant",
                             neuron.id
-                        ));
+                        )));
                     }
                     let id = neuron.id;
                     if dependencies.insert(id, neuron).is_some() {
-                        source_errors.push(format!(
+                        source_failures.push(invalid_failure(&format!(
                             "list_neurons returned duplicate dependency neuron ID {id}"
-                        ));
+                        )));
                     }
                 }
             }
-            Err(error) => source_errors.push(error.to_string()),
+            Err(error) => source_failures.push(source_failure(error)),
         }
     }
     let controller = match target.controller {
@@ -310,7 +333,7 @@ async fn collect_with(
                 controllers: info.controllers,
             }),
             Err(error) => {
-                source_errors.push(error.to_string());
+                source_failures.push(source_failure(error));
                 Some(ControllerEvidence {
                     call_succeeded: false,
                     module_hash: None,
@@ -330,8 +353,7 @@ async fn collect_with(
         dependencies,
         known_neurons,
         controller,
-        start_reducing_voting_power_after_seconds: Some(dendrite_types::SIX_NOMINAL_MONTHS_SECONDS),
-        source_errors,
+        source_failures,
         unknown_committed_topics,
         requested_neuron_ids: requested,
     };
@@ -529,9 +551,9 @@ mod tests {
         );
         assert!(
             snapshot
-                .source_errors
+                .source_failures
                 .iter()
-                .any(|e| e.contains("neurons rejected"))
+                .any(|failure| failure.message.contains("neurons rejected"))
         );
     }
     #[test]
@@ -545,7 +567,7 @@ mod tests {
             snapshot.overall_status,
             dendrite_types::ComplianceStatus::NonCompliant
         );
-        assert!(snapshot.source_errors.is_empty());
+        assert!(snapshot.source_failures.is_empty());
         assert_eq!(client.calls.borrow().as_slice(), &[vec![7]]);
     }
     #[test]
@@ -556,7 +578,7 @@ mod tests {
             snapshot.overall_status,
             dendrite_types::ComplianceStatus::Compliant
         );
-        assert!(snapshot.source_errors.is_empty());
+        assert!(snapshot.source_failures.is_empty());
         assert!(
             snapshot
                 .rules
@@ -599,7 +621,7 @@ mod tests {
             snapshot.overall_status,
             dendrite_types::ComplianceStatus::NonCompliant
         );
-        assert!(snapshot.source_errors.is_empty());
+        assert!(snapshot.source_failures.is_empty());
         assert!(snapshot.rules.iter().any(|rule| {
             rule.rule_id == "DENDRITE-NM-004" && rule.status == dendrite_types::RuleStatus::Fail
         }));
@@ -634,7 +656,11 @@ mod tests {
             snapshot.overall_status,
             dendrite_types::ComplianceStatus::Indeterminate
         );
-        assert!(snapshot.source_errors[0].contains("exceeds bound"));
+        assert!(
+            snapshot.source_failures[0]
+                .message
+                .contains("exceeds bound")
+        );
     }
     #[test]
     fn collector_uses_dependencies_even_when_target_has_no_known_data() {
