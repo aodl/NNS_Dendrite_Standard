@@ -141,7 +141,7 @@ pub struct Neuron {
     pub deciding_voting_power: Option<u64>,
     pub potential_voting_power: Option<u64>,
 }
-#[derive(Clone, Debug, CandidType, Eq, PartialEq)]
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct ListNeurons {
     pub neuron_ids: Vec<u64>,
     pub include_neurons_readable_by_caller: bool,
@@ -355,4 +355,100 @@ mod tests {
             assert_eq!(error.method, "list_neurons");
         }
     }
+
+    fn neuron(id: u64) -> Neuron {
+        Neuron {
+            id: Some(NeuronId { id }),
+            staked_maturity_e8s_equivalent: None,
+            controller: None,
+            not_for_profit: false,
+            maturity_e8s_equivalent: 0,
+            cached_neuron_stake_e8s: 1,
+            created_timestamp_seconds: 0,
+            auto_stake_maturity: None,
+            aging_since_timestamp_seconds: 0,
+            hot_keys: vec![],
+            dissolve_state: None,
+            followees: vec![],
+            neuron_fees_e8s: 0,
+            visibility: Some(2),
+            known_neuron_data: Some(KnownNeuronData {
+                name: "known".into(),
+                description: None,
+                links: None,
+                committed_topics: Some(vec![]),
+            }),
+            voting_power_refreshed_timestamp_seconds: None,
+            deciding_voting_power: None,
+            potential_voting_power: None,
+        }
+    }
+
+    fn response(neurons: Vec<Neuron>) -> ListNeuronsResponse {
+        ListNeuronsResponse {
+            neuron_infos: vec![],
+            full_neurons: neurons,
+            total_pages_available: Some(1),
+        }
+    }
+
+    #[test]
+    fn response_validation_enforces_all_public_bounds() {
+        assert_eq!(
+            validate_neurons(response(
+                (0..=MAX_FULL_NEURONS as u64).map(neuron).collect()
+            ))
+            .unwrap_err()
+            .kind,
+            SourceErrorKind::ResponseTooLarge
+        );
+
+        let mut oversized = neuron(1);
+        oversized.hot_keys = vec![Principal::anonymous(); MAX_FOLLOWEES + 1];
+        assert_eq!(
+            validate_neurons(response(vec![oversized]))
+                .unwrap_err()
+                .kind,
+            SourceErrorKind::ResponseTooLarge
+        );
+
+        let mut duplicate_topics = neuron(1);
+        duplicate_topics.followees = vec![
+            (0, Followees { followees: vec![] }),
+            (0, Followees { followees: vec![] }),
+        ];
+        assert_eq!(
+            validate_neurons(response(vec![duplicate_topics]))
+                .unwrap_err()
+                .kind,
+            SourceErrorKind::InvalidResponse
+        );
+
+        assert_eq!(
+            validate_neurons(response(vec![neuron(1)]))
+                .unwrap()
+                .full_neurons[0]
+                .id,
+            Some(NeuronId { id: 1 })
+        );
+    }
+
+    #[test]
+    fn request_shape_round_trips_for_the_fixed_method() {
+        let request = ListNeurons {
+            neuron_ids: vec![OMEGA_TEST_ID],
+            include_neurons_readable_by_caller: false,
+            include_empty_neurons_readable_by_caller: Some(false),
+            include_public_neurons_in_full_neurons: Some(true),
+            page_number: Some(0),
+            page_size: Some(50),
+            neuron_subaccounts: None,
+        };
+        assert_eq!(
+            decode_one::<ListNeurons>(&encode_one(request.clone()).unwrap()).unwrap(),
+            request
+        );
+    }
+
+    const OMEGA_TEST_ID: u64 = 18_422_777_432_977_120_264;
 }

@@ -41,4 +41,4 @@ awk '
         }
     }
 ' "$branch_report"
-cargo llvm-cov --workspace --summary-only
+cargo llvm-cov --workspace --summary-only --fail-under-lines 85

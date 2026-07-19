@@ -43,6 +43,18 @@ fn main() -> ExitCode {
                         "dendrite",
                     ],
                 )
+                && run(
+                    "cargo",
+                    &[
+                        "build",
+                        "--locked",
+                        "--release",
+                        "--target",
+                        "wasm32-unknown-unknown",
+                        "-p",
+                        "dendrite-test-governance",
+                    ],
+                )
                 && run("cargo", &["test", "--locked", "--workspace"])
                 && run("npm", &["test"])
         }

@@ -315,7 +315,11 @@ async fn collect_with(
                         )));
                     }
                     let id = neuron.id;
-                    if dependencies.insert(id, neuron).is_some() {
+                    if let std::collections::btree_map::Entry::Vacant(entry) =
+                        dependencies.entry(id)
+                    {
+                        entry.insert(neuron);
+                    } else {
                         source_failures.push(invalid_failure(&format!(
                             "list_neurons returned duplicate dependency neuron ID {id}"
                         )));
@@ -391,13 +395,18 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    enum RecordedCall {
+        List(Vec<u64>),
+        CanisterInfo(Principal),
+    }
     struct FakeClient {
         neurons: TestRefCell<VecDeque<Result<ListNeuronsResponse, SourceError>>>,
-        calls: TestRefCell<Vec<Vec<u64>>>,
+        calls: TestRefCell<Vec<RecordedCall>>,
     }
     impl EvidenceClient for FakeClient {
         async fn list_neurons(&self, ids: Vec<u64>) -> Result<ListNeuronsResponse, SourceError> {
-            self.calls.borrow_mut().push(ids);
+            self.calls.borrow_mut().push(RecordedCall::List(ids));
             self.neurons
                 .borrow_mut()
                 .pop_front()
@@ -405,8 +414,11 @@ mod tests {
         }
         async fn canister_info(
             &self,
-            _canister_id: Principal,
+            canister_id: Principal,
         ) -> Result<CanisterInfoResponse, SourceError> {
+            self.calls
+                .borrow_mut()
+                .push(RecordedCall::CanisterInfo(canister_id));
             Ok(CanisterInfoResponse {
                 total_num_changes: 0,
                 recent_changes: vec![],
@@ -568,7 +580,10 @@ mod tests {
             dendrite_types::ComplianceStatus::NonCompliant
         );
         assert!(snapshot.source_failures.is_empty());
-        assert_eq!(client.calls.borrow().as_slice(), &[vec![7]]);
+        assert_eq!(
+            client.calls.borrow().as_slice(),
+            &[RecordedCall::List(vec![7])]
+        );
     }
     #[test]
     fn collector_compliant_graph_uses_the_production_pipeline() {
@@ -586,8 +601,12 @@ mod tests {
                 .all(|rule| rule.status == dendrite_types::RuleStatus::Pass)
         );
         assert_eq!(snapshot.quorum_threshold, Some(3));
-        assert_eq!(client.calls.borrow()[0], vec![42]);
-        assert_eq!(client.calls.borrow()[1].len(), 7);
+        assert_eq!(client.calls.borrow()[0], RecordedCall::List(vec![42]));
+        assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 7));
+        assert_eq!(
+            client.calls.borrow()[2],
+            RecordedCall::CanisterInfo(Principal::from_slice(&[1]))
+        );
     }
     #[test]
     fn collector_defective_graph_is_non_compliant() {
@@ -685,5 +704,84 @@ mod tests {
             rule.rule_id == "DENDRITE-KNOWN-002" && rule.status == dendrite_types::RuleStatus::Fail
         }));
         assert_eq!(client.calls.borrow().len(), 2);
+    }
+
+    #[test]
+    fn collector_decode_failure_remains_typed_and_indeterminate() {
+        let client = FakeClient {
+            neurons: TestRefCell::new(VecDeque::from([Err(SourceError {
+                destination: ic_clients::NNS_GOVERNANCE,
+                method: "list_neurons",
+                kind: SourceErrorKind::DecodeFailed,
+                message: "invalid Candid".into(),
+            })])),
+            calls: TestRefCell::new(vec![]),
+        };
+        let report = block_on(collect_with(&client, 7, 1_000)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert_eq!(
+            report.source_failures[0].kind,
+            SourceFailureKind::DecodeFailed
+        );
+    }
+
+    #[test]
+    fn collector_rejects_duplicate_topic_keys_and_unexpected_dependencies() {
+        let client = compliant_client();
+        let duplicate =
+            client.neurons.borrow()[0].as_ref().unwrap().full_neurons[0].followees[0].clone();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .followees
+            .push(duplicate);
+        let report = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert!(
+            report.source_failures[0]
+                .message
+                .contains("duplicate topic")
+        );
+
+        let client = compliant_client();
+        client.neurons.borrow_mut()[1]
+            .as_mut()
+            .unwrap()
+            .full_neurons
+            .push(raw_neuron(999, vec![]));
+        let report = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert!(
+            report
+                .source_failures
+                .iter()
+                .any(|failure| failure.message.contains("unexpected dependency"))
+        );
+    }
+
+    #[test]
+    fn collector_keeps_first_duplicate_dependency_record() {
+        let client = compliant_client();
+        let mut contradictory = raw_neuron(100, vec![]);
+        contradictory.known_neuron_data = None;
+        client.neurons.borrow_mut()[1]
+            .as_mut()
+            .unwrap()
+            .full_neurons
+            .push(contradictory);
+        let report = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert!(
+            report
+                .source_failures
+                .iter()
+                .any(|failure| failure.message.contains("duplicate dependency"))
+        );
+        assert!(report.managers[0].known_neuron.is_some());
     }
 }

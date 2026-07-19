@@ -1,6 +1,11 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal, Reserved};
+use dendrite_types::{ComplianceReport, ComplianceStatus};
+use ic_clients::NNS_GOVERNANCE;
 use pocket_ic::{PocketIc, PocketIcBuilder};
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, UNIX_EPOCH},
+};
 
 #[derive(CandidType)]
 struct HttpRequest {
@@ -30,6 +35,17 @@ fn wasm() -> Vec<u8> {
     })
 }
 
+fn governance_wasm() -> Vec<u8> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/wasm32-unknown-unknown/release/dendrite_test_governance.wasm");
+    std::fs::read(&path).unwrap_or_else(|error| {
+        panic!(
+            "read test Governance Wasm at {} (run cargo xtask test): {error}",
+            path.display()
+        )
+    })
+}
+
 fn pocket_ic() -> PocketIc {
     let server = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../dist/tools/pocket-ic-server-15.0.0/pocket-ic");
@@ -38,6 +54,16 @@ fn pocket_ic() -> PocketIc {
         "run cargo xtask test to provision PocketIC"
     );
     PocketIcBuilder::new()
+        .with_application_subnet()
+        .with_server_binary(server)
+        .build()
+}
+
+fn pocket_ic_with_nns() -> PocketIc {
+    let server = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../dist/tools/pocket-ic-server-15.0.0/pocket-ic");
+    PocketIcBuilder::new()
+        .with_nns_subnet()
         .with_application_subnet()
         .with_server_binary(server)
         .build()
@@ -97,11 +123,10 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
             Encode!(&7_u64).unwrap(),
         )
         .unwrap();
-    let refresh_result = Decode!(&checked, Result<Reserved, Reserved>).unwrap();
-    assert!(
-        refresh_result.is_ok(),
-        "fixed upstream rejection is evaluated"
-    );
+    let report = Decode!(&checked, Result<ComplianceReport, Reserved>)
+        .unwrap()
+        .unwrap();
+    assert_eq!(report.overall_status, ComplianceStatus::Indeterminate);
     pic.upgrade_canister(canister, wasm, Encode!().unwrap(), None)
         .unwrap();
     let reply = pic
@@ -113,4 +138,48 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
         )
         .unwrap();
     assert_eq!(Decode!(&reply, HttpResponse).unwrap().status_code, 200);
+}
+
+#[test]
+fn live_compliant_and_non_compliant_checks_use_fixed_governance_and_real_controller() {
+    let pic = pocket_ic_with_nns();
+    pic.set_time((UNIX_EPOCH + Duration::from_secs(1_700_000_000)).into());
+    let controller = pic.create_canister();
+    pic.set_controllers(controller, None, vec![])
+        .expect("blackhole the empty controller canister");
+    let governance = pic
+        .create_canister_with_id(None, None, NNS_GOVERNANCE)
+        .expect("create fixed NNS Governance canister");
+    pic.install_canister(
+        governance,
+        governance_wasm(),
+        Encode!(&controller).unwrap(),
+        None,
+    );
+    let dendrite = pic.create_canister();
+    pic.add_cycles(dendrite, 5_000_000_000_000);
+    pic.install_canister(dendrite, wasm(), Encode!().unwrap(), None);
+
+    for (neuron_id, expected) in [
+        (42_u64, ComplianceStatus::Compliant),
+        (43_u64, ComplianceStatus::NonCompliant),
+    ] {
+        let reply = pic
+            .update_call(
+                dendrite,
+                Principal::anonymous(),
+                "check_neuron",
+                Encode!(&neuron_id).unwrap(),
+            )
+            .unwrap();
+        let report = Decode!(&reply, Result<ComplianceReport, Reserved>)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            report.overall_status, expected,
+            "rules: {:?}; failures: {:?}",
+            report.rules, report.source_failures
+        );
+        assert_eq!(report.neuron_id, neuron_id);
+    }
 }
