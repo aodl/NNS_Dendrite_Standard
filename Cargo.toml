@@ -13,11 +13,10 @@ rust-version = "1.94.1"
 candid = "=0.10.24"
 hex = "=0.4.3"
 ic-cdk = "=0.20.2"
-ic-certified-map = "=0.4.1"
+ic-asset-certification = "=3.2.0"
+ic-http-certification = "=3.2.0"
 include_dir = "=0.7.4"
-base64 = "=0.22.1"
 serde = { version = "=1.0.228", features = ["derive"] }
-sha2 = "=0.10.9"
 pocket-ic = "=15.0.0"
 
 [profile.release]
