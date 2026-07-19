@@ -3,8 +3,7 @@
 use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{
     ALPHA_VOTE_NEURON_ID, ComplianceSnapshot, ControllerEvidence, EvaluationEvidence, KnownNeuron,
-    MAX_CACHED_SNAPSHOTS, NeuronEvidence, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION,
-    STANDARD_VERSION, evaluate,
+    NeuronEvidence, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, evaluate,
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListKnownNeuronsResponse,
@@ -14,33 +13,21 @@ use std::{cell::RefCell, collections::BTreeMap};
 
 mod assets;
 mod rate_limit;
-mod stable;
-use rate_limit::{RefreshCounters, RefreshState, Rejection};
+use rate_limit::{CheckGuard, Rejection};
 
-thread_local! { static REFRESH_STATE: RefCell<RefreshState> = RefCell::new(RefreshState::with_counters(stable::counters())); }
+thread_local! { static CHECK_GUARD: RefCell<CheckGuard> = RefCell::new(CheckGuard::default()); }
 
-fn mutate_refresh_state<T>(mutate: impl FnOnce(&mut RefreshState) -> T) -> T {
-    REFRESH_STATE.with_borrow_mut(|state| {
-        let result = mutate(state);
-        stable::set_counters(state.counters);
-        result
-    })
-}
-
-fn restore_refresh_state() {
-    REFRESH_STATE.with_borrow_mut(|state| *state = RefreshState::with_counters(stable::counters()));
+fn mutate_check_guard<T>(mutate: impl FnOnce(&mut CheckGuard) -> T) -> T {
+    CHECK_GUARD.with_borrow_mut(mutate)
 }
 
 #[ic_cdk::init]
 fn init() {
-    stable::assert_compatible();
-    restore_refresh_state();
     assets::certify_assets();
 }
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
-    stable::assert_compatible();
-    restore_refresh_state();
+    CHECK_GUARD.with_borrow_mut(|guard| *guard = CheckGuard::default());
     assets::certify_assets();
 }
 #[ic_cdk::query]
@@ -48,101 +35,28 @@ fn http_request(request: assets::HttpRequest) -> assets::HttpResponse {
     assets::http_request(request)
 }
 
-const NNS_GOVERNANCE_CANISTER_ID: &str = "rrkah-fqaaa-aaaaa-aaaaq-cai";
-
-#[derive(Clone, CandidType, Deserialize)]
-pub struct StandardConfig {
-    standard_version: String,
-    alpha_vote_neuron_id: u64,
-    omega_reject_neuron_id: u64,
-    max_cached_snapshots: u16,
-    governance_canister_id: String,
-    source_revision: String,
-}
-#[derive(Clone, CandidType, Deserialize)]
-pub struct PublicStatus {
-    schema_version: u16,
-    cached_snapshots: u16,
-    refresh_counters: RefreshCounters,
-}
 #[derive(Clone, Debug, CandidType, Deserialize)]
 pub enum DendriteError {
     InvalidNeuronId(String),
     TemporarilyUnavailable(String),
     Upstream(String),
-    Cooldown { retry_after_seconds: u64 },
     GlobalRateLimit { retry_after_seconds: u64 },
     ConcurrencyLimit,
     DuplicateInFlight,
     LowCycles,
 }
 
-#[ic_cdk::query]
-fn get_standard_config() -> StandardConfig {
-    StandardConfig {
-        standard_version: STANDARD_VERSION.into(),
-        alpha_vote_neuron_id: ALPHA_VOTE_NEURON_ID,
-        omega_reject_neuron_id: OMEGA_REJECT_NEURON_ID,
-        max_cached_snapshots: MAX_CACHED_SNAPSHOTS as u16,
-        governance_canister_id: NNS_GOVERNANCE_CANISTER_ID.into(),
-        source_revision: SOURCE_REVISION.into(),
-    }
-}
-
-#[ic_cdk::query]
-fn get_cached_compliance(neuron_id: u64) -> Option<ComplianceSnapshot> {
-    if neuron_id == 0 {
-        return None;
-    }
-    stable::get(neuron_id)
-}
-
-#[ic_cdk::query]
-fn get_public_status() -> PublicStatus {
-    PublicStatus {
-        schema_version: stable::metadata()
-            .expect("stable metadata was validated during initialization")
-            .schema_version,
-        cached_snapshots: stable::len() as u16,
-        refresh_counters: REFRESH_STATE.with_borrow(|state| state.counters),
-    }
-}
-
-// Live collection uses only the fixed Governance and management principals. The
-// bounded adapter is intentionally unavailable on non-wasm test builds.
 #[ic_cdk::update]
-async fn refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
-    refresh(neuron_id, true).await
-}
-
-#[ic_cdk::update]
-async fn force_refresh_compliance(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
-    refresh(neuron_id, false).await
-}
-
-async fn refresh(
-    neuron_id: u64,
-    allow_fresh_cache: bool,
-) -> Result<ComplianceSnapshot, DendriteError> {
+async fn check_neuron(neuron_id: u64) -> Result<ComplianceSnapshot, DendriteError> {
     if neuron_id == 0 {
         return Err(DendriteError::InvalidNeuronId(
             "neuron ID must be non-zero".into(),
         ));
     }
-    if allow_fresh_cache && let Some(snapshot) = stable::get(neuron_id) {
-        let now = ic_cdk::api::time() / 1_000_000_000;
-        if cache_is_fresh(&snapshot, now) {
-            mutate_refresh_state(RefreshState::cache_hit);
-            return Ok(snapshot);
-        }
-    }
     let now = ic_cdk::api::time() / 1_000_000_000;
     let cycles = ic_cdk::api::canister_liquid_cycle_balance();
-    mutate_refresh_state(|state| state.begin(neuron_id, now, cycles)).map_err(|rejection| {
+    mutate_check_guard(|guard| guard.begin(neuron_id, now, cycles)).map_err(|rejection| {
         match rejection {
-            Rejection::Cooldown(retry_after_seconds) => DendriteError::Cooldown {
-                retry_after_seconds,
-            },
             Rejection::GlobalRate(retry_after_seconds) => DendriteError::GlobalRateLimit {
                 retry_after_seconds,
             },
@@ -151,24 +65,9 @@ async fn refresh(
             Rejection::LowCycles => DendriteError::LowCycles,
         }
     })?;
-    let collected = collect_live(neuron_id).await;
-    let snapshot = match collected {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            mutate_refresh_state(|state| state.finish(neuron_id, false, false));
-            return Err(error);
-        }
-    };
-    let mut evicted = false;
-    if snapshot.overall_status != dendrite_types::ComplianceStatus::Indeterminate {
-        evicted = stable::put(snapshot.clone());
-    }
-    mutate_refresh_state(|state| state.finish(neuron_id, true, evicted));
-    Ok(snapshot)
-}
-
-fn cache_is_fresh(snapshot: &ComplianceSnapshot, now: u64) -> bool {
-    now <= snapshot.stale_after_timestamp_seconds
+    let result = collect_live(neuron_id).await;
+    mutate_check_guard(|guard| guard.finish(neuron_id));
+    result
 }
 
 fn topic_code(topic: &TopicToFollow) -> i32 {
@@ -654,29 +553,6 @@ mod tests {
                 Ok(response(dependencies)),
             ])),
         }
-    }
-    #[test]
-    fn fixed_protocol_configuration() {
-        let c = get_standard_config();
-        assert_eq!(c.alpha_vote_neuron_id, 2_947_465_672_511_369);
-        assert_eq!(c.omega_reject_neuron_id, 18_422_777_432_977_120_264);
-        assert_eq!(c.governance_canister_id, "rrkah-fqaaa-aaaaa-aaaaq-cai");
-    }
-    #[test]
-    fn public_status_contains_only_operational_state() {
-        assert_eq!(get_public_status().schema_version, 1);
-    }
-    #[test]
-    fn cache_freshness_boundary_is_exact() {
-        let snapshot = block_on(collect_with(&compliant_client(), 42, 1_000_000)).unwrap();
-        assert!(cache_is_fresh(
-            &snapshot,
-            snapshot.stale_after_timestamp_seconds
-        ));
-        assert!(!cache_is_fresh(
-            &snapshot,
-            snapshot.stale_after_timestamp_seconds + 1
-        ));
     }
     #[test]
     fn checked_in_candid_is_structurally_equal_to_rust_export() {

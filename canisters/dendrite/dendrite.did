@@ -7,8 +7,8 @@ type ComplianceSnapshot = record { schema_version : nat16; standard_version : te
 type StandardConfig = record { standard_version : text; alpha_vote_neuron_id : nat64; omega_reject_neuron_id : nat64; max_cached_snapshots : nat16; governance_canister_id : text; source_revision : text };
 type RefreshCounters = record { accepted_refreshes : nat64; cache_hits : nat64; cooldown_rejections : nat64; global_rate_rejections : nat64; concurrency_rejections : nat64; duplicate_in_flight_requests : nat64; low_cycle_rejections : nat64; upstream_failures : nat64; successful_refreshes : nat64; cache_evictions : nat64 };
 type PublicStatus = record { schema_version : nat16; cached_snapshots : nat16; refresh_counters : RefreshCounters };
-type DendriteError = variant { InvalidNeuronId : text; TemporarilyUnavailable : text; Upstream : text; Cooldown : record { retry_after_seconds : nat64 }; GlobalRateLimit : record { retry_after_seconds : nat64 }; ConcurrencyLimit; DuplicateInFlight; LowCycles };
+type DendriteError = variant { InvalidNeuronId : text; TemporarilyUnavailable : text; Upstream : text; GlobalRateLimit : record { retry_after_seconds : nat64 }; ConcurrencyLimit; DuplicateInFlight; LowCycles };
 type HeaderField = record { text; text };
 type HttpRequest = record { method : text; url : text; headers : vec HeaderField; body : blob; certificate_version : opt nat16 };
 type HttpResponse = record { status_code : nat16; headers : vec HeaderField; body : blob; upgrade : opt bool };
-service : () -> { get_standard_config : () -> (StandardConfig) query; get_cached_compliance : (nat64) -> (opt ComplianceSnapshot) query; refresh_compliance : (nat64) -> (variant { Ok : ComplianceSnapshot; Err : DendriteError }); force_refresh_compliance : (nat64) -> (variant { Ok : ComplianceSnapshot; Err : DendriteError }); get_public_status : () -> (PublicStatus) query; http_request : (HttpRequest) -> (HttpResponse) query }
+service : () -> { check_neuron : (nat64) -> (variant { Ok : ComplianceSnapshot; Err : DendriteError }); http_request : (HttpRequest) -> (HttpResponse) query }
