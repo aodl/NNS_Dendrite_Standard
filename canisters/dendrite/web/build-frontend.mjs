@@ -3,11 +3,13 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 
 const root = "canisters/dendrite";
+const configuredCanisterId = process.env.DENDRITE_CANISTER_ID ?? "aaaaa-aa";
+if (!/^[a-z0-9-]+$/.test(configuredCanisterId)) throw new Error("DENDRITE_CANISTER_ID is not a valid textual principal.");
 const generated = `${root}/public/generated`;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex").slice(0, 16);
 await rm(generated, { recursive: true, force: true });
 await mkdir(generated, { recursive: true });
-const result = await build({ entryPoints: [`${root}/web/src/main.js`], bundle: true, minify: true, sourcemap: false, write: false, target: "es2022", legalComments: "none", format: "esm" });
+const result = await build({ entryPoints: [`${root}/web/src/main.js`], bundle: true, minify: true, sourcemap: false, write: false, target: "es2022", legalComments: "none", format: "esm", define: { __DENDRITE_CANISTER_ID__: JSON.stringify(configuredCanisterId) } });
 const js = result.outputFiles[0].contents;
 const css = await readFile(`${root}/web/src/styles.css`);
 const jsName = `app.${digest(js)}.js`, cssName = `styles.${digest(css)}.css`;
