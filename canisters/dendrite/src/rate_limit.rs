@@ -1,8 +1,9 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 pub const GLOBAL_WINDOW_SECONDS: u64 = 60;
 pub const MAX_CHECKS_PER_WINDOW: usize = 20;
 pub const MAX_CONCURRENT_CHECKS: usize = 2;
+pub const MAX_IN_FLIGHT_AGE_SECONDS: u64 = 300;
 pub const MIN_CYCLE_RESERVE: u128 = 2_000_000_000_000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -16,15 +17,17 @@ pub enum Rejection {
 #[derive(Default)]
 pub struct CheckGuard {
     starts: VecDeque<u64>,
-    in_flight: BTreeSet<u64>,
+    in_flight: BTreeMap<u64, u64>,
 }
 
 impl CheckGuard {
     pub fn begin(&mut self, neuron_id: u64, now: u64, cycles: u128) -> Result<(), Rejection> {
+        self.in_flight
+            .retain(|_, started_at| started_at.saturating_add(MAX_IN_FLIGHT_AGE_SECONDS) > now);
         if cycles < MIN_CYCLE_RESERVE {
             return Err(Rejection::LowCycles);
         }
-        if self.in_flight.contains(&neuron_id) {
+        if self.in_flight.contains_key(&neuron_id) {
             return Err(Rejection::Duplicate);
         }
         if self.in_flight.len() >= MAX_CONCURRENT_CHECKS {
@@ -44,7 +47,7 @@ impl CheckGuard {
                     .saturating_sub(now),
             ));
         }
-        self.in_flight.insert(neuron_id);
+        self.in_flight.insert(neuron_id, now);
         self.starts.push_back(now);
         Ok(())
     }
@@ -91,5 +94,19 @@ mod tests {
             Err(Rejection::GlobalRate(60))
         );
         assert_eq!(guard.begin(99, 160, MIN_CYCLE_RESERVE), Ok(()));
+    }
+
+    #[test]
+    fn abandoned_in_flight_entries_expire_without_a_timer() {
+        let mut guard = CheckGuard::default();
+        guard.begin(1, 100, MIN_CYCLE_RESERVE).unwrap();
+        guard.begin(2, 100, MIN_CYCLE_RESERVE).unwrap();
+        assert_eq!(
+            guard.begin(3, 399, MIN_CYCLE_RESERVE),
+            Err(Rejection::Concurrency)
+        );
+        assert_eq!(guard.begin(1, 400, MIN_CYCLE_RESERVE), Ok(()));
+        guard.finish(1);
+        assert_eq!(guard.begin(3, 400, MIN_CYCLE_RESERVE), Ok(()));
     }
 }
