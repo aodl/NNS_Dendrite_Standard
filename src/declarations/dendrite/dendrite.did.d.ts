@@ -27,8 +27,7 @@ export interface ControllerSummary {
   'call_succeeded' : boolean,
   'module_hash' : [] | [Uint8Array | number[]],
 }
-export type DendriteError = { 'TemporarilyUnavailable' : string } |
-  { 'Upstream' : string } |
+export type DendriteError = { 'Upstream' : string } |
   { 'GlobalRateLimit' : { 'retry_after_seconds' : bigint } } |
   { 'InvalidNeuronId' : string } |
   { 'LowCycles' : null } |
@@ -79,6 +78,7 @@ export type RuleStatus = { 'Fail' : null } |
 export interface SourceFailure {
   'method' : string,
   'kind' : SourceFailureKind,
+  'affected_neuron_ids' : BigUint64Array | bigint[],
   'message' : string,
 }
 export type SourceFailureKind = { 'ResponseTooLarge' : null } |

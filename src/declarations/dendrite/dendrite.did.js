@@ -34,6 +34,7 @@ export const idlFactory = ({ IDL }) => {
   const SourceFailure = IDL.Record({
     'method' : IDL.Text,
     'kind' : SourceFailureKind,
+    'affected_neuron_ids' : IDL.Vec(IDL.Nat64),
     'message' : IDL.Text,
   });
   const TargetSummary = IDL.Record({
@@ -85,7 +86,6 @@ export const idlFactory = ({ IDL }) => {
     'neuron_id' : IDL.Nat64,
   });
   const DendriteError = IDL.Variant({
-    'TemporarilyUnavailable' : IDL.Text,
     'Upstream' : IDL.Text,
     'GlobalRateLimit' : IDL.Record({ 'retry_after_seconds' : IDL.Nat64 }),
     'InvalidNeuronId' : IDL.Text,

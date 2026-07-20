@@ -3,8 +3,8 @@
 use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{
     ALPHA_VOTE_NEURON_ID, ComplianceReport, ControllerEvidence, EvaluationEvidence, KnownNeuron,
-    NeuronEvidence, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, SourceFailure, SourceFailureKind,
-    evaluate,
+    NeuronEvidence, NeuronLookup, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, SourceFailure,
+    SourceFailureKind, evaluate,
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, SourceError,
@@ -39,7 +39,6 @@ fn http_request(request: assets::HttpRequest) -> assets::HttpResponse {
 #[derive(Clone, Debug, CandidType, Deserialize)]
 pub enum DendriteError {
     InvalidNeuronId(String),
-    TemporarilyUnavailable(String),
     Upstream(String),
     GlobalRateLimit { retry_after_seconds: u64 },
     ConcurrencyLimit,
@@ -97,11 +96,8 @@ fn topic_code(topic: &TopicToFollow) -> i32 {
 fn known_data(data: &KnownNeuronData, id: u64) -> KnownNeuron {
     KnownNeuron {
         id,
-        name: data.name.chars().take(256).collect(),
-        description: data
-            .description
-            .as_ref()
-            .map(|value| value.chars().take(2_048).collect()),
+        name: data.name.clone(),
+        description: data.description.clone(),
         links: data.links.clone().unwrap_or_default(),
     }
 }
@@ -114,26 +110,58 @@ fn has_duplicate_topic_keys(neuron: &Neuron) -> bool {
         .any(|(topic, _)| !topics.insert(*topic))
 }
 
-fn normalize_neuron(neuron: Neuron) -> (NeuronEvidence, usize) {
+fn neuron_collections_within_bounds(neuron: &Neuron) -> bool {
+    neuron.hot_keys.len() <= ic_clients::MAX_HOT_KEYS
+        && neuron.followees.len() <= 32
+        && neuron
+            .followees
+            .iter()
+            .all(|(_, followees)| followees.followees.len() <= ic_clients::MAX_FOLLOWEES)
+        && neuron.known_neuron_data.as_ref().is_none_or(|data| {
+            data.name.len() <= ic_clients::MAX_KNOWN_NEURON_NAME_BYTES
+                && data.description.as_ref().is_none_or(|description| {
+                    description.len() <= ic_clients::MAX_KNOWN_NEURON_DESCRIPTION_BYTES
+                })
+                && data.links.as_ref().is_none_or(|links| {
+                    links.len() <= ic_clients::MAX_KNOWN_NEURON_LINKS
+                        && links
+                            .iter()
+                            .all(|link| link.len() <= ic_clients::MAX_KNOWN_NEURON_LINK_BYTES)
+                })
+                && data
+                    .committed_topics
+                    .as_ref()
+                    .is_none_or(|topics| topics.len() <= ic_clients::MAX_COMMITTED_TOPICS)
+        })
+}
+
+fn normalize_neuron(
+    neuron: Neuron,
+    interpret_committed_topics: bool,
+) -> Result<(NeuronEvidence, usize), &'static str> {
     let id = neuron.id.as_ref().map_or(0, |id| id.id);
     let mut unknown = 0;
-    let committed_topics = neuron
-        .known_neuron_data
-        .as_ref()
-        .and_then(|d| d.committed_topics.as_ref())
-        .map(|topics| {
-            topics
-                .iter()
-                .filter_map(|topic| match topic {
-                    Some(topic) => Some(topic_code(topic)),
-                    None => {
-                        unknown += 1;
-                        None
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let committed_topics = if interpret_committed_topics {
+        neuron
+            .known_neuron_data
+            .as_ref()
+            .and_then(|d| d.committed_topics.as_ref())
+            .map(|topics| {
+                topics
+                    .iter()
+                    .filter_map(|topic| match topic {
+                        Some(topic) => Some(topic_code(topic)),
+                        None => {
+                            unknown += 1;
+                            None
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
     let known_data = neuron.known_neuron_data.as_ref().map(|d| known_data(d, id));
     let followees = neuron
         .followees
@@ -148,8 +176,9 @@ fn normalize_neuron(neuron: Neuron) -> (NeuronEvidence, usize) {
     let effective_stake_e8s = neuron
         .cached_neuron_stake_e8s
         .checked_sub(neuron.neuron_fees_e8s)
-        .and_then(|v| v.checked_add(neuron.staked_maturity_e8s_equivalent.unwrap_or(0)));
-    (
+        .and_then(|v| v.checked_add(neuron.staked_maturity_e8s_equivalent.unwrap_or(0)))
+        .ok_or("neuron stake arithmetic is contradictory")?;
+    Ok((
         NeuronEvidence {
             id,
             controller: neuron.controller,
@@ -158,7 +187,7 @@ fn normalize_neuron(neuron: Neuron) -> (NeuronEvidence, usize) {
             not_for_profit: Some(neuron.not_for_profit),
             dissolve_delay_seconds,
             dissolving,
-            effective_stake_e8s,
+            effective_stake_e8s: Some(effective_stake_e8s),
             voting_power_refreshed_timestamp_seconds: neuron
                 .voting_power_refreshed_timestamp_seconds,
             potential_voting_power: neuron.potential_voting_power,
@@ -167,7 +196,7 @@ fn normalize_neuron(neuron: Neuron) -> (NeuronEvidence, usize) {
             followees,
         },
         unknown,
-    )
+    ))
 }
 
 trait EvidenceClient {
@@ -178,7 +207,7 @@ trait EvidenceClient {
     ) -> Result<CanisterInfoResponse, SourceError>;
 }
 
-fn source_failure(error: SourceError) -> SourceFailure {
+fn source_failure(error: SourceError, affected_neuron_ids: &[u64]) -> SourceFailure {
     let kind = match error.kind {
         ic_clients::SourceErrorKind::Rejected => SourceFailureKind::Rejected,
         ic_clients::SourceErrorKind::DecodeFailed => SourceFailureKind::DecodeFailed,
@@ -189,15 +218,77 @@ fn source_failure(error: SourceError) -> SourceFailure {
         method: error.method.into(),
         kind,
         message: error.message.chars().take(512).collect(),
+        affected_neuron_ids: affected_neuron_ids.iter().copied().take(50).collect(),
     }
 }
 
-fn invalid_failure(message: &str) -> SourceFailure {
+fn invalid_failure(message: &str, affected_neuron_ids: &[u64]) -> SourceFailure {
     SourceFailure {
         method: "list_neurons".into(),
         kind: SourceFailureKind::InvalidResponse,
         message: message.chars().take(512).collect(),
+        affected_neuron_ids: affected_neuron_ids.iter().copied().take(50).collect(),
     }
+}
+
+fn validate_list_neurons_batch(
+    requested_ids: &[u64],
+    response: ListNeuronsResponse,
+    interpret_committed_topics: bool,
+) -> Result<(BTreeMap<u64, NeuronEvidence>, usize), SourceFailure> {
+    if requested_ids.is_empty() || requested_ids.len() > 50 {
+        return Err(invalid_failure(
+            "list_neurons request contains outside 1 to 50 IDs",
+            requested_ids,
+        ));
+    }
+    if response.total_pages_available != Some(1) {
+        return Err(invalid_failure(
+            "list_neurons response has an invalid page count",
+            requested_ids,
+        ));
+    }
+    if response.neuron_infos.len() > requested_ids.len() {
+        return Err(invalid_failure(
+            "list_neurons response exceeds the requested batch bound",
+            requested_ids,
+        ));
+    }
+    let mut normalized = BTreeMap::new();
+    let mut unknown_committed_topics = 0;
+    for raw in response.full_neurons {
+        let id = raw.id.as_ref().map(|id| id.id).unwrap_or(0);
+        if id == 0 || !requested_ids.contains(&id) {
+            return Err(invalid_failure(
+                "list_neurons returned an absent, zero, or unexpected full-neuron ID",
+                requested_ids,
+            ));
+        }
+        if has_duplicate_topic_keys(&raw) {
+            return Err(invalid_failure(
+                "list_neurons response contains duplicate topic-map keys",
+                requested_ids,
+            ));
+        }
+        if !neuron_collections_within_bounds(&raw) {
+            return Err(SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::ResponseTooLarge,
+                message: "list_neurons response exceeds a pinned NNS collection bound".into(),
+                affected_neuron_ids: requested_ids.to_vec(),
+            });
+        }
+        let (neuron, unknown) = normalize_neuron(raw, interpret_committed_topics)
+            .map_err(|message| invalid_failure(message, requested_ids))?;
+        if normalized.insert(id, neuron).is_some() {
+            return Err(invalid_failure(
+                "list_neurons response contains a duplicate full-neuron ID",
+                requested_ids,
+            ));
+        }
+        unknown_committed_topics += unknown;
+    }
+    Ok((normalized, unknown_committed_topics))
 }
 
 fn dependency_batches(ids: &[u64]) -> Result<Vec<Vec<u64>>, DendriteError> {
@@ -238,51 +329,38 @@ async fn collect_with(
     now: u64,
 ) -> Result<ComplianceReport, DendriteError> {
     let mut source_failures = Vec::new();
-    let target_response = match client.list_neurons(vec![neuron_id]).await {
-        Ok(value) => Some(value),
+    let target_request = [neuron_id];
+    let target_lookup = match client.list_neurons(target_request.to_vec()).await {
+        Ok(response) => match validate_list_neurons_batch(&target_request, response, true) {
+            Ok((mut neurons, unknown_committed_topics)) => match neurons.remove(&neuron_id) {
+                Some(target) => (
+                    NeuronLookup::Found(Box::new(target)),
+                    unknown_committed_topics,
+                ),
+                None => (NeuronLookup::ConfirmedMissing, unknown_committed_topics),
+            },
+            Err(failure) => {
+                source_failures.push(failure);
+                (NeuronLookup::Unavailable, 0)
+            }
+        },
         Err(error) => {
-            source_failures.push(source_failure(error));
-            None
+            source_failures.push(source_failure(error, &target_request));
+            (NeuronLookup::Unavailable, 0)
         }
     };
-    let mut target_matches = Vec::new();
-    for neuron in target_response
-        .into_iter()
-        .flat_map(|response| response.full_neurons)
-    {
-        if has_duplicate_topic_keys(&neuron) {
-            source_failures.push(invalid_failure(
-                "list_neurons target contains duplicate topic-map keys",
-            ));
-            continue;
-        }
-        if neuron.id.as_ref().is_some_and(|id| id.id == neuron_id) {
-            target_matches.push(neuron);
-        } else {
-            source_failures.push(invalid_failure(
-                "list_neurons returned an unexpected target record",
-            ));
-        }
-    }
-    if target_matches.len() > 1 {
-        source_failures.push(invalid_failure(&format!(
-            "list_neurons returned duplicate target neuron ID {neuron_id}"
-        )));
-    }
-    let Some(target_raw) = target_matches.pop() else {
+    let (target_lookup, unknown_committed_topics) = target_lookup;
+    let NeuronLookup::Found(target) = &target_lookup else {
         let evidence = EvaluationEvidence {
             now_seconds: now,
-            target: None,
+            target: target_lookup,
             dependencies: BTreeMap::new(),
-            known_neurons: BTreeMap::new(),
             controller: None,
             source_failures,
             unknown_committed_topics: 0,
-            requested_neuron_ids: vec![neuron_id],
         };
         return Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION));
     };
-    let (target, unknown_committed_topics) = normalize_neuron(target_raw);
     let mut requested = vec![ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
     requested.extend(target.followees.get(&1).into_iter().flatten().copied());
     for topic in &target.committed_topics {
@@ -293,40 +371,30 @@ async fn collect_with(
     let mut dependencies = BTreeMap::new();
     for batch in dependency_batches(&requested)? {
         match client.list_neurons(batch.clone()).await {
-            Ok(response) => {
-                for raw in response.full_neurons {
-                    if has_duplicate_topic_keys(&raw) {
-                        source_failures.push(invalid_failure(
-                            "list_neurons dependency contains duplicate topic-map keys",
-                        ));
-                        continue;
-                    }
-                    let (neuron, unknown) = normalize_neuron(raw);
-                    if neuron.id == 0 || !batch.contains(&neuron.id) {
-                        source_failures.push(invalid_failure(
-                            "list_neurons returned an invalid or unexpected dependency record",
-                        ));
-                        continue;
-                    }
-                    if unknown > 0 {
-                        source_failures.push(invalid_failure(&format!(
-                            "dependency neuron {} contained an unknown committed-topic variant",
-                            neuron.id
-                        )));
-                    }
-                    let id = neuron.id;
-                    if let std::collections::btree_map::Entry::Vacant(entry) =
-                        dependencies.entry(id)
-                    {
-                        entry.insert(neuron);
-                    } else {
-                        source_failures.push(invalid_failure(&format!(
-                            "list_neurons returned duplicate dependency neuron ID {id}"
-                        )));
+            Ok(response) => match validate_list_neurons_batch(&batch, response, false) {
+                Ok((mut found, _)) => {
+                    for id in batch {
+                        let lookup = found
+                            .remove(&id)
+                            .map_or(NeuronLookup::ConfirmedMissing, |neuron| {
+                                NeuronLookup::Found(Box::new(neuron))
+                            });
+                        dependencies.insert(id, lookup);
                     }
                 }
+                Err(failure) => {
+                    source_failures.push(failure);
+                    for id in batch {
+                        dependencies.insert(id, NeuronLookup::Unavailable);
+                    }
+                }
+            },
+            Err(error) => {
+                source_failures.push(source_failure(error, &batch));
+                for id in batch {
+                    dependencies.insert(id, NeuronLookup::Unavailable);
+                }
             }
-            Err(error) => source_failures.push(source_failure(error)),
         }
     }
     let controller = match target.controller {
@@ -337,7 +405,7 @@ async fn collect_with(
                 controllers: info.controllers,
             }),
             Err(error) => {
-                source_failures.push(source_failure(error));
+                source_failures.push(source_failure(error, &[neuron_id]));
                 Some(ControllerEvidence {
                     call_succeeded: false,
                     module_hash: None,
@@ -347,19 +415,13 @@ async fn collect_with(
         },
         None => None,
     };
-    let known_neurons = std::iter::once((&target.id, &target))
-        .chain(dependencies.iter())
-        .filter_map(|(id, neuron)| neuron.known_data.clone().map(|known| (*id, known)))
-        .collect();
     let evidence = EvaluationEvidence {
         now_seconds: now,
-        target: Some(target),
+        target: target_lookup,
         dependencies,
-        known_neurons,
         controller,
         source_failures,
         unknown_committed_topics,
-        requested_neuron_ids: requested,
     };
     Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION))
 }
@@ -439,7 +501,7 @@ mod tests {
         ListNeuronsResponse {
             neuron_infos: vec![],
             full_neurons: vec![],
-            total_pages_available: Some(0),
+            total_pages_available: Some(1),
         }
     }
     fn response(neurons: Vec<Neuron>) -> ListNeuronsResponse {
@@ -646,6 +708,67 @@ mod tests {
         }));
     }
     #[test]
+    fn collector_rejected_dependency_batch_is_indeterminate_not_non_compliance() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[1] = Err(source_error("dependency batch rejected"));
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-NM-004"
+                && rule.status == dendrite_types::RuleStatus::Indeterminate
+        }));
+        assert_eq!(snapshot.source_failures[0].affected_neuron_ids.len(), 7);
+    }
+    #[test]
+    fn dependency_committed_topic_variants_are_ignored() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[1]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .known_neuron_data
+            .as_mut()
+            .unwrap()
+            .committed_topics = Some(vec![None]);
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.overall_status,
+            dendrite_types::ComplianceStatus::Compliant
+        );
+        assert!(snapshot.source_failures.is_empty());
+    }
+    #[test]
+    fn invalid_page_count_and_stake_arithmetic_make_the_batch_unavailable() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .total_pages_available = Some(2);
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert!(snapshot.source_failures[0].message.contains("page count"));
+
+        let client = compliant_client();
+        {
+            let mut responses = client.neurons.borrow_mut();
+            let target = &mut responses[0].as_mut().unwrap().full_neurons[0];
+            target.cached_neuron_stake_e8s = 0;
+            target.neuron_fees_e8s = 1;
+        }
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert!(
+            snapshot.source_failures[0]
+                .message
+                .contains("stake arithmetic")
+        );
+    }
+    #[test]
     fn collector_unknown_committed_variant_requires_update() {
         let client = compliant_client();
         client.neurons.borrow_mut()[0]
@@ -761,12 +884,12 @@ mod tests {
             report
                 .source_failures
                 .iter()
-                .any(|failure| failure.message.contains("unexpected dependency"))
+                .any(|failure| failure.message.contains("unexpected full-neuron ID"))
         );
     }
 
     #[test]
-    fn collector_keeps_first_duplicate_dependency_record() {
+    fn collector_rejects_an_entire_duplicate_dependency_batch() {
         let client = compliant_client();
         let mut contradictory = raw_neuron(100, vec![]);
         contradictory.known_neuron_data = None;
@@ -780,8 +903,12 @@ mod tests {
             report
                 .source_failures
                 .iter()
-                .any(|failure| failure.message.contains("duplicate dependency"))
+                .any(|failure| failure.message.contains("duplicate full-neuron ID"))
         );
-        assert!(report.managers[0].known_neuron.is_some());
+        assert!(report.managers[0].known_neuron.is_none());
+        assert!(report.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-NM-004"
+                && rule.status == dendrite_types::RuleStatus::Indeterminate
+        }));
     }
 }

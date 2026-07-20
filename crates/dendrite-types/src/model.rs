@@ -53,6 +53,7 @@ pub struct SourceFailure {
     pub method: String,
     pub kind: SourceFailureKind,
     pub message: String,
+    pub affected_neuron_ids: Vec<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
@@ -73,6 +74,29 @@ pub struct NeuronEvidence {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub enum NeuronLookup {
+    Found(Box<NeuronEvidence>),
+    ConfirmedMissing,
+    Unavailable,
+}
+
+impl NeuronLookup {
+    pub fn as_ref(&self) -> Option<&NeuronEvidence> {
+        match self {
+            Self::Found(neuron) => Some(neuron),
+            Self::ConfirmedMissing | Self::Unavailable => None,
+        }
+    }
+
+    pub fn as_mut(&mut self) -> Option<&mut NeuronEvidence> {
+        match self {
+            Self::Found(neuron) => Some(neuron),
+            Self::ConfirmedMissing | Self::Unavailable => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
 pub struct ControllerEvidence {
     pub call_succeeded: bool,
     pub module_hash: Option<Vec<u8>>,
@@ -82,13 +106,11 @@ pub struct ControllerEvidence {
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
 pub struct EvaluationEvidence {
     pub now_seconds: u64,
-    pub target: Option<NeuronEvidence>,
-    pub dependencies: BTreeMap<u64, NeuronEvidence>,
-    pub known_neurons: BTreeMap<u64, KnownNeuron>,
+    pub target: NeuronLookup,
+    pub dependencies: BTreeMap<u64, NeuronLookup>,
     pub controller: Option<ControllerEvidence>,
     pub source_failures: Vec<SourceFailure>,
     pub unknown_committed_topics: usize,
-    pub requested_neuron_ids: Vec<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]

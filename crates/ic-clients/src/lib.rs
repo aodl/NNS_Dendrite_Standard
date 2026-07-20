@@ -9,8 +9,12 @@ pub const MANAGEMENT_CANISTER: Principal = Principal::management_canister();
 pub const MAX_REQUESTED_NEURONS: usize = 50;
 pub const MAX_FULL_NEURONS: usize = 50;
 pub const MAX_FOLLOWEES: usize = 15;
-pub const MAX_TEXT_BYTES: usize = 2_048;
-pub const MAX_LINKS: usize = 16;
+pub const MAX_HOT_KEYS: usize = 10;
+pub const MAX_KNOWN_NEURON_NAME_BYTES: usize = 200;
+pub const MAX_KNOWN_NEURON_DESCRIPTION_BYTES: usize = 3_000;
+pub const MAX_KNOWN_NEURON_LINKS: usize = 10;
+pub const MAX_KNOWN_NEURON_LINK_BYTES: usize = 100;
+pub const MAX_COMMITTED_TOPICS: usize = 18;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceError {
@@ -204,21 +208,27 @@ fn validate_neurons(response: ListNeuronsResponse) -> Result<ListNeuronsResponse
         ));
     }
     if response.full_neurons.iter().any(|n| {
-        n.hot_keys.len() > MAX_FOLLOWEES
+        n.hot_keys.len() > MAX_HOT_KEYS
             || n.followees.len() > 32
             || n.followees
                 .iter()
                 .any(|(_, f)| f.followees.len() > MAX_FOLLOWEES)
             || n.known_neuron_data.as_ref().is_some_and(|data| {
-                data.name.len() > MAX_TEXT_BYTES
+                data.name.len() > MAX_KNOWN_NEURON_NAME_BYTES
                     || data
                         .description
                         .as_ref()
-                        .is_some_and(|value| value.len() > MAX_TEXT_BYTES)
+                        .is_some_and(|value| value.len() > MAX_KNOWN_NEURON_DESCRIPTION_BYTES)
                     || data.links.as_ref().is_some_and(|links| {
-                        links.len() > MAX_LINKS
-                            || links.iter().any(|value| value.len() > MAX_TEXT_BYTES)
+                        links.len() > MAX_KNOWN_NEURON_LINKS
+                            || links
+                                .iter()
+                                .any(|value| value.len() > MAX_KNOWN_NEURON_LINK_BYTES)
                     })
+                    || data
+                        .committed_topics
+                        .as_ref()
+                        .is_some_and(|topics| topics.len() > MAX_COMMITTED_TOPICS)
             })
     }) {
         return Err(response_too_large(
