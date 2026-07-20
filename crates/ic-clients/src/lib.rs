@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub use candid::types::reserved::Reserved;
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::call::Call;
 use std::fmt;
@@ -160,27 +161,8 @@ pub struct NeuronSubaccount {
     pub subaccount: Vec<u8>,
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-pub struct NeuronInfo {
-    pub dissolve_delay_seconds: u64,
-    pub recent_ballots: Vec<Reserved>,
-    pub neuron_type: Option<i32>,
-    pub created_timestamp_seconds: u64,
-    pub state: i32,
-    pub stake_e8s: u64,
-    pub joined_community_fund_timestamp_seconds: Option<u64>,
-    pub retrieved_at_timestamp_seconds: u64,
-    pub known_neuron_data: Option<KnownNeuronData>,
-    pub voting_power_refreshed_timestamp_seconds: Option<u64>,
-    pub voting_power: u64,
-    pub visibility: Option<i32>,
-    pub deciding_voting_power: Option<u64>,
-    pub potential_voting_power: Option<u64>,
-}
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-pub struct Reserved {}
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct ListNeuronsResponse {
-    pub neuron_infos: Vec<(u64, NeuronInfo)>,
+    pub neuron_infos: Vec<(u64, Reserved)>,
     pub full_neurons: Vec<Neuron>,
     pub total_pages_available: Option<u64>,
 }
