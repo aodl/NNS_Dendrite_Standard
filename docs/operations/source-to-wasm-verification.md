@@ -169,7 +169,7 @@ configured rerun passed. The production asset tree hash was
 `0b81502e0f55f1c54cae487d3791a4637ffe8692c8cb8841f554f3f1e18058bd`
 both before and after the standalone frontend test and coverage suites.
 
-Workspace Rust line coverage was 88.45%; pure-engine line coverage was 99.91% and
+Workspace Rust line coverage was 89.46%; pure-engine line coverage was 99.91% and
 branch coverage was 100.00%. Frontend coverage was 98.73% lines, 90.16% branches, and
 97.50% functions. Production reachability excludes `pocket-ic`, `backoff`, and
 `instant`; `serde_cbor` remains reachable only through the reviewed official HTTP
