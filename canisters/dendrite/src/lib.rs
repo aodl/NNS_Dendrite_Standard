@@ -552,6 +552,28 @@ mod tests {
             potential_voting_power: Some(10),
         }
     }
+    fn recognised_topic_variants() -> Vec<Option<TopicToFollow>> {
+        vec![
+            Some(TopicToFollow::CatchAll),
+            Some(TopicToFollow::NeuronManagement),
+            Some(TopicToFollow::ExchangeRate),
+            Some(TopicToFollow::NetworkEconomics),
+            Some(TopicToFollow::Governance),
+            Some(TopicToFollow::NodeAdmin),
+            Some(TopicToFollow::ParticipantManagement),
+            Some(TopicToFollow::SubnetManagement),
+            Some(TopicToFollow::ApplicationCanisterManagement),
+            Some(TopicToFollow::Kyc),
+            Some(TopicToFollow::NodeProviderRewards),
+            Some(TopicToFollow::IcOsVersionDeployment),
+            Some(TopicToFollow::IcOsVersionElection),
+            Some(TopicToFollow::SnsAndCommunityFund),
+            Some(TopicToFollow::ApiBoundaryNodeManagement),
+            Some(TopicToFollow::SubnetRental),
+            Some(TopicToFollow::ProtocolCanisterManagement),
+            Some(TopicToFollow::ServiceNervousSystemManagement),
+        ]
+    }
     fn compliant_client() -> FakeClient {
         let managers = [100, 101, 102, 103, 104];
         let mut target_followees = vec![(1, managers.to_vec()), (4, vec![100, 101, 102])];
@@ -661,6 +683,62 @@ mod tests {
         assert!(report.rules.iter().any(|rule| {
             rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
         }));
+    }
+    #[test]
+    fn collector_evaluates_the_full_272_dependency_catch_all_graph() {
+        let mut target_followees = Vec::new();
+        for (topic_index, topic) in dendrite_types::RECOGNISED_TOPICS.into_iter().enumerate() {
+            target_followees.push((
+                topic,
+                (0..ic_clients::MAX_FOLLOWEES)
+                    .map(|offset| 1_000 + (topic_index * ic_clients::MAX_FOLLOWEES + offset) as u64)
+                    .collect(),
+            ));
+        }
+        let mut target = raw_neuron(42, target_followees);
+        target.controller = Some(Principal::from_slice(&[1]));
+        target.known_neuron_data.as_mut().unwrap().committed_topics =
+            Some(recognised_topic_variants());
+        let normalized = normalize_neuron(target.clone(), true).unwrap().0;
+        let dependency_ids = dependency_ids(&normalized);
+        assert_eq!(dependency_ids.len(), MAX_DEPENDENCY_NEURONS);
+
+        let mut responses = VecDeque::from([Ok(response(vec![target]))]);
+        for batch in dependency_batches(&dependency_ids) {
+            responses.push_back(Ok(response(
+                batch.into_iter().map(|id| raw_neuron(id, vec![])).collect(),
+            )));
+        }
+        let client = FakeClient {
+            neurons: TestRefCell::new(responses),
+            calls: TestRefCell::new(vec![]),
+        };
+        let report = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::NonCompliant
+        );
+        assert!(report.source_failures.is_empty());
+        assert!(report.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
+        }));
+        let calls = client.calls.borrow();
+        assert_eq!(calls.len(), 8);
+        assert_eq!(calls[0], RecordedCall::List(vec![42]));
+        assert_eq!(
+            calls[1..7]
+                .iter()
+                .map(|call| match call {
+                    RecordedCall::List(ids) => ids.len(),
+                    RecordedCall::CanisterInfo(_) => 0,
+                })
+                .collect::<Vec<_>>(),
+            vec![50, 50, 50, 50, 50, 22]
+        );
+        assert_eq!(
+            calls[7],
+            RecordedCall::CanisterInfo(Principal::from_slice(&[1]))
+        );
     }
     #[test]
     fn collector_transport_rejection_is_indeterminate() {
@@ -858,6 +936,29 @@ mod tests {
             dendrite_types::ComplianceStatus::StandardUpdateRequired
         );
         assert!(snapshot.source_failures.is_empty());
+
+        // Exactly one future variant plus all 18 recognised variants reaches semantic
+        // evaluation. CatchAll and Neuron Management are known factual defects, so
+        // KNOWN-004 must fail rather than being overwritten by the unknown variant.
+        let client = compliant_client();
+        let mut topics = recognised_topic_variants();
+        topics.push(None);
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .known_neuron_data
+            .as_mut()
+            .unwrap()
+            .committed_topics = Some(topics);
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert!(snapshot.source_failures.is_empty());
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-KNOWN-003" && rule.status == dendrite_types::RuleStatus::Pass
+        }));
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
+        }));
 
         let client = compliant_client();
         client.neurons.borrow_mut()[0]
