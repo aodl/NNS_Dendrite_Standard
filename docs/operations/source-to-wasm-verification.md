@@ -93,7 +93,7 @@ same deployment inputs. The frontend builder tests also proved absent and malfor
 fail, the supplied ID and host are embedded, hostname selection is irrelevant, and
 production root-key fetching is rejected.
 
-Coverage was 87.11% workspace Rust lines, 99.90% pure-engine lines, and 100.00%
+Coverage was 87.18% workspace Rust lines, 99.90% pure-engine lines, and 100.00%
 pure-engine branches. Frontend coverage, including every production module, was 99.30%
 lines, 86.67% branches, and 97.44% functions. PocketIC passed compliant,
 non-compliant, rejected/indeterminate, real controller, certified HTTP, and upgrade
