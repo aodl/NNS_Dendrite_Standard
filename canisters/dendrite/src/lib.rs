@@ -3,8 +3,8 @@
 use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{
     ALPHA_VOTE_NEURON_ID, ComplianceReport, ControllerEvidence, EvaluationEvidence, KnownNeuron,
-    NeuronEvidence, NeuronLookup, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION, SourceFailure,
-    SourceFailureKind, evaluate,
+    MAX_DEPENDENCY_NEURONS, NeuronEvidence, NeuronLookup, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION,
+    SourceFailure, SourceFailureKind, evaluate,
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, SourceError,
@@ -39,7 +39,6 @@ fn http_request(request: assets::HttpRequest) -> assets::HttpResponse {
 #[derive(Clone, Debug, CandidType, Deserialize)]
 pub enum DendriteError {
     InvalidNeuronId(String),
-    Upstream(String),
     GlobalRateLimit { retry_after_seconds: u64 },
     ConcurrencyLimit,
     DuplicateInFlight,
@@ -290,13 +289,23 @@ fn validate_list_neurons_batch(
     Ok((normalized, unknown_committed_topics))
 }
 
-fn dependency_batches(ids: &[u64]) -> Result<Vec<Vec<u64>>, DendriteError> {
-    if ids.len() > 257 {
-        return Err(DendriteError::Upstream(
-            "dependency graph exceeds the fixed 257-neuron bound".into(),
-        ));
+fn dependency_batches(ids: &[u64]) -> Vec<Vec<u64>> {
+    assert!(
+        ids.len() <= MAX_DEPENDENCY_NEURONS,
+        "validated dependency graph exceeds its derived bound"
+    );
+    ids.chunks(50).map(<[u64]>::to_vec).collect()
+}
+
+fn dependency_ids(target: &NeuronEvidence) -> Vec<u64> {
+    let mut requested = vec![ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
+    requested.extend(target.followees.get(&1).into_iter().flatten().copied());
+    for topic in &target.committed_topics {
+        requested.extend(target.followees.get(topic).into_iter().flatten().copied());
     }
-    Ok(ids.chunks(50).map(<[u64]>::to_vec).collect())
+    requested.sort_unstable();
+    requested.dedup();
+    requested
 }
 
 struct ProductionEvidenceClient;
@@ -360,15 +369,9 @@ async fn collect_with(
         };
         return Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION));
     };
-    let mut requested = vec![ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
-    requested.extend(target.followees.get(&1).into_iter().flatten().copied());
-    for topic in &target.committed_topics {
-        requested.extend(target.followees.get(topic).into_iter().flatten().copied());
-    }
-    requested.sort_unstable();
-    requested.dedup();
+    let requested = dependency_ids(target);
     let mut dependencies = BTreeMap::new();
-    for batch in dependency_batches(&requested)? {
+    for batch in dependency_batches(&requested) {
         match client.list_neurons(batch.clone()).await {
             Ok(response) => match validate_list_neurons_batch(&batch, response, false) {
                 Ok((mut found, _)) => {
@@ -604,12 +607,41 @@ mod tests {
     }
     #[test]
     fn dependency_batches_are_never_larger_than_fifty() {
-        for (count, expected) in [(50, vec![50]), (51, vec![50, 1]), (101, vec![50, 50, 1])] {
+        for (count, expected) in [
+            (50, vec![50]),
+            (51, vec![50, 1]),
+            (101, vec![50, 50, 1]),
+            (257, vec![50, 50, 50, 50, 50, 7]),
+            (258, vec![50, 50, 50, 50, 50, 8]),
+            (272, vec![50, 50, 50, 50, 50, 22]),
+        ] {
             let ids: Vec<_> = (0..count).collect();
-            let batches = dependency_batches(&ids).unwrap();
+            let batches = dependency_batches(&ids);
             assert_eq!(batches.iter().map(Vec::len).collect::<Vec<_>>(), expected);
         }
-        assert!(dependency_batches(&(0..258).collect::<Vec<_>>()).is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "validated dependency graph exceeds its derived bound")]
+    fn impossible_dependency_graph_exceeding_derived_bound_is_rejected() {
+        dependency_batches(&(0..=MAX_DEPENDENCY_NEURONS as u64).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn catch_all_committed_graph_can_reach_the_derived_bound() {
+        let mut target = normalize_neuron(raw_neuron(42, vec![]), true).unwrap().0;
+        target.committed_topics = dendrite_types::RECOGNISED_TOPICS.to_vec();
+        for (topic_index, topic) in dendrite_types::RECOGNISED_TOPICS.into_iter().enumerate() {
+            target.followees.insert(
+                topic,
+                (0..ic_clients::MAX_FOLLOWEES)
+                    .map(|offset| 1_000 + (topic_index * ic_clients::MAX_FOLLOWEES + offset) as u64)
+                    .collect(),
+            );
+        }
+        let ids = dependency_ids(&target);
+        assert_eq!(ids.len(), MAX_DEPENDENCY_NEURONS);
+        assert_eq!(dependency_batches(&ids).len(), 6);
     }
     #[test]
     fn collector_transport_rejection_is_indeterminate() {

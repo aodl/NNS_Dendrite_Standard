@@ -27,8 +27,7 @@ export interface ControllerSummary {
   'call_succeeded' : boolean,
   'module_hash' : [] | [Uint8Array | number[]],
 }
-export type DendriteError = { 'Upstream' : string } |
-  { 'GlobalRateLimit' : { 'retry_after_seconds' : bigint } } |
+export type DendriteError = { 'GlobalRateLimit' : { 'retry_after_seconds' : bigint } } |
   { 'InvalidNeuronId' : string } |
   { 'LowCycles' : null } |
   { 'ConcurrencyLimit' : null } |

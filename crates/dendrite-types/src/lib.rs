@@ -507,7 +507,12 @@ pub fn evaluate(
             result.message = format!("{}; mandatory evidence was unavailable", result.message);
         }
     }
-    let quorum = u8::try_from(managers.len() / 2 + 1).ok();
+    let distinct_manager_count = managers.iter().copied().collect::<BTreeSet<_>>().len();
+    let quorum = if distinct_manager_count == 0 {
+        None
+    } else {
+        u8::try_from(distinct_manager_count / 2 + 1).ok()
+    };
     finish(
         neuron_id,
         evidence,
@@ -753,6 +758,33 @@ mod tests {
             snapshot.committed_topics[0].delegate_ids,
             vec![100, 101, 102]
         );
+    }
+
+    #[test]
+    fn quorum_uses_distinct_manager_ballots() {
+        for (managers, expected) in [
+            (vec![1, 2, 3, 4, 5], Some(3)),
+            (vec![1, 2, 3, 4, 5, 6], Some(4)),
+            (vec![1, 1, 2, 3, 4], Some(3)),
+            (vec![], None),
+            (vec![1, 1, 1, 1, 1], Some(1)),
+        ] {
+            let mut evidence = compliant_evidence();
+            evidence
+                .target
+                .as_mut()
+                .unwrap()
+                .followees
+                .insert(1, managers.clone());
+            let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+            assert_eq!(snapshot.quorum_threshold, expected);
+            if managers.len() != managers.iter().copied().collect::<BTreeSet<_>>().len() {
+                assert!(snapshot.rules.iter().any(|rule| {
+                    rule.rule_id == "DENDRITE-NM-002" && rule.status == RuleStatus::Fail
+                }));
+                assert_eq!(snapshot.overall_status, ComplianceStatus::NonCompliant);
+            }
+        }
     }
     #[test]
     fn transport_missing_target_is_indeterminate_not_factual_failure() {
