@@ -9,7 +9,7 @@ static PUBLIC: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/public");
 const SECURITY_HEADERS: [(&str, &str); 7] = [
     (
         "Content-Security-Policy",
-        "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://icp-api.io; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+        "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://icp-api.io http://127.0.0.1:4943 http://localhost:4943; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
     ),
     (
         "Strict-Transport-Security",

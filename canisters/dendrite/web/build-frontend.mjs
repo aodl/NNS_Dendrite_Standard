@@ -5,7 +5,8 @@ import { resolveBuildConfiguration } from "./build-config.mjs";
 
 const root = "canisters/dendrite";
 const configuration = resolveBuildConfiguration();
-const generated = `${root}/public/generated`;
+const output = process.env.DENDRITE_FRONTEND_OUTPUT_DIR ?? `${root}/public`;
+const generated = `${output}/generated`;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex").slice(0, 16);
 await rm(generated, { recursive: true, force: true });
 await mkdir(generated, { recursive: true });
@@ -21,6 +22,6 @@ await writeFile(`${generated}/${jsName}`, js);
 await writeFile(`${generated}/${cssName}`, css);
 let html = await readFile(`${root}/web/index.template.html`, "utf8");
 html = html.replace("__APP_JS__", `/generated/${jsName}`).replace("__APP_CSS__", `/generated/${cssName}`);
-await writeFile(`${root}/public/index.html`, html);
+await writeFile(`${output}/index.html`, html);
 const manifest = { "app.js": `/generated/${jsName}`, "styles.css": `/generated/${cssName}` };
-await writeFile(`${root}/public/asset-manifest.json`, `${JSON.stringify(manifest, Object.keys(manifest).sort(), 2)}\n`);
+await writeFile(`${output}/asset-manifest.json`, `${JSON.stringify(manifest, Object.keys(manifest).sort(), 2)}\n`);
