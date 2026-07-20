@@ -417,6 +417,44 @@ mod tests {
             SourceErrorKind::InvalidResponse
         );
 
+        let mut future_committed_topics = neuron(1);
+        future_committed_topics
+            .known_neuron_data
+            .as_mut()
+            .unwrap()
+            .committed_topics = Some(vec![None; 19]);
+        assert!(validate_neurons(response(vec![future_committed_topics])).is_ok());
+
+        let mut excessive_committed_topics = neuron(1);
+        excessive_committed_topics
+            .known_neuron_data
+            .as_mut()
+            .unwrap()
+            .committed_topics = Some(vec![None; MAX_COMMITTED_TOPIC_WIRE_ENTRIES + 1]);
+        assert_eq!(
+            validate_neurons(response(vec![excessive_committed_topics]))
+                .unwrap_err()
+                .kind,
+            SourceErrorKind::ResponseTooLarge
+        );
+
+        let mut future_following_map = neuron(1);
+        future_following_map.followees = (100..120)
+            .map(|topic| (topic, Followees { followees: vec![] }))
+            .collect();
+        assert!(validate_neurons(response(vec![future_following_map])).is_ok());
+
+        let mut excessive_following_map = neuron(1);
+        excessive_following_map.followees = (0..=MAX_FOLLOWING_MAP_WIRE_ENTRIES)
+            .map(|topic| (topic as i32, Followees { followees: vec![] }))
+            .collect();
+        assert_eq!(
+            validate_neurons(response(vec![excessive_following_map]))
+                .unwrap_err()
+                .kind,
+            SourceErrorKind::ResponseTooLarge
+        );
+
         assert_eq!(
             validate_neurons(response(vec![neuron(1)]))
                 .unwrap()

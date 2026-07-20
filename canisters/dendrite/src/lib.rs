@@ -817,6 +817,67 @@ mod tests {
         );
     }
     #[test]
+    fn collector_allows_future_topic_entries_to_reach_standard_update_rules() {
+        let client = compliant_client();
+        {
+            let mut responses = client.neurons.borrow_mut();
+            let target = &mut responses[0].as_mut().unwrap().full_neurons[0];
+            target.known_neuron_data.as_mut().unwrap().committed_topics = Some(vec![None; 19]);
+            target
+                .followees
+                .iter_mut()
+                .find(|(topic, _)| *topic == 4)
+                .unwrap()
+                .1
+                .followees = vec![NeuronId {
+                id: ALPHA_VOTE_NEURON_ID,
+            }];
+        }
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.overall_status,
+            dendrite_types::ComplianceStatus::StandardUpdateRequired
+        );
+        assert!(snapshot.source_failures.is_empty());
+
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .followees
+            .push((
+                99,
+                ic_clients::Followees {
+                    followees: vec![NeuronId { id: 7 }],
+                },
+            ));
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-DEFAULT-003"
+                && rule.status == dendrite_types::RuleStatus::StandardUpdateRequired
+        }));
+        assert!(snapshot.source_failures.is_empty());
+    }
+
+    #[test]
+    fn collector_rejects_genuinely_excessive_wire_vectors() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .known_neuron_data
+            .as_mut()
+            .unwrap()
+            .committed_topics = Some(vec![None; ic_clients::MAX_COMMITTED_TOPIC_WIRE_ENTRIES + 1]);
+        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
+        assert_eq!(
+            snapshot.source_failures[0].kind,
+            SourceFailureKind::ResponseTooLarge
+        );
+    }
+    #[test]
     fn collector_over_limit_client_error_is_indeterminate() {
         let client = FakeClient {
             neurons: TestRefCell::new(VecDeque::from([Err(source_error(
