@@ -642,6 +642,25 @@ mod tests {
         let ids = dependency_ids(&target);
         assert_eq!(ids.len(), MAX_DEPENDENCY_NEURONS);
         assert_eq!(dependency_batches(&ids).len(), 6);
+        let report = evaluate(
+            42,
+            &EvaluationEvidence {
+                now_seconds: 1,
+                target: NeuronLookup::Found(Box::new(target)),
+                dependencies: BTreeMap::new(),
+                controller: None,
+                source_failures: vec![],
+                unknown_committed_topics: 0,
+            },
+            SOURCE_REVISION,
+        );
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::NonCompliant
+        );
+        assert!(report.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
+        }));
     }
     #[test]
     fn collector_transport_rejection_is_indeterminate() {
