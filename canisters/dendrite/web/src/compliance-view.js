@@ -3,13 +3,23 @@ import { clear, element, safeHttpsLink } from "./dom.js";
 export const variantName = (value) => Object.keys(value ?? {})[0] ?? "Unknown";
 
 export function errorMessage(error) {
-  const kind = variantName(error);
-  const value = error?.[kind];
-  if (kind === "GlobalRateLimit") return `Too many live checks; try again in ${value.retry_after_seconds} seconds.`;
-  if (kind === "LowCycles") return "Live checking is temporarily disabled to preserve canister cycles.";
-  if (kind === "DuplicateInFlight") return "A live check for this neuron is already running.";
-  if (kind === "ConcurrencyLimit") return "The verifier is currently at its live-check concurrency limit.";
-  return typeof value === "string" ? value : kind;
+  const generic = "Live check failed.";
+  if (error instanceof Error) {
+    const message = error.message.trim().slice(0, 512);
+    return message || generic;
+  }
+  try {
+    const kind = variantName(error);
+    const value = error?.[kind];
+    if (kind === "GlobalRateLimit") return `Too many live checks; try again in ${value.retry_after_seconds} seconds.`;
+    if (kind === "LowCycles") return "Live checking is temporarily disabled to preserve canister cycles.";
+    if (kind === "DuplicateInFlight") return "A live check for this neuron is already running.";
+    if (kind === "ConcurrencyLimit") return "The verifier is currently at its live-check concurrency limit.";
+    if (typeof value === "string") return value;
+    return kind === "Unknown" ? generic : kind;
+  } catch {
+    return generic;
+  }
 }
 
 const optional = (value, fallback = "Unavailable") => value?.[0] ?? fallback;
@@ -85,11 +95,17 @@ export function renderReport(root, report) {
   }
   const controller = report.controller?.[0];
   if (controller) {
+    const moduleHash = controller.call_succeeded
+      ? (controller.module_hash?.[0] ? "Present" : "Absent")
+      : "Unavailable";
+    const returnedControllers = controller.call_succeeded
+      ? (controller.controllers.map(principalText).join(", ") || "None")
+      : "Unavailable";
     root.append(table("Controller blackhole evidence", [
       row("Controller principal", controller.principal?.[0] ? principalText(controller.principal[0]) : "Unavailable"),
       row("canister_info succeeded", controller.call_succeeded),
-      row("Module hash", controller.module_hash?.[0] ? "Present" : "Absent"),
-      row("Returned controllers", controller.controllers.map(principalText).join(", ") || "None"),
+      row("Module hash", moduleHash),
+      row("Returned controllers", returnedControllers),
     ]));
   }
   root.append(table("Managers", report.managers.map((manager) =>

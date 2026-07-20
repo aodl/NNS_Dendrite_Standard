@@ -32,7 +32,20 @@ export function createApplication({
   actorFactory = createAnonymousActor,
 }) {
   let actorPromise;
-  const actor = () => actorPromise ??= actorFactory();
+  const actor = () => {
+    if (actorPromise) return actorPromise;
+    let pending;
+    try {
+      pending = Promise.resolve(actorFactory());
+    } catch (error) {
+      pending = Promise.reject(error);
+    }
+    actorPromise = pending;
+    pending.catch(() => {
+      if (actorPromise === pending) actorPromise = undefined;
+    });
+    return pending;
+  };
 
   function landing() {
     clear(root);
