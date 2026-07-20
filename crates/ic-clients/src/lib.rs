@@ -15,7 +15,8 @@ pub const MAX_KNOWN_NEURON_NAME_BYTES: usize = 200;
 pub const MAX_KNOWN_NEURON_DESCRIPTION_BYTES: usize = 3_000;
 pub const MAX_KNOWN_NEURON_LINKS: usize = 10;
 pub const MAX_KNOWN_NEURON_LINK_BYTES: usize = 100;
-pub const MAX_COMMITTED_TOPICS: usize = 18;
+pub const MAX_COMMITTED_TOPIC_WIRE_ENTRIES: usize = 64;
+pub const MAX_FOLLOWING_MAP_WIRE_ENTRIES: usize = 64;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceError {
@@ -191,7 +192,7 @@ fn validate_neurons(response: ListNeuronsResponse) -> Result<ListNeuronsResponse
     }
     if response.full_neurons.iter().any(|n| {
         n.hot_keys.len() > MAX_HOT_KEYS
-            || n.followees.len() > 32
+            || n.followees.len() > MAX_FOLLOWING_MAP_WIRE_ENTRIES
             || n.followees
                 .iter()
                 .any(|(_, f)| f.followees.len() > MAX_FOLLOWEES)
@@ -210,7 +211,7 @@ fn validate_neurons(response: ListNeuronsResponse) -> Result<ListNeuronsResponse
                     || data
                         .committed_topics
                         .as_ref()
-                        .is_some_and(|topics| topics.len() > MAX_COMMITTED_TOPICS)
+                        .is_some_and(|topics| topics.len() > MAX_COMMITTED_TOPIC_WIRE_ENTRIES)
             })
     }) {
         return Err(response_too_large(

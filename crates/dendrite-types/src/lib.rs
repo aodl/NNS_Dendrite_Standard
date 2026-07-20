@@ -151,17 +151,28 @@ pub fn evaluate(
         target.known_data.is_some(),
         "target is a current known neuron",
     ));
+    let has_concrete_committed_topic = target
+        .committed_topics
+        .iter()
+        .any(|topic| is_concrete_topic(*topic));
+    let raw_committed_entry_count =
+        target.committed_topics.len() + evidence.unknown_committed_topics;
     out.push(rule(
         now,
         "DENDRITE-KNOWN-003",
-        target
-            .committed_topics
-            .iter()
-            .any(|topic| is_concrete_topic(*topic)),
+        has_concrete_committed_topic,
         "at least one concrete committed topic exists",
     ));
+    if !has_concrete_committed_topic && evidence.unknown_committed_topics > 0 {
+        let last = out.last_mut().expect("committed-topic rule was just added");
+        last.status = RuleStatus::StandardUpdateRequired;
+        last.observed = Some(format!(
+            "{} unknown committed-topic variant(s)",
+            evidence.unknown_committed_topics
+        ));
+    }
     let committed_ok = evidence.unknown_committed_topics == 0
-        && !target.committed_topics.is_empty()
+        && raw_committed_entry_count > 0
         && target
             .committed_topics
             .iter()
@@ -179,7 +190,7 @@ pub fn evaluate(
         committed_ok,
         "committed topics are recognised, concrete, and distinct",
     ));
-    let factual_committed_invalidity = target.committed_topics.is_empty()
+    let factual_committed_invalidity = raw_committed_entry_count == 0
         || target
             .committed_topics
             .iter()
@@ -815,6 +826,66 @@ mod tests {
             snapshot.overall_status,
             ComplianceStatus::StandardUpdateRequired
         );
+    }
+
+    fn committed_topic_evidence(known: Vec<i32>, unknown: usize) -> EvaluationEvidence {
+        let mut evidence = compliant_evidence();
+        let target = evidence.target.as_mut().unwrap();
+        target.committed_topics = known;
+        for topic in RECOGNISED_TOPICS {
+            if topic != 1 && !target.committed_topics.contains(&topic) {
+                target.followees.insert(topic, vec![ALPHA_VOTE_NEURON_ID]);
+            }
+        }
+        evidence.unknown_committed_topics = unknown;
+        evidence
+    }
+
+    #[test]
+    fn committed_topic_rules_distinguish_empty_unknown_and_known_invalidity() {
+        for unknown in [1, 2] {
+            let evidence = committed_topic_evidence(vec![], unknown);
+            assert_rule(
+                evidence.clone(),
+                "DENDRITE-KNOWN-003",
+                RuleStatus::StandardUpdateRequired,
+            );
+            assert_rule(
+                evidence,
+                "DENDRITE-KNOWN-004",
+                RuleStatus::StandardUpdateRequired,
+            );
+        }
+        assert_eq!(
+            evaluate(42, &committed_topic_evidence(vec![], 1), SOURCE_REVISION).overall_status,
+            ComplianceStatus::StandardUpdateRequired
+        );
+
+        let governance_and_unknown = committed_topic_evidence(vec![4], 1);
+        assert_rule(
+            governance_and_unknown.clone(),
+            "DENDRITE-KNOWN-003",
+            RuleStatus::Pass,
+        );
+        assert_rule(
+            governance_and_unknown,
+            "DENDRITE-KNOWN-004",
+            RuleStatus::StandardUpdateRequired,
+        );
+
+        for known in [vec![], vec![0], vec![1]] {
+            let evidence = committed_topic_evidence(known, 0);
+            assert_rule(evidence.clone(), "DENDRITE-KNOWN-003", RuleStatus::Fail);
+            assert_rule(evidence, "DENDRITE-KNOWN-004", RuleStatus::Fail);
+        }
+
+        for known in [vec![0], vec![4, 4]] {
+            assert_rule(
+                committed_topic_evidence(known, 1),
+                "DENDRITE-KNOWN-004",
+                RuleStatus::Fail,
+            );
+        }
     }
     #[test]
     fn edge_semantics_cover_fail_closed_short_circuits() {

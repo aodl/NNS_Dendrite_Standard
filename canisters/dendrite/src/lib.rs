@@ -112,7 +112,7 @@ fn has_duplicate_topic_keys(neuron: &Neuron) -> bool {
 
 fn neuron_collections_within_bounds(neuron: &Neuron) -> bool {
     neuron.hot_keys.len() <= ic_clients::MAX_HOT_KEYS
-        && neuron.followees.len() <= 32
+        && neuron.followees.len() <= ic_clients::MAX_FOLLOWING_MAP_WIRE_ENTRIES
         && neuron
             .followees
             .iter()
@@ -128,10 +128,9 @@ fn neuron_collections_within_bounds(neuron: &Neuron) -> bool {
                             .iter()
                             .all(|link| link.len() <= ic_clients::MAX_KNOWN_NEURON_LINK_BYTES)
                 })
-                && data
-                    .committed_topics
-                    .as_ref()
-                    .is_none_or(|topics| topics.len() <= ic_clients::MAX_COMMITTED_TOPICS)
+                && data.committed_topics.as_ref().is_none_or(|topics| {
+                    topics.len() <= ic_clients::MAX_COMMITTED_TOPIC_WIRE_ENTRIES
+                })
         })
 }
 
