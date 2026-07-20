@@ -15,10 +15,10 @@ npm ci
 cargo xtask check
 cargo xtask test
 cargo xtask coverage
-cargo xtask build
+DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> cargo xtask build
 cargo xtask security-scan
 cargo xtask sbom
-cargo xtask verify-reproducible
+DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> cargo xtask verify-reproducible
 ```
 
 See [architecture](docs/architecture/overview.md), [testing](docs/development/testing.md), [reproducible builds](docs/development/reproducible-builds.md), [threat model](docs/security/threat-model.md), and the [operator checklist](docs/operations/dendrite-neuron-setup-checklist.md).
