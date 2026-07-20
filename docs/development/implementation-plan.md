@@ -84,22 +84,22 @@ auditable surface are explicit success criteria.
 
 ## 7. Final anonymous-verifier correction pass
 
-- [ ] Distinguish genuinely empty, known-invalid, and future unknown committed-topic
+- [x] Distinguish genuinely empty, known-invalid, and future unknown committed-topic
   vectors; keep defensive wire-entry bounds separate from the recognised semantic
   domain.
-- [ ] Derive the dependency limit from all 18 recognised topic lists and the pinned
+- [x] Derive the dependency limit from all 18 recognised topic lists and the pinned
   15-followee limit, and evaluate every graph that can exist under those rules.
-- [ ] Calculate the displayed Neuron Management quorum from distinct ballot IDs while
+- [x] Calculate the displayed Neuron Management quorum from distinct ballot IDs while
   retaining the raw manager vector for duplicate-rule evaluation.
-- [ ] Restrict frontend API hosts to the fixed production gateway and explicit local
+- [x] Restrict frontend API hosts to the fixed production gateway and explicit local
   replica origins, with one assertion tying accepted origins to certified CSP.
-- [ ] Render failed controller inspection as unavailable evidence and make ordinary
+- [x] Render failed controller inspection as unavailable evidence and make ordinary
   frontend failures informative and actor creation retryable.
-- [ ] Isolate frontend build-test output in temporary directories and prove the
+- [x] Isolate frontend build-test output in temporary directories and prove the
   checked-in production assets remain byte-identical across the suite.
-- [ ] Separate local functional verification from the production reproducibility
+- [x] Separate local functional verification from the production reproducibility
   fixture, regenerate hashes for their exact configurations, and retain prior hashes
   as accurately labelled historical evidence.
-- [ ] Run every mandatory format, Clippy, interface, unit, PocketIC, frontend,
+- [x] Run every mandatory format, Clippy, interface, unit, PocketIC, frontend,
   coverage, dependency, scan, SBOM, build, and reproducibility check without adding
   identity, governance-control, storage, cache, timer, or service scope.

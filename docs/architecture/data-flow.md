@@ -5,7 +5,7 @@
 3. Atomically validate the target response. On confirmed omission, return a completed
    non-compliant report; on unavailable evidence, return indeterminate immediately.
 4. Preserve raw manager/topic vectors, add alpha-vote and omega-reject, enforce the
-   257-ID graph bound, and split unique dependencies into batches of at most 50.
+   derived 272-ID graph bound, and split unique dependencies into batches of at most 50.
 5. Request each batch through fixed Governance `list_neurons`; each requested ID becomes
    found, confirmed missing, or unavailable. Invalid batches retain no partial records,
    and failures identify the exact affected IDs.

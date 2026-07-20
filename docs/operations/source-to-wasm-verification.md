@@ -70,18 +70,24 @@ Internet Identity, manager recognition, hotkey onboarding, and every governance 
 remain deferred. Future privileged calls must be browser-to-NNS and must never send a
 delegation through Dendrite.
 
-## Anonymous verifier release-candidate evidence — 2026-07-20
+## Historical reproducibility fixture and local functional evidence — 2026-07-20
 
 This section supersedes the 2026-07-19 artifacts. The reviewed code commit is
-`ac219087527c1fa8a68fcb7b9b13606f2c69fad0`. The build embeds local Dendrite canister
-ID `v27v7-7x777-77774-qaaha-cai`, IC API host `https://icp-api.io`, and production
-root-key policy `false`. The standard is `nns-dendrite/1.0-draft`, pinned to
-`d55a0f4d4edfabe49d8fd543aff473084cb741f2`. This records a local release-candidate
-deployment ID; no mainnet deployment was performed.
+`ac219087527c1fa8a68fcb7b9b13606f2c69fad0`. The recorded deterministic byte fixture
+embeds fixture canister ID `v27v7-7x777-77774-qaaha-cai`, production API host
+`https://icp-api.io`, and production root-key policy `false`. The standard is
+`nns-dendrite/1.0-draft`, pinned to
+`d55a0f4d4edfabe49d8fd543aff473084cb741f2`. These hashes demonstrate reproducibility
+for those explicit inputs only. They are not a deployable release and are not hashes of
+the byte sequence installed by the local functional flow. No mainnet deployment was
+performed.
 
 Tool versions were Rust `1.94.1`, Node `24.15.0`, npm `11.12.1`, dfx `0.27.0`, and
-PocketIC `15.0.0`. `DFX_IDENTITY=codex_local` was used for the deterministic local
-create/build/install flow, which successfully installed the one canister.
+PocketIC `15.0.0`. Separately, `DFX_IDENTITY=codex_local` was used for the local
+functional create/build/install flow. That flow used the actual local canister ID,
+`http://127.0.0.1:4943`, and root-key fetching enabled, and successfully installed the
+one canister. Its functional PocketIC/dfx results do not establish the fixture hashes
+above.
 
 The following commands exited successfully: `cargo fmt --all -- --check`, strict
 warnings-denied workspace Clippy, `cargo xtask check`, `cargo xtask test`, `cargo xtask
@@ -106,7 +112,7 @@ documented `paste`, PocketIC-only `backoff`/`instant`, and HTTP-certification/Po
 certification libraries. SBOM generation emitted only the documented non-RFC-3986
 `ic-cdk-executor` metadata warning.
 
-Release hashes:
+Historical production reproducibility-fixture hashes:
 
 - Wasm, clean build 1 and clean build 2:
   `775d826b93a32cc6c6fbaa62a5c4d27a5c95799b0b11ed9f3f488791776f9969`.
@@ -137,3 +143,65 @@ canister-not-found condition, so `canister_info` rejection remains indeterminate
 than being inferred from English text. Internet Identity, authentication, manager
 operations, proposal construction/submission/voting, rewards assistance, history,
 caches, stable application state, timers, and background work remain deferred.
+
+## Final anonymous-verifier correction evidence — 2026-07-20
+
+The implementation through `c0eda66` was built as a production reproducibility fixture
+with explicit fixture canister ID `v27v7-7x777-77774-qaaha-cai`, fixed API host
+`https://icp-api.io`, and root-key fetching disabled. This demonstrates deterministic
+bytes only; it is not a deployable production release. No mainnet canister ID was
+created or authorized, and no mainnet deployment was performed.
+
+Local functional verification remained separate. PocketIC `15.0.0` passed compliant,
+non-compliant, rejection/indeterminate, real controller inspection, certified HTTP,
+and certified upgrade paths. The previously recorded `DFX_IDENTITY=codex_local` flow
+used its actual local ID, `http://127.0.0.1:4943`, and root-key fetching enabled; this
+pass does not claim its installed bytes match the production fixture.
+
+Rust `1.94.1`, Node `24.15.0`, npm `11.12.1`, and dfx `0.27.0` were used. Formatting,
+strict warnings-denied workspace Clippy, `cargo xtask check`, configured `cargo xtask
+test`, `cargo xtask coverage`, semantic interface drift, PocketIC, `npm ci`, `npm test`,
+`npm run test:coverage`, explicit fixture `cargo xtask build`, production dependency
+reachability, `cargo xtask security-scan`, `cargo xtask sbom`, `cargo xtask
+build-reproducible`, and `cargo xtask verify-reproducible` exited successfully. One
+initial `cargo xtask test` without `DENDRITE_CANISTER_ID` failed as designed; the
+configured rerun passed. The production asset tree hash was
+`0b81502e0f55f1c54cae487d3791a4637ffe8692c8cb8841f554f3f1e18058bd`
+both before and after the standalone frontend test and coverage suites.
+
+Workspace Rust line coverage was 88.39%; pure-engine line coverage was 99.91% and
+branch coverage was 100.00%. Frontend coverage was 98.73% lines, 90.16% branches, and
+97.50% functions. Production reachability excludes `pocket-ic`, `backoff`, and
+`instant`; `serde_cbor` remains reachable only through the reviewed official HTTP
+certification libraries. Scans found no unapproved vulnerability. SBOM generation
+emitted only the documented non-RFC-3986 `ic-cdk-executor` metadata warning.
+
+Production reproducibility-fixture hashes:
+
+- Wasm, both clean builds:
+  `3e1b238b913f2ba85b821bc0af4988095ce7adbae6b3820ea600aebc682fb374`.
+- Frontend file-hash manifest, both clean builds:
+  `0b81502e0f55f1c54cae487d3791a4637ffe8692c8cb8841f554f3f1e18058bd`.
+- Asset manifest:
+  `a3fccf85161cfad6f8bad8545587b1ec3fbb018da9d7a84d4e9cb09aeefa86b8`.
+- Build configuration:
+  `9ea483fac33afb138b9527eda0e88d4ab8d521cac7f8350560029c700666b21b`.
+- Dendrite Rust SBOM:
+  `8a43f8c67e271bd34c11eabd6b88a66665d5e491fccd12d3a907da0b2c4c4012`.
+- Test Governance Rust SBOM:
+  `679c5aaadf2a352f2f7ad83529d89edb3870a5514163eb4332adf1e4e22d52e5`.
+- Rule-engine Rust SBOM:
+  `926e3e6664bf467a2b8979f369530d46a8587f52209465848b561b907099fe8b`.
+- IC clients Rust SBOM:
+  `29ac7e67d72111e39e4321f5c6612e9a24eabe181b6ce32b72a81d3b50405878`.
+- npm SBOM:
+  `374e5abecab9d564d5461ca9e4697bb4e992a8aebd8f8abd87f280e9eee78582`.
+- xtask Rust SBOM:
+  `84cdd8f038c3a204b89ceadacdcf94948d64f333c0a750c9160d6ba246d9d796`.
+
+The Candid application API remains update `check_neuron : (nat64) -> (CheckResult)`
+and query `http_request`; the unreachable public `Upstream` error was removed. The only
+outbound methods remain fixed Governance `list_neurons` and management
+`canister_info`. Internet Identity, authentication, hotkey onboarding, proposal
+construction/simulation/submission, voting, rewards assistance, history, caches, stable
+application state, timers, analytics, and background work remain deferred.

@@ -18,4 +18,12 @@ fetching, builds the Wasm, and installs it. `CANISTER_ID_DENDRITE`, when supplie
 `dfx`, is accepted as the equivalent canister-ID input. Custom hostnames never affect
 the configured principal.
 
+Local functional verification and production reproducibility are separate. The local
+flow uses its actual local canister ID, a supported local replica origin, and root-key
+fetching. A production reproducibility fixture uses an explicit fixture canister ID,
+fixed `https://icp-api.io`, and root-key fetching disabled to demonstrate deterministic
+bytes only. It is not a deployable release. A production artifact may be labelled
+deployable only after the operator creates and explicitly authorizes an actual mainnet
+Dendrite canister ID.
+
 Mainnet deployment is intentionally not scripted here and must not be performed without explicit authorization. Before production deployment, review the compile-time canister ID, fixed cycle reserve, domain and CSP gateway origins. The certified alternative-origin list is empty because identity is deferred. There is no mutable deployment configuration or stable application state to migrate.

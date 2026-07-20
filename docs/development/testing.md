@@ -20,6 +20,9 @@ every overall/error status, controller evidence, topic labels, malicious text an
 custom-domain-independent build configuration, no `innerHTML`, and no numeric ID
 conversion. Coverage explicitly includes every production file under
 `canisters/dendrite/web/src/`.
+Frontend builder tests write only to a temporary output directory, inspect that bundle
+and manifest, remove it, and assert the checked-in `canisters/dendrite/public` tree has
+the same byte hash before and after the suite.
 No browser automation framework is required in this tranche.
 
 Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine

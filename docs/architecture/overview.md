@@ -8,7 +8,7 @@ engine, returns the complete live report, and stores no application data.
 One `EvidenceClient` boundary exposes only Governance `list_neurons(ids)` and management
 `canister_info(controller)`. Destinations and method names are compile-time constants;
 there is no generic transport. Dependency calls use batches of at most 50 and the graph
-is capped at 257 unique IDs. Each atomic batch yields found, confirmed-missing, or
+is capped at a derived 272 unique IDs. Each atomic batch yields found, confirmed-missing, or
 unavailable evidence per ID. Known-neuron status comes from `Neuron.known_neuron_data`.
 
 The frontend is embedded and served through the official HTTP certification v2 asset

@@ -17,7 +17,9 @@ The frontend uses constructed nodes and `textContent`, HTTPS-only link validatio
 no dynamic `innerHTML`. NNS identifiers remain strings or `bigint`, never JavaScript
 `number`. Its canister ID is a mandatory validated build input, production root-key
 fetching is disabled, and hostnames cannot replace the configured principal. CSP
-disallows inline and third-party runtime content.
+disallows inline and third-party runtime content. Production connects only to
+`https://icp-api.io`; explicit local mode is limited to the two certified local replica
+origins.
 
 The controller is blackholed only when `canister_info` succeeds, `module_hash` is absent,
 and controllers are empty. Failed lookup is indeterminate. The canister receives no

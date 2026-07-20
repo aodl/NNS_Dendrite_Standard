@@ -155,17 +155,21 @@ Community Fund, API Boundary Node Management, Subnet Rental, Protocol Canister
 Management, and Service Nervous System Management. Reserved topic code 11 and any
 future non-empty code require a standard update.
 
-There are 16 recognised concrete non-Neuron-Management topics. With at most 15
-followees on each committed topic, at most 15 managers, plus alpha-vote and
-omega-reject, the unique dependency set cannot exceed `16 * 15 + 15 + 2 = 257` IDs.
-Reject a larger graph as a bounded `InvalidResponse`.
+The defensive graph proof includes every recognised topic list because an invalid
+target may commit CatchAll or Neuron Management. With 18 recognised topic lists, at
+most 15 followees per list, plus alpha-vote and omega-reject, the unique dependency set
+cannot exceed `18 * 15 + 2 = 272` IDs. The implementation derives this bound from the
+recognised domain and followee limit rather than maintaining a bare literal.
 
 Known-neuron data is bounded in bytes exactly as in the pinned source: name 200,
 description 3,000, at most 10 links, and 100 per link. Valid strings are preserved
-exactly rather than truncated. Target committed topics are bounded to the pinned
-`TopicToFollow` domain; dependency committed topics are not interpreted. Hotkeys,
-followees, controller lists, module hashes, and returned full-neuron collections retain
-their pinned bounds. Impossible stake subtraction or addition invalidates the batch.
+exactly rather than truncated. Semantic interpretation uses the 18-variant recognised
+`TopicToFollow` domain, while target committed-topic and following-map wire vectors use
+a separate defensive bound of 64 entries so modest future variants reach standard-
+update rules. Dependency committed topics are not interpreted. Each followee vector
+remains bounded to 15. Hotkeys, controller lists, module hashes, and returned full-
+neuron collections retain their pinned bounds. Impossible stake subtraction or
+addition invalidates the batch.
 
 ## 6. Production architecture and API
 
@@ -229,7 +233,7 @@ response that omits a requested full public neuron is evidence, not a source fai
    make no dependency or controller call.
 4. Otherwise preserve raw following vectors; extract raw managers and committed-topic
    delegates; add alpha-vote and omega-reject; build the unique dependency set.
-5. Reject more than 257 dependencies.
+5. Enforce the derived 272-dependency invariant.
 6. Split dependencies into batches of at most 50 IDs and call `list_neurons` once per
    batch.
 7. Validate each batch atomically. Every requested ID becomes `Found`,
@@ -270,11 +274,12 @@ All dynamic content uses constructed text nodes or `textContent`; never `innerHT
 Validate HTTPS links, preserve keyboard access and responsive status/error rendering,
 and never convert an NNS ID through JavaScript `number`. `DENDRITE_CANISTER_ID` is a
 mandatory build input (with `CANISTER_ID_DENDRITE` accepted from `dfx`) and is validated
-with `Principal.fromText`; it never comes from a hostname. The production API host
-defaults to `https://icp-api.io`, root-key fetching defaults off, and production builds
-reject root-key fetching. Explicit local builds may select a local host and enable root-
-key fetching. Delete unfinished `authority.js`, `proposals.js`, and `rewards.js` from
-production sources.
+with `Principal.fromText`; it never comes from a hostname. Production accepts only
+`https://icp-api.io`, root-key fetching defaults off, and production builds reject
+root-key fetching. Local mode accepts only `http://127.0.0.1:4943` and
+`http://localhost:4943` and may enable root-key fetching. Certified `connect-src`
+permits exactly those origins plus same-origin. Delete unfinished `authority.js`,
+`proposals.js`, and `rewards.js` from production sources.
 
 ## 11. Required tests and quality gates
 
