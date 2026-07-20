@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -12,6 +13,20 @@ import { ACCEPTED_CONNECTION_ORIGINS, resolveBuildConfiguration } from "../build
 import { checkLive } from "../src/live-check.js";
 import { clear, element, safeHttpsLink } from "../src/dom.js";
 import { createApplication } from "../src/app.js";
+
+const publicAssetHash = () => {
+  const hash = createHash("sha256");
+  for (const path of readdirSync("canisters/dendrite/public", { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name))
+    .sort()) {
+    hash.update(path);
+    hash.update(readFileSync(path));
+  }
+  return hash.digest("hex");
+};
+const initialPublicAssetHash = publicAssetHash();
+test.after(() => assert.equal(publicAssetHash(), initialPublicAssetHash));
 
 test("u64 IDs round trip without Number", () => { const id = parseNeuronId(OMEGA_REJECT_NEURON_ID); assert.equal(typeof id, "bigint"); assert.equal(formatNeuronId(id), OMEGA_REJECT_NEURON_ID); });
 test("malformed IDs fail closed", () => { for (const id of ["", "0", "01", "+1", "-1", " 1", "1 ", "1.0", "1e2", "18446744073709551616"]) assert.throws(() => parseNeuronId(id)); });
