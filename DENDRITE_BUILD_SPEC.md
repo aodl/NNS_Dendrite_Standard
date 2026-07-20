@@ -28,10 +28,13 @@ out of scope.
 - Alpha-vote: `2947465672511369`.
 - Omega-reject: `18422777432977120264`; it is never omega-vote.
 - Source revision: `d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
-- Maximum dissolve delay: `63_072_000` seconds. This is the two-nominal-year
-  `MAX_DISSOLVE_DELAY_SECONDS` established by the pinned Governance source. A future
-  change requires a new standard/source revision, not a runtime economics call.
-- Recent voting-power refresh threshold: six nominal months.
+- `ONE_DAY_SECONDS = 86_400`, `ONE_YEAR_SECONDS = (4 * 365 + 1) *
+  ONE_DAY_SECONDS / 4`, and `ONE_MONTH_SECONDS = ONE_YEAR_SECONDS / 12`.
+- Maximum dissolve delay: `2 * ONE_YEAR_SECONDS = 63_115_200` seconds, established by
+  the pinned post-Mission-70 Governance source. A future change requires a new
+  standard/source revision, not a runtime economics call.
+- Recent voting-power refresh threshold: `6 * ONE_MONTH_SECONDS = 15_778_800`
+  seconds.
 - Maximum followees per topic: 15.
 - Minimum distinct managers: 5.
 - Target hotkeys: empty.
@@ -85,7 +88,7 @@ generic summary-field list.
 ### Locked, active posture
 
 - `DENDRITE-LOCK-001`: target is not dissolving.
-- `DENDRITE-LOCK-002`: dissolve delay is exactly `63_072_000` seconds.
+- `DENDRITE-LOCK-002`: dissolve delay is exactly `63_115_200` seconds.
 - `DENDRITE-LOCK-003`: effective stake is positive.
 - `DENDRITE-ACTIVE-001`: voting power was refreshed within six nominal months.
 - `DENDRITE-ACTIVE-002`: deciding voting power equals positive potential voting power.

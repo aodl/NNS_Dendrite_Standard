@@ -53,3 +53,31 @@ auditable surface are explicit success criteria.
 - [x] Run the complete required verification suite with `--locked` Cargo dispatch.
 - [x] Record artifact, frontend, SBOM, and both reproducible-build hashes and byte
   identity in existing release/operator documentation.
+
+## 6. Release-candidate corrections
+
+- [ ] Correct the pinned NNS day/year/month arithmetic, maximum dissolve delay, and
+  six-month refresh threshold everywhere, with exact boundary tests.
+- [ ] Replace redundant dependency evidence with per-neuron `Found`,
+  `ConfirmedMissing`, and `Unavailable` lookup states and bounded failures carrying
+  affected neuron IDs.
+- [ ] Validate each 1--50 ID `list_neurons` response atomically, including page count,
+  IDs, duplicates, topic keys, pinned collection bounds, and stake arithmetic.
+- [ ] Align known-neuron byte/link bounds and committed-topic interpretation with the
+  pinned source while ignoring dependency committed-topic variants.
+- [ ] Correct `KNOWN-003`, `KNOWN-004`, manager, alpha/omega, topic-local delegate, and
+  evidence-integrity rule semantics without broad post-processing.
+- [ ] Make the heap-only in-flight guard prune abandoned entries by a documented
+  maximum age, retaining duplicate, concurrency, start-window, and cycle limits.
+- [ ] Require and validate an explicit frontend canister ID, embed the reviewed API
+  host and root-key policy, and make local and reproducible builds deterministic.
+- [ ] Render controller blackhole evidence, topic labels, and readable plus raw check
+  timestamps without adding application scope.
+- [ ] Split the two-line frontend bootstrap from a dependency-injectable application
+  module and cover every production frontend file and live route state.
+- [ ] Add focused collector and PocketIC regressions for omission versus unavailable
+  evidence, atomic invalid batches, topic-local availability, graph batching, and
+  exact omega-reject precision.
+- [ ] Run every mandatory check with explicit deployment inputs, supersede the
+  2026-07-19 evidence, and record new configuration, versions, coverage, scan, SBOM,
+  Wasm/frontend/manifest, and byte-identical clean-build hashes.

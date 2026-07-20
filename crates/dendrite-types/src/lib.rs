@@ -15,8 +15,11 @@ pub const STANDARD_VERSION: &str = "nns-dendrite/1.0-draft";
 pub const SOURCE_REVISION: &str = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 pub const ALPHA_VOTE_NEURON_ID: u64 = 2_947_465_672_511_369;
 pub const OMEGA_REJECT_NEURON_ID: u64 = 18_422_777_432_977_120_264;
-pub const MAX_DISSOLVE_DELAY_SECONDS: u64 = 63_072_000;
-pub const SIX_NOMINAL_MONTHS_SECONDS: u64 = 15_768_000;
+pub const ONE_DAY_SECONDS: u64 = 86_400;
+pub const ONE_YEAR_SECONDS: u64 = (4 * 365 + 1) * ONE_DAY_SECONDS / 4;
+pub const ONE_MONTH_SECONDS: u64 = ONE_YEAR_SECONDS / 12;
+pub const MAX_DISSOLVE_DELAY_SECONDS: u64 = 2 * ONE_YEAR_SECONDS;
+pub const SIX_NOMINAL_MONTHS_SECONDS: u64 = 6 * ONE_MONTH_SECONDS;
 fn rule(_now: u64, id: &str, ok: bool, message: &str) -> RuleResult {
     RuleResult {
         rule_id: id.into(),
@@ -886,6 +889,51 @@ mod tests {
         let mut e = compliant_evidence();
         e.target.as_mut().unwrap().not_for_profit = Some(true);
         assert_rule(e, "DENDRITE-CONTROL-005", RuleStatus::Fail);
+    }
+    #[test]
+    fn pinned_time_constants_and_boundaries_are_exact() {
+        assert_eq!(ONE_YEAR_SECONDS, 31_557_600);
+        assert_eq!(ONE_MONTH_SECONDS, 2_629_800);
+        assert_eq!(MAX_DISSOLVE_DELAY_SECONDS, 63_115_200);
+        assert_eq!(SIX_NOMINAL_MONTHS_SECONDS, 15_778_800);
+
+        let mut exact_delay = compliant_evidence();
+        exact_delay.target.as_mut().unwrap().dissolve_delay_seconds =
+            Some(MAX_DISSOLVE_DELAY_SECONDS);
+        assert_rule(exact_delay, "DENDRITE-LOCK-002", RuleStatus::Pass);
+
+        let mut short_delay = compliant_evidence();
+        short_delay.target.as_mut().unwrap().dissolve_delay_seconds =
+            Some(MAX_DISSOLVE_DELAY_SECONDS - 1);
+        assert_rule(short_delay, "DENDRITE-LOCK-002", RuleStatus::Fail);
+
+        let mut exact_age = compliant_evidence();
+        exact_age.now_seconds = 20_000_000;
+        exact_age
+            .target
+            .as_mut()
+            .unwrap()
+            .voting_power_refreshed_timestamp_seconds =
+            Some(exact_age.now_seconds - SIX_NOMINAL_MONTHS_SECONDS);
+        assert_rule(exact_age, "DENDRITE-ACTIVE-001", RuleStatus::Pass);
+
+        let mut too_old = compliant_evidence();
+        too_old.now_seconds = 20_000_000;
+        too_old
+            .target
+            .as_mut()
+            .unwrap()
+            .voting_power_refreshed_timestamp_seconds =
+            Some(too_old.now_seconds - SIX_NOMINAL_MONTHS_SECONDS - 1);
+        assert_rule(too_old, "DENDRITE-ACTIVE-001", RuleStatus::Fail);
+
+        let mut future = compliant_evidence();
+        future
+            .target
+            .as_mut()
+            .unwrap()
+            .voting_power_refreshed_timestamp_seconds = Some(future.now_seconds + 1);
+        assert_rule(future, "DENDRITE-ACTIVE-001", RuleStatus::Fail);
     }
     #[test]
     fn focused_manager_and_delegate_mutations_fail_their_rules() {

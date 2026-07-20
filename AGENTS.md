@@ -22,8 +22,9 @@ before changing files and do not weaken a MUST requirement silently.
 - `OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264u64`.
 - Omega-reject is not omega-vote.
 - The pinned source revision is `d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
-- The maximum dissolve delay is `63_072_000` seconds, derived from that revision.
-- The active refresh threshold is six nominal months.
+- The maximum dissolve delay is `63_115_200` seconds, derived as two nominal years
+  from that revision.
+- The active refresh threshold is six nominal months (`15_778_800` seconds).
 - A target has no hotkeys, has `not_for_profit = false`, and has at least five
   distinct Neuron Management managers.
 - JavaScript NNS IDs are decimal strings or `bigint`, never `number`.
