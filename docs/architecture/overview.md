@@ -8,10 +8,13 @@ engine, returns the complete live report, and stores no application data.
 One `EvidenceClient` boundary exposes only Governance `list_neurons(ids)` and management
 `canister_info(controller)`. Destinations and method names are compile-time constants;
 there is no generic transport. Dependency calls use batches of at most 50 and the graph
-is capped at 257 unique IDs. Known-neuron status comes from `Neuron.known_neuron_data`.
+is capped at 257 unique IDs. Each atomic batch yields found, confirmed-missing, or
+unavailable evidence per ID. Known-neuron status comes from `Neuron.known_neuron_data`.
 
 The frontend is embedded and served through the official HTTP certification v2 asset
-router. A small heap-only abuse guard resets on upgrade. There is no stable application
+router and embeds one explicitly validated canister ID, API host, and root-key policy.
+A small heap-only abuse guard resets on upgrade and prunes abandoned entries on later
+admission. There is no stable application
 state, dynamic compliance certification, cache, timer, history, delegation custody, or
 authenticated control panel. Future privileged operations are browser-to-NNS.
 

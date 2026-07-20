@@ -6,6 +6,11 @@ Check out the exact reviewed commit with its lockfiles, use the versions in `REA
 
 ## Anonymous verifier release evidence — 2026-07-19
 
+**Superseded on 2026-07-20.** This historical evidence used the incorrect
+`63_072_000`/`15_768_000` time constants and built the frontend for the management
+canister fallback `aaaaa-aa`. Its hashes are retained only to preserve the meaning of
+the historical record and are not current release artifacts.
+
 The public application API is update `check_neuron : (nat64) ->
 (variant { Ok : ComplianceReport; Err : DendriteError })` and query `http_request`.
 The only outbound methods are NNS Governance

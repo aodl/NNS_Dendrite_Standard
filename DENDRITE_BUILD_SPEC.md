@@ -83,7 +83,8 @@ generic summary-field list.
 - `DENDRITE-KNOWN-002`: the target has valid `known_neuron_data`.
 - `DENDRITE-KNOWN-003`: at least one committed concrete topic exists.
 - `DENDRITE-KNOWN-004`: committed topics are distinct, known, and exclude CatchAll
-  and Neuron Management. Unknown committed variants require a standard update.
+  and Neuron Management. Known factual invalidity takes precedence over an unknown
+  variant; otherwise an unknown variant requires a standard update.
 
 ### Locked, active posture
 
@@ -132,12 +133,13 @@ For each committed topic:
 
 ### Evidence integrity
 
-- `DENDRITE-DATA-001`: the bounded dependency graph is complete enough to evaluate
-  every available rule.
-- `DENDRITE-DATA-002`: report records time, standard version, source revision, fixed
-  evidence destinations, and bounded source failures.
-- `DENDRITE-DATA-003`: missing or unavailable evidence never becomes a passing
-  default.
+- `DENDRITE-DATA-001`: every required lookup reached terminal `Found` or
+  `ConfirmedMissing`; any `Unavailable` dependency is indeterminate.
+- `DENDRITE-DATA-002`: check timestamp, standard version, pinned source revision, and
+  bounded source-failure data are present. Fixed destinations are architectural
+  constants, not invented dynamic evidence.
+- `DENDRITE-DATA-003`: no rule whose required lookup is `Unavailable` passes by
+  default. A confirmed omission is complete factual evidence.
 
 Raw following vectors and map-like Candid vectors must remain intact until duplicate
 checks finish. Duplicate topic keys, duplicate target/dependency records, unexpected
@@ -157,6 +159,13 @@ There are 16 recognised concrete non-Neuron-Management topics. With at most 15
 followees on each committed topic, at most 15 managers, plus alpha-vote and
 omega-reject, the unique dependency set cannot exceed `16 * 15 + 15 + 2 = 257` IDs.
 Reject a larger graph as a bounded `InvalidResponse`.
+
+Known-neuron data is bounded in bytes exactly as in the pinned source: name 200,
+description 3,000, at most 10 links, and 100 per link. Valid strings are preserved
+exactly rather than truncated. Target committed topics are bounded to the pinned
+`TopicToFollow` domain; dependency committed topics are not interpreted. Hotkeys,
+followees, controller lists, module hashes, and returned full-neuron collections retain
+their pinned bounds. Impossible stake subtraction or addition invalidates the batch.
 
 ## 6. Production architecture and API
 
@@ -205,24 +214,28 @@ Known-neuron status comes only from `Neuron.known_neuron_data`. Never call
 `list_known_neurons`, `get_network_economics_parameters`, proposal methods, or mutation
 methods.
 
-Typed source failures remain typed through collection and are bounded. The taxonomy is
+Typed source failures remain typed through collection and are bounded. Each records the
+fixed method, kind, concise message, and affected neuron IDs. The taxonomy is
 `Rejected`, `DecodeFailed`, `InvalidResponse`, and `ResponseTooLarge`. A successful
 response that omits a requested full public neuron is evidence, not a source failure.
 
 ## 8. Exact live call plan
 
 1. Call `list_neurons` for the target with public full-neuron inclusion enabled.
-2. Reject unexpected or duplicate full neurons and duplicate topic-map keys.
-3. If no full target is returned, return a completed `NON_COMPLIANT` report failing
-   the target-known rules and make no dependency or controller call.
+2. Validate the target batch atomically, including page count, IDs, duplicates, topic
+   keys, pinned collection bounds, and stake arithmetic.
+3. If a valid successful response omits the target, return a completed `NON_COMPLIANT`
+   report; if the call or batch is unavailable, return `INDETERMINATE`. In either case,
+   make no dependency or controller call.
 4. Otherwise preserve raw following vectors; extract raw managers and committed-topic
    delegates; add alpha-vote and omega-reject; build the unique dependency set.
 5. Reject more than 257 dependencies.
 6. Split dependencies into batches of at most 50 IDs and call `list_neurons` once per
    batch.
-7. Validate each batch: all returned IDs were requested, no duplicates or duplicate
-   topic keys exist, and no contradictory records exist.
-8. Treat omitted dependencies as factual failure of their known-neuron requirements.
+7. Validate each batch atomically. Every requested ID becomes `Found`,
+   `ConfirmedMissing`, or `Unavailable`; an invalid batch retains no partial record.
+8. Treat confirmed omissions as factual failure of their known-neuron requirements and
+   unavailable evidence as indeterminate only for rules that require affected IDs.
 9. Call `canister_info` for the target controller with zero requested changes.
 10. Normalize evidence, run the pure engine, return the report, and store nothing.
 
@@ -232,7 +245,9 @@ Before admission, reject a zero ID and reject when liquid cycles are below the f
 reserve. In heap memory only, reject a simultaneous check for the same neuron, cap total
 concurrent checks at two, and cap globally admitted starts in a short fixed window.
 Return one bounded suggested delay for temporary rejection. The guard resets on upgrade,
-has no stable persistence, no per-user state, and no public counters.
+has no stable persistence, no per-user state, and no public counters. Each admission
+prunes in-flight entries at least 300 seconds old so a post-await trap cannot consume a
+slot indefinitely.
 
 ## 10. Certified frontend
 
@@ -253,10 +268,13 @@ result cached, stale, or refreshed.
 
 All dynamic content uses constructed text nodes or `textContent`; never `innerHTML`.
 Validate HTTPS links, preserve keyboard access and responsive status/error rendering,
-and never convert an NNS ID through JavaScript `number`. The Dendrite canister ID comes
-from deterministic build-time configuration based on the checked-in canister-ID mapping
-or an explicitly validated build variable, never the first hostname label. Delete
-unfinished `authority.js`, `proposals.js`, and `rewards.js` from production sources.
+and never convert an NNS ID through JavaScript `number`. `DENDRITE_CANISTER_ID` is a
+mandatory build input (with `CANISTER_ID_DENDRITE` accepted from `dfx`) and is validated
+with `Principal.fromText`; it never comes from a hostname. The production API host
+defaults to `https://icp-api.io`, root-key fetching defaults off, and production builds
+reject root-key fetching. Explicit local builds may select a local host and enable root-
+key fetching. Delete unfinished `authority.js`, `proposals.js`, and `rewards.js` from
+production sources.
 
 ## 11. Required tests and quality gates
 
@@ -272,9 +290,11 @@ fixed-principal Governance mock, upstream rejection, real empty controller inspe
 where supported, certified landing response, and certified assets after upgrade. No
 browser automation framework is required.
 
-Frontend tests cover ID parsing, live success, every overall status and public error,
-malicious text/links/errors, custom-domain configuration, no `innerHTML`, and no numeric
-ID conversion.
+Frontend tests cover ID parsing, the actual application bootstrap and routes, loading,
+live success/error/retry, every overall status and public error, controller evidence,
+topic labels, malicious text/links/errors, mandatory custom-domain-independent
+configuration, no `innerHTML`, and no numeric ID conversion. Coverage includes every
+production frontend module even if a test omits an import.
 
 Whole-workspace Rust line coverage must exceed 85%; frontend thresholds remain at 85%.
 Do not split modules merely to manipulate coverage.

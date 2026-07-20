@@ -72,6 +72,10 @@ fn dependent_rule(
     result
 }
 
+fn provenance_complete(evidence: &EvaluationEvidence, source_revision: &str) -> bool {
+    evidence.now_seconds > 0 && !source_revision.is_empty() && evidence.source_failures.len() <= 32
+}
+
 pub fn parse_canonical_neuron_id(value: &str) -> Result<u64, &'static str> {
     if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
         return Err("ID must contain decimal digits only");
@@ -116,10 +120,7 @@ pub fn evaluate(
             out.push(rule(
                 now,
                 "DENDRITE-DATA-002",
-                evidence.now_seconds > 0
-                    && !STANDARD_VERSION.is_empty()
-                    && !source_revision.is_empty()
-                    && evidence.source_failures.len() <= 32,
+                provenance_complete(evidence, source_revision),
                 "timestamped fixed-source provenance is present",
             ));
             let mut inferred = rule(
@@ -446,10 +447,7 @@ pub fn evaluate(
     out.push(rule(
         now,
         "DENDRITE-DATA-002",
-        evidence.now_seconds > 0
-            && !STANDARD_VERSION.is_empty()
-            && !source_revision.is_empty()
-            && evidence.source_failures.len() <= 32,
+        provenance_complete(evidence, source_revision),
         "timestamped fixed-source provenance is present",
     ));
     let unavailable_pass = out.iter().any(|result| {
@@ -493,7 +491,7 @@ pub fn evaluate(
             "DENDRITE-CONTROL-005" => target.not_for_profit.is_none(),
             _ => false,
         };
-        if unavailable && result.status == RuleStatus::Fail {
+        if unavailable {
             result.status = RuleStatus::Indeterminate;
             result.message = format!("{}; mandatory evidence was unavailable", result.message);
         }
@@ -1121,5 +1119,29 @@ mod tests {
             "DENDRITE-COMMIT-004",
             RuleStatus::Indeterminate,
         );
+    }
+
+    #[test]
+    fn evidence_provenance_requires_time_revision_and_bounded_failures() {
+        let mut no_time = compliant_evidence();
+        no_time.now_seconds = 0;
+        assert_rule(no_time, "DENDRITE-DATA-002", RuleStatus::Fail);
+
+        let no_revision = compliant_evidence();
+        let report = evaluate(42, &no_revision, "");
+        assert!(report.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-DATA-002" && rule.status == RuleStatus::Fail
+        }));
+
+        let mut too_many_failures = compliant_evidence();
+        too_many_failures.source_failures = (0..33)
+            .map(|id| SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::Rejected,
+                message: "rejected".into(),
+                affected_neuron_ids: vec![id],
+            })
+            .collect();
+        assert_rule(too_many_failures, "DENDRITE-DATA-002", RuleStatus::Fail);
     }
 }

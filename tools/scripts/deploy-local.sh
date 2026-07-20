@@ -10,4 +10,5 @@ export DENDRITE_API_HOST=${DENDRITE_API_HOST:-http://127.0.0.1:4943}
 export DENDRITE_FETCH_ROOT_KEY=true
 npm run build
 cargo build --locked --release --target wasm32-unknown-unknown -p dendrite
-dfx canister install --network local --mode auto dendrite
+dfx canister install --network local --mode auto \
+  --wasm target/wasm32-unknown-unknown/release/dendrite.wasm dendrite
