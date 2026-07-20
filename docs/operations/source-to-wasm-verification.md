@@ -187,17 +187,17 @@ Production reproducibility-fixture hashes:
 - Build configuration:
   `9ea483fac33afb138b9527eda0e88d4ab8d521cac7f8350560029c700666b21b`.
 - Dendrite Rust SBOM:
-  `8a43f8c67e271bd34c11eabd6b88a66665d5e491fccd12d3a907da0b2c4c4012`.
+  `0f17c9149b87803c7c04043f86f7962da4a8da2053ae68b906c800455cb564c3`.
 - Test Governance Rust SBOM:
-  `679c5aaadf2a352f2f7ad83529d89edb3870a5514163eb4332adf1e4e22d52e5`.
+  `5e8b8a3498d1f4f6ccabc4c0cbafc7332f2c76e8f6f9fb9d5352b56c3c47abb6`.
 - Rule-engine Rust SBOM:
-  `926e3e6664bf467a2b8979f369530d46a8587f52209465848b561b907099fe8b`.
+  `c560480cf4e9c4ba12dc6ae48f7a35d4203b7c248d263fec661eff11b42f8795`.
 - IC clients Rust SBOM:
-  `29ac7e67d72111e39e4321f5c6612e9a24eabe181b6ce32b72a81d3b50405878`.
+  `147f59abf75028c1f6e8489ed997e1b5761b63e14850eaf2232a77e0a6ac54e3`.
 - npm SBOM:
-  `374e5abecab9d564d5461ca9e4697bb4e992a8aebd8f8abd87f280e9eee78582`.
+  `3a169b7e47408e22d09b2619acb3c8145de968638a633d070a455ac97eabe413`.
 - xtask Rust SBOM:
-  `84cdd8f038c3a204b89ceadacdcf94948d64f333c0a750c9160d6ba246d9d796`.
+  `d92e4abd55a5ec3764c19882a870c77e2ec9b0ce16deb380b01ee06ca3d3e086`.
 
 The Candid application API remains update `check_neuron : (nat64) -> (CheckResult)`
 and query `http_request`; the unreachable public `Upstream` error was removed. The only
