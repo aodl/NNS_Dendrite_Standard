@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node canisters/dendrite/web/build-frontend.mjs",
     "test": "node --test canisters/dendrite/web/test/*.test.js",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude=src/declarations/** --test-coverage-lines=85 --test-coverage-functions=85 --test-coverage-branches=85 canisters/dendrite/web/test/*.test.js"
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include=canisters/dendrite/web/src/** --test-coverage-exclude=src/declarations/** --test-coverage-lines=85 --test-coverage-functions=85 --test-coverage-branches=85 canisters/dendrite/web/test/*.test.js"
   },
   "dependencies": {
     "@icp-sdk/core": "6.0.0"

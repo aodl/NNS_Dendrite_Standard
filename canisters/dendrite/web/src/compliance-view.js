@@ -14,6 +14,19 @@ export function errorMessage(error) {
 
 const optional = (value, fallback = "Unavailable") => value?.[0] ?? fallback;
 const ids = (values) => values.map(String).join(", ") || "None";
+export const TOPIC_LABELS = new Map([
+  [0, "CatchAll"], [1, "Neuron Management"], [2, "Exchange Rate"],
+  [3, "Network Economics"], [4, "Governance"], [5, "Node Admin"],
+  [6, "Participant Management"], [7, "Subnet Management"],
+  [8, "Application Canister Management"], [9, "KYC"],
+  [10, "Node Provider Rewards"], [12, "IC OS Version Deployment"],
+  [13, "IC OS Version Election"], [14, "SNS and Community Fund"],
+  [15, "API Boundary Node Management"], [16, "Subnet Rental"],
+  [17, "Protocol Canister Management"], [18, "Service Nervous System Management"],
+]);
+export const topicLabel = (code) => `${code} — ${TOPIC_LABELS.get(code) ?? "Unknown topic"}`;
+const principalText = (principal) => principal?.toText?.() ?? String(principal);
+const checkedAtUtc = (seconds) => new Date(Number(seconds) * 1000).toISOString();
 const row = (label, value) => {
   const tr = document.createElement("tr");
   tr.append(element("th", label), element("td", value));
@@ -46,6 +59,7 @@ export function renderReport(root, report) {
     table("Verification", [
       row("Standard", report.standard_version),
       row("Source revision", report.source_revision),
+      row("Checked at (UTC)", checkedAtUtc(report.checked_at_timestamp_seconds)),
       row("Checked at (Unix seconds)", report.checked_at_timestamp_seconds),
       row("Quorum", optional(report.quorum_threshold)),
     ]),
@@ -69,12 +83,21 @@ export function renderReport(root, report) {
     targetTable.append(element("caption", "Target evidence"), body);
     root.append(targetTable);
   }
+  const controller = report.controller?.[0];
+  if (controller) {
+    root.append(table("Controller blackhole evidence", [
+      row("Controller principal", controller.principal?.[0] ? principalText(controller.principal[0]) : "Unavailable"),
+      row("canister_info succeeded", controller.call_succeeded),
+      row("Module hash", controller.module_hash?.[0] ? "Present" : "Absent"),
+      row("Returned controllers", controller.controllers.map(principalText).join(", ") || "None"),
+    ]));
+  }
   root.append(table("Managers", report.managers.map((manager) =>
     row(String(manager.neuron_id), manager.known_neuron?.[0]?.name ?? "Not returned as a known neuron"))));
   root.append(table("Committed topics", report.committed_topics.map((topic) =>
-    row(String(topic.topic), ids(topic.delegate_ids)))));
+    row(topicLabel(topic.topic), ids(topic.delegate_ids)))));
   root.append(table("Non-committed topic checks", report.non_committed_topics.map((topic) =>
-    row(String(topic.topic), ids(topic.followee_ids)))));
+    row(topicLabel(topic.topic), ids(topic.followee_ids)))));
   const rules = document.createElement("table");
   rules.append(element("caption", "Standard rule results"));
   const head = document.createElement("tr");
@@ -89,7 +112,7 @@ export function renderReport(root, report) {
   if (report.source_failures.length) {
     root.append(element("h2", "Source failures"));
     const list = document.createElement("ul");
-    for (const failure of report.source_failures) list.append(element("li", `${failure.method} / ${variantName(failure.kind)}: ${failure.message}`));
+    for (const failure of report.source_failures) list.append(element("li", `${failure.method} / ${variantName(failure.kind)} / neurons ${ids(failure.affected_neuron_ids)}: ${failure.message}`));
     root.append(list);
   }
 }

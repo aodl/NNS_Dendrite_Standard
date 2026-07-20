@@ -88,7 +88,7 @@ fn fixtures() -> Vec<Neuron> {
         .collect()
 }
 
-#[ic_cdk::update]
+#[ic_cdk::query]
 fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
     let full_neurons = fixtures()
         .into_iter()

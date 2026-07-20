@@ -1,15 +1,3 @@
-import { parseNeuronId, formatNeuronId } from "./ids.js";
-import { clear, element, safeHttpsLink } from "./dom.js";
-import { createAnonymousActor } from "./actor.js";
-import { errorMessage, renderReport } from "./compliance-view.js";
-import { checkLive } from "./live-check.js";
+import { createApplication } from "./app.js";
 
-const app = document.querySelector("#app");
-let actorPromise;
-const actor = () => actorPromise ??= createAnonymousActor();
-function resources() { const p = document.createElement("p"); p.append(safeHttpsLink("Standard", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/standard/NNS_DENDRITE_STANDARD.md"), document.createTextNode(" · "), safeHttpsLink("Source", "https://github.com/aodl/NNS_Dendrite_Standard"), document.createTextNode(" · "), safeHttpsLink("Reproducible builds", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/development/reproducible-builds.md"), document.createTextNode(" · "), safeHttpsLink("Security model", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/security/threat-model.md")); return p; }
-function landing() { clear(app); app.append(element("h1", "Dendrite"), element("p", "Run a live consensus-backed verification of an NNS Dendrite neuron. Dendrite stores no result, identity, proposal, or history.")); const form = document.createElement("form"), label = element("label", "NNS neuron ID "), input = document.createElement("input"), button = element("button", "Check neuron"); input.name = "neuron"; input.inputMode = "numeric"; input.required = true; label.append(input); form.append(label, button); form.addEventListener("submit", (event) => { event.preventDefault(); input.setCustomValidity(""); try { location.hash = `#/neuron/${formatNeuronId(parseNeuronId(input.value))}`; } catch (error) { input.setCustomValidity(error.message); input.reportValidity(); } }); app.append(form, element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."), resources()); }
-function showError(root, message) { const box = element("div", message, "error"); box.tabIndex = -1; root.append(box); box.focus(); }
-export async function loadNeuron(id, dependencies = {}) { const getActor = dependencies.actor ?? actor; const root = dependencies.root ?? app; clear(root); root.setAttribute("aria-busy", "true"); root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status")); try { const api = await getActor(); renderReport(root, await checkLive(api, id)); const again = element("button", "Check again"); again.addEventListener("click", () => loadNeuron(id, { actor: getActor, root })); root.append(again, resources()); } catch (error) { clear(root); root.append(element("h1", `Neuron ${id}`)); showError(root, errorMessage(error)); const retry = element("button", "Check again"); retry.addEventListener("click", () => loadNeuron(id, { actor: getActor, root })); root.append(retry, resources()); } finally { root.removeAttribute("aria-busy"); } }
-function route() { const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash); if (!match) return landing(); try { loadNeuron(formatNeuronId(parseNeuronId(match[1]))); } catch { landing(); } }
-addEventListener("hashchange", route); route();
+createApplication({ root: document.querySelector("#app"), location, onHashChange: addEventListener }).start();
