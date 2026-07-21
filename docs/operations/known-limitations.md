@@ -1,13 +1,14 @@
 # Known limitations and roadmap
 
-This tranche is deliberately an anonymous live verifier. Internet Identity, derivation
-origin, authenticated manager recognition, controller-only hotkey onboarding, proposal
-construction/simulation/submission, open-proposal views, voting, and reward assistance
-are deferred. No UI text may imply those functions exist. A later tranche must keep
-privileged calls browser-to-NNS and delegations outside Dendrite.
-The anonymous verifier tranche is complete. The product as a whole is not complete
-against the original brief until this deferred identity and authenticated governance
-tranche is implemented and reviewed.
+The canister remains an anonymous live verifier. Browser-only Internet Identity and
+read-only manager recognition are implemented, but onboarding is instruction-only:
+only a manager controller may add a hotkey externally, and success is not established
+until a later live report contains it. The delegation never reaches Dendrite.
+
+Proposal construction, simulation, submission, voting, following changes, reward
+assistance, open-proposal views, proposal history, and every NNS mutation remain
+deferred. The next tranche is one audited direct browser-to-NNS transaction pipeline.
+The product as a whole is not complete against the original brief.
 
 Each check consumes canister cycles and may be temporarily rejected by the global
 heap-only guard. The guard resets on upgrade. Results are not cached, certified in a

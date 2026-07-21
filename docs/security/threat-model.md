@@ -28,3 +28,11 @@ origins.
 The controller is blackholed only when `canister_info` succeeds, `module_hash` is absent,
 and controllers are empty. Failed lookup is indeterminate. The canister receives no
 delegations and exposes no arbitrary outbound primitive.
+
+Internet Identity adds a browser-only trust boundary. The canonical derivation origin
+is security-critical because changing it changes user principals; it must be finalized
+before hotkey onboarding, and every alternative must remain operator-controlled.
+Unexpected origins cannot authenticate. Delegations, public keys, identities, and
+principals are never sent to Dendrite, and unavailable manager evidence never confers
+authority. The popup uses certified `same-origin-allow-popups`; no remote script or
+style is loaded. No NNS mutation or authenticated NNS actor exists in this tranche.

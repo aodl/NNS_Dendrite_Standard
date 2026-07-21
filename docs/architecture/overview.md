@@ -21,9 +21,12 @@ admission. There is no stable application
 state, dynamic compliance certification, cache, timer, history, delegation custody, or
 authenticated control panel. Future privileged operations are browser-to-NNS.
 
-This completes the anonymous-verifier architecture. Internet Identity and authenticated
-governance functionality remain the next product tranche, so the broader product is not
-yet complete against the original brief.
+The anonymous-verifier architecture remains complete. Internet Identity now runs only
+in the browser: its delegation never crosses the canister boundary, and the frontend
+compares the exact principal locally with controller and hotkey evidence in the current
+live report. This recognition is read-only. No authenticated NNS actor or mutation
+exists; one audited direct browser-to-NNS transaction pipeline is the next tranche, so
+the broader product remains incomplete against the original brief.
 
 The interface baseline is `dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`;
 see `docs/standard/SOURCE_BASELINE.md`.

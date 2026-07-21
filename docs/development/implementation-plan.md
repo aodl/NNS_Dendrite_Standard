@@ -12,18 +12,18 @@ except for the manager report fields and certified frontend assets required here
 canister remains stateless and anonymous, its public methods and outbound calls remain
 unchanged, and it never receives a user principal, identity, or delegation.
 
-- [ ] Extend raw manager summaries with explicit found/missing/unavailable status and
+- [x] Extend raw manager summaries with explicit found/missing/unavailable status and
   bounded controller/hotkey evidence already present in existing dependency responses.
-- [ ] Add mandatory deterministic derivation-origin, normalized alternative-origin,
+- [x] Add mandatory deterministic derivation-origin, normalized alternative-origin,
   and fixed production Internet Identity provider build inputs.
-- [ ] Generate and certify the exact alternative-origin document with endpoint-specific
+- [x] Generate and certify the exact alternative-origin document with endpoint-specific
   CORS/resource-policy headers and popup-compatible COOP.
-- [ ] Add one pinned official browser AuthClient wrapper with session restore, eight-hour
+- [x] Add one pinned official browser AuthClient wrapper with session restore, eight-hour
   delegation lifetime, explicit sign-in/sign-out, origin enforcement, and no Dendrite
   identity propagation.
-- [ ] Render the exact principal and recompute read-only controller/hotkey authority from
+- [x] Render the exact principal and recompute read-only controller/hotkey authority from
   each current live report, including instruction-only external hotkey onboarding help.
-- [ ] Prove the Dendrite actor remains anonymous, no authenticated NNS actor or mutation
+- [x] Prove the Dendrite actor remains anonymous, no authenticated NNS actor or mutation
   request exists, duplicate raw managers remain auditable, and unavailable evidence
   never becomes authority.
 - [ ] Run all Rust, PocketIC, frontend, coverage, certification, security, SBOM, asset

@@ -1,6 +1,6 @@
 # Dendrite build specification
 
-**Status:** normative anonymous-verifier tranche
+**Status:** normative browser-only identity and read-only manager-recognition tranche
 
 **Standard identifier:** `nns-dendrite/1.0-draft`
 
@@ -8,20 +8,24 @@
 
 ## 1. Product
 
-Dendrite does exactly five things:
+Dendrite does exactly seven things:
 
 1. serves a certified landing page from one Rust canister;
 2. accepts a canonical NNS neuron ID;
 3. executes one live consensus-backed verification;
 4. displays the complete NNS Dendrite Standard report; and
-5. stores no application data.
+5. stores no application data;
+6. lets the browser authenticate with Internet Identity without authenticating to
+   Dendrite; and
+7. compares that browser principal locally with manager authority evidence in the live
+   report.
 
-Internet Identity, manager recognition, hotkey onboarding, proposal construction,
-simulation, submission, voting, rewards assistance, open-proposal views, and universal
-command forms are excluded. A later reviewed tranche may add browser-only identity and
-direct browser-to-NNS operations. Dendrite must never receive or reconstruct a user
-delegation. Proposal history, timers, indexers, analytics, and background work remain
-out of scope.
+Proposal construction, simulation, submission, voting, rewards assistance,
+open-proposal views, universal command forms, and every NNS mutation are excluded.
+Internet Identity exists only in the browser. Dendrite must never receive or reconstruct
+a user delegation or principal. The next tranche may add one audited direct
+browser-to-NNS transaction pipeline. Proposal history, timers, indexers, analytics, and
+background work remain out of scope.
 
 ## 2. Fixed standard constants
 
@@ -62,7 +66,8 @@ The returned `ComplianceReport` contains:
 
 - standard version, pinned source revision, target ID, and NNS evidence snapshot timestamp;
 - explicit target summary where available;
-- manager summaries;
+- raw ordered manager summaries with explicit found, confirmed-missing, or unavailable
+  evidence status and bounded controller/hotkey evidence only when found;
 - committed-topic summaries;
 - non-committed-topic checks;
 - controller-canister evidence;
@@ -266,9 +271,14 @@ and in-flight expiry behavior; it is never exposed as the NNS evidence timestamp
 Use pinned maintained `ic-asset-certification`, `ic-http-certification`, and
 `include_dir` with `AssetRouter`, HTTP certification v2, certified status/headers/body,
 and deterministic paths. Serve `/`, `/index.html`, content-hashed JS and CSS,
-`/404.html`, and `/.well-known/ii-alternative-origins` containing an empty list.
+`/404.html`, and a deterministically generated
+`/.well-known/ii-alternative-origins`.
 
-HTML, error pages, and well-known files use no-cache. Content-hashed assets use immutable
+HTML, error pages, and well-known files use no-cache. The well-known response is JSON,
+has `Access-Control-Allow-Origin: *` and
+`Cross-Origin-Resource-Policy: cross-origin`; ordinary application assets retain
+`same-origin`. Application responses use
+`Cross-Origin-Opener-Policy: same-origin-allow-popups`. Content-hashed assets use immutable
 caching. Responses have correct MIME types, CSP, `X-Content-Type-Options`, referrer and
 permissions policies, frame restrictions, and HSTS where appropriate. No second asset
 canister or unrelated routing/compression/social-image machinery exists.
@@ -286,8 +296,24 @@ with `Principal.fromText`; it never comes from a hostname. Production accepts on
 `https://icp-api.io`, root-key fetching defaults off, and production builds reject
 root-key fetching. Local mode accepts only `http://127.0.0.1:4943` and
 `http://localhost:4943` and may enable root-key fetching. Certified `connect-src`
-permits exactly those origins plus same-origin. Delete unfinished `authority.js`,
-`proposals.js`, and `rewards.js` from production sources.
+permits exactly those origins plus same-origin.
+
+Production additionally requires `DENDRITE_DERIVATION_ORIGIN`, one exact HTTPS origin
+without a trailing slash. Changing it changes users' principals and artifact bytes, so
+it must be finalized before hotkey onboarding. `DENDRITE_ALTERNATIVE_ORIGINS_JSON`
+defaults to `[]`, is a sorted unique list of at most ten exact operator-controlled HTTPS
+origins, and excludes the canonical origin. The production identity provider is fixed
+to `https://id.ai/authorize`; only explicit localhost/loopback providers are accepted in
+local mode. These are immutable build inputs, not canister state or upgrade arguments.
+
+One browser `AuthClient` restores or creates an at-most-eight-hour session. It never
+requests identity attributes and never sends identity material to Dendrite. Canonical
+pages authenticate normally; approved alternatives supply the canonical derivation
+origin; unexpected origins cannot sign in. The exact principal is displayed and
+copyable. Local comparison against every raw manager entry reports controller, hotkey,
+both, no authority, unavailable evidence, or missing manager. Hotkey onboarding is
+instruction-only, controller-only, and confirmed only by a later live report. No
+authenticated NNS actor exists.
 
 ## 11. Required tests and quality gates
 
@@ -308,6 +334,14 @@ live success/error/retry, every overall status and public error, controller evid
 topic labels, malicious text/links/errors, mandatory custom-domain-independent
 configuration, no `innerHTML`, and no numeric ID conversion. Coverage includes every
 production frontend module even if a test omits an import.
+
+Identity tests cover configuration validation and normalization, exact generated
+well-known bytes and certified headers, popup-compatible COOP, session restoration and
+failures, exact principal display/copy, local authority roles and duplicate raw manager
+entries, recomputation on new reports, inert untrusted names, and proof that the
+Dendrite actor and request remain anonymous. Rust and PocketIC tests cover every manager
+evidence state and propagation without adding an outbound call. No browser automation
+framework is introduced.
 
 Whole-workspace Rust line coverage must exceed 85%; frontend thresholds remain at 85%.
 Do not split modules merely to manipulate coverage.
@@ -337,7 +371,8 @@ successfully. Do not lower coverage or security thresholds.
 Update the existing README, standard, architecture, threat model, testing,
 reproducible-build, deployment, upgrade, and operator documents; do not add documents.
 They must state that every check is a live update, no result/history/timer exists, no
-delegation reaches the canister, and all identity/governance functionality is deferred.
+delegation reaches the canister, browser authority recognition is read-only, and all
+governance mutation remains deferred.
 
 Completion requires one canister, one live verification update method, no cache/stable
 application state/digest/catalogue/economics call, batches of at most 50, correct
@@ -348,8 +383,8 @@ byte-identical clean builds.
 The final report records commits; line/file deltas; Candid API; exact outbound methods,
 destinations, and source revision; command results and coverage; PocketIC and dependency
 reachability; scan exceptions; Wasm/frontend/SBOM/reproducible hashes; byte identity;
-limitations; and explicit deferral of Internet Identity and governance controls.
+limitations; and explicit deferral of the direct browser-to-NNS transaction pipeline.
 
-The anonymous-verifier tranche is complete once these requirements pass. The product
-as a whole remains incomplete against the original brief: Internet Identity and
-authenticated governance controls are explicitly deferred to the next tranche.
+The anonymous-verifier tranche remains complete. This tranche is complete once these
+requirements pass, but the product as a whole remains incomplete against the original
+brief: the next tranche is one audited direct browser-to-NNS transaction pipeline.

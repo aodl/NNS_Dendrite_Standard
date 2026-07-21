@@ -28,6 +28,14 @@ and manifest, remove it, and assert the checked-in `canisters/dendrite/public` t
 the same byte hash before and after the suite.
 No browser automation framework is required in this tranche.
 
+Frontend tests also cover canonical, approved-alternative, and unexpected page origins;
+unsafe/duplicate configuration and the ten-origin cap; session restoration,
+sign-in/cancellation/failure/sign-out; exact principal display/copy; every manager
+authority role; duplicate rows; recomputation; anonymous Dendrite actor construction;
+and exact certified well-known, COOP, CORS, and resource-policy behavior. The local
+popup smoke procedure in deployment documentation is manual and is reported as run only
+when an interactive browser and local Internet Identity service are available.
+
 Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine
 retains its 95% line/branch target. Coverage exclusions must be justified; modules are
 not split merely to alter percentages.

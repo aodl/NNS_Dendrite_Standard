@@ -14,9 +14,14 @@
    changes.
 7. Normalize evidence, evaluate every supported rule, return the timestamped report,
    release the guard, and store nothing.
+8. Independently, the browser may restore or obtain an Internet Identity delegation,
+   keep it locally, and compare its principal with raw manager controller/hotkey evidence
+   from that report. Sign-in never reconstructs the Dendrite actor.
 
 No step accepts a destination, method, raw Candid payload, delegation, configuration,
 or proposal record from a caller. No catalogue, economics, mutation, cache, timer,
 history, or background call exists.
 The local canister clock appears only in step 1's operational guard and is never used as
 the NNS evidence timestamp.
+No authenticated NNS actor or transaction exists. Hotkey help is instruction-only and
+must be confirmed through another anonymous live check after any external change.
