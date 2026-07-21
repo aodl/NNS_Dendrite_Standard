@@ -37,6 +37,30 @@ Dendrite principals, so it must be finalized before any operator performs extern
 hotkey onboarding. Every alternative origin must be operator-controlled. This tranche
 adds no NNS mutation and does not complete the original product brief.
 
+## Browser-identity hardening pass
+
+Starting boundary: `246a00b`. Keep the browser-only identity tranche frozen except for
+these corrections; do not begin the browser-to-NNS transaction tranche.
+
+- [ ] Accept exact localhost, loopback, and `.localhost` Internet Identity providers in
+  local mode while keeping production fixed to `https://id.ai/authorize`.
+- [ ] Separate permanent origin failure from bounded recoverable restore/popup/storage
+  errors, make retry possible without reload, and retain identity on failed sign-out.
+- [ ] Restore identity before rendering the first route so startup has one deterministic
+  render and never races a live neuron check.
+- [ ] Remove the production authentication-session global hook while retaining injection
+  only at `createApplication` for tests.
+- [ ] Remove the unenforced PIN-policy build input and claim; retain the factual
+  eight-hour delegation and no-attributes policy.
+- [ ] Preserve anonymous Dendrite calls, local-only authority comparison, the unchanged
+  canister interface/outbound calls, and the complete absence of NNS mutation code.
+- [ ] Run every automated release gate with explicit identity inputs, record affected
+  hashes, and retain the real popup smoke test as an operator gate unless actually run.
+
+After these items pass, freeze browser-only identity and read-only manager recognition.
+No manager should install a Dendrite principal as a hotkey before the popup gate passes
+on the finalized canonical origin.
+
 This plan replaces the completed cache-oriented tranche. Net deletion and a smaller
 auditable surface are explicit success criteria.
 
