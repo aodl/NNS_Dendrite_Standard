@@ -11,9 +11,9 @@ DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> \
 The explicit fixture ID is validated with `Principal.fromText` and embedded unchanged.
 The production IC API host is fixed to `https://icp-api.io`; production root-key
 fetching is fixed off. The command also records the canonical derivation origin, sorted
-alternative origins, fixed identity provider, eight-hour delegation TTL, and disabled
-PIN-authentication policy. The selected SDK exposes no PIN-enabling option, so none is
-supplied. The exact same identity inputs are used for both clean builds; changing any
+alternative origins, fixed identity provider, and eight-hour delegation TTL. The
+selected SDK wrapper exposes no PIN-policy option, so Dendrite supplies none and makes
+no separate PIN-policy claim. The exact same identity inputs are used for both clean builds; changing any
 input changes the frontend and therefore the embedding Wasm. The command uses lockfiles
 and `--locked` Cargo invocations, sets
 `SOURCE_DATE_EPOCH=0`, builds the frontend before Wasm, compares exact Wasm bytes and

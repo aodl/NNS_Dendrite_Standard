@@ -303,8 +303,9 @@ without a trailing slash. Changing it changes users' principals and artifact byt
 it must be finalized before hotkey onboarding. `DENDRITE_ALTERNATIVE_ORIGINS_JSON`
 defaults to `[]`, is a sorted unique list of at most ten exact operator-controlled HTTPS
 origins, and excludes the canonical origin. The production identity provider is fixed
-to `https://id.ai/authorize`; only explicit localhost/loopback providers are accepted in
-local mode. These are immutable build inputs, not canister state or upgrade arguments.
+to `https://id.ai/authorize`; only exact `localhost`, `127.0.0.1`, or `.localhost`
+providers are accepted in local mode. These are immutable build inputs, not canister
+state or upgrade arguments.
 
 One browser `AuthClient` restores or creates an at-most-eight-hour session. It never
 requests identity attributes and never sends identity material to Dendrite. Canonical
@@ -314,6 +315,11 @@ copyable. Local comparison against every raw manager entry reports controller, h
 both, no authority, unavailable evidence, or missing manager. Hotkey onboarding is
 instruction-only, controller-only, and confirmed only by a later live report. No
 authenticated NNS actor exists.
+
+The selected SDK wrapper exposes no PIN-policy option, so Dendrite makes no separate
+PIN-authentication claim. Restoration completes before the initial route is rendered.
+Popup, session, and storage errors are bounded and retryable; permanent origin failure
+remains closed. Failed sign-out retains the displayed principal.
 
 ## 11. Required tests and quality gates
 

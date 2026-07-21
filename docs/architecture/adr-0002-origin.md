@@ -9,5 +9,6 @@ manager hotkey.
 
 Alternatives are normalized, unique, capped at ten, certified, and valid only when
 controlled by the same operator. Unexpected origins cannot authenticate. Production
-Internet Identity is fixed to `https://id.ai/authorize`; explicit localhost/loopback
-providers are accepted only in local mode. None is mutable canister configuration.
+Internet Identity is fixed to `https://id.ai/authorize`; exact `localhost`,
+`127.0.0.1`, and `.localhost` providers are accepted only in local mode. None is mutable
+canister configuration.

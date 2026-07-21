@@ -35,6 +35,10 @@ authority role; duplicate rows; recomputation; anonymous Dendrite actor construc
 and exact certified well-known, COOP, CORS, and resource-policy behavior. The local
 popup smoke procedure in deployment documentation is manual and is reported as run only
 when an interactive browser and local Internet Identity service are available.
+Startup tests require identity restoration before the first route, retry controls after
+bounded transient failures, a closed permanent-origin failure, and honest failed
+sign-out state. Generated bundles are checked for the absence of a global authentication
+test hook.
 
 Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine
 retains its 95% line/branch target. Coverage exclusions must be justified; modules are

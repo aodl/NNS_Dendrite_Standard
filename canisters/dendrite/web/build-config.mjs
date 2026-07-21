@@ -98,7 +98,7 @@ export function resolveBuildConfiguration(environment = process.env) {
   }
   const providerHostname = new URL(identityProvider).hostname;
   if (mode === "local" && providerHostname !== "localhost" && providerHostname !== "127.0.0.1" && !providerHostname.endsWith(".localhost")) {
-    throw new Error("Local identity provider must use an explicit localhost or loopback origin.");
+    throw new Error("Local identity provider must use localhost, loopback, or a .localhost hostname.");
   }
   return { canisterId, apiHost, fetchRootKey, mode, derivationOrigin, alternativeOrigins, identityProvider };
 }

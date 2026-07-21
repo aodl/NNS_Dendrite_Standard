@@ -36,3 +36,7 @@ Unexpected origins cannot authenticate. Delegations, public keys, identities, an
 principals are never sent to Dendrite, and unavailable manager evidence never confers
 authority. The popup uses certified `same-origin-allow-popups`; no remote script or
 style is loaded. No NNS mutation or authenticated NNS actor exists in this tranche.
+Session, popup, and browser-storage failures are bounded and retryable without treating
+them as permanent origin approval. A failed sign-out retains the displayed principal;
+only successful SDK sign-out clears it. Identity restoration precedes initial routing,
+preventing a signed-out report render from racing a restored session.

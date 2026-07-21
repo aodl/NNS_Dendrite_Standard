@@ -20,7 +20,6 @@ cp canisters/dendrite/public/asset-manifest.json dist/asset-manifest.json
   echo "DENDRITE_ALTERNATIVE_ORIGINS_JSON=${DENDRITE_ALTERNATIVE_ORIGINS_JSON:-[]}"
   echo "DENDRITE_IDENTITY_PROVIDER=${DENDRITE_IDENTITY_PROVIDER:-https://id.ai/authorize}"
   echo "DENDRITE_AUTHENTICATION_DELEGATION_TTL_NS=28800000000000"
-  echo "DENDRITE_ALLOW_PIN_AUTHENTICATION=false"
 } > dist/build-configuration.txt
 find canisters/dendrite/public -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > dist/frontend.sha256
 sha256sum dist/dendrite.wasm dist/frontend.sha256 dist/asset-manifest.json dist/build-configuration.txt > dist/artifacts.sha256

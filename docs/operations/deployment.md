@@ -41,11 +41,17 @@ brief.
 
 ## Manual local Internet Identity popup smoke test
 
-With a local Internet Identity authorization service running on an explicit localhost
-or loopback origin, set `DENDRITE_DERIVATION_ORIGIN` to the final test application
-origin and `DENDRITE_IDENTITY_PROVIDER` to that service's `/authorize` URL, then deploy
-with `DFX_IDENTITY=codex_local`. In an interactive browser, open the landing page, sign
-in through the popup, confirm the exact principal and canonical origin are visible,
-navigate to a neuron report, confirm authority is derived only from its current manager
-rows, sign out, and confirm anonymous checks still work. Record the origins and result;
-do not describe this manual procedure as automated popup E2E.
+With local Internet Identity running, prefer the standard provider alias
+`http://id.ai.localhost:8000/authorize` (a canister-style `.localhost` alias is also
+accepted). Set `DENDRITE_DERIVATION_ORIGIN` to the explicitly labelled local test origin
+and deploy with `DFX_IDENTITY=codex_local`. In an interactive browser, verify that the
+popup opens and completes; the exact principal appears; reload restores the same
+principal; an approved alternative origin produces that same principal; an unapproved
+origin cannot sign in; sign-out clears the session; a neuron report recomputes manager
+authority; and anonymous checks still work after sign-out. Record the exact origins,
+certified `/.well-known/ii-alternative-origins`, provider, and result. Do not describe
+this procedure as automated popup E2E.
+
+This is an outstanding operator release gate until it is run against the finalized
+canonical origin (or an explicitly labelled local test origin). No manager should add a
+Dendrite principal as a hotkey before the gate passes on the final canonical origin.

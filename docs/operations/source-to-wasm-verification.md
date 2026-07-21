@@ -284,8 +284,9 @@ remain deferred.
 The implementation through `b23d336` was verified with fixture canister ID
 `v27v7-7x777-77774-qaaha-cai`, canonical derivation origin
 `https://dendrite.example`, normalized alternatives `[]`, production identity provider
-`https://id.ai/authorize`, delegation TTL `28800000000000` nanoseconds, and PIN policy
-`false`. These are reproducibility-fixture inputs, not a mainnet identity deployment or
+`https://id.ai/authorize`, and delegation TTL `28800000000000` nanoseconds. The selected
+SDK wrapper exposes no PIN-policy option, and Dendrite makes no separate PIN-policy
+claim. These are reproducibility-fixture inputs, not a mainnet identity deployment or
 a principal that any manager should install as a hotkey.
 
 `npm ci`, `cargo fmt --all -- --check`, warnings-denied workspace Clippy, `cargo xtask
