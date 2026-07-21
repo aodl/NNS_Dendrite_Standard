@@ -7,7 +7,7 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 
-#[derive(CandidType)]
+#[derive(Clone, CandidType)]
 struct HttpRequest {
     method: String,
     url: String,
@@ -22,6 +22,14 @@ struct HttpResponse {
     headers: Vec<(String, String)>,
     body: Vec<u8>,
     upgrade: Option<bool>,
+}
+
+fn header<'a>(response: &'a HttpResponse, name: &str) -> Option<&'a str> {
+    response
+        .headers
+        .iter()
+        .find(|(candidate, _)| candidate.eq_ignore_ascii_case(name))
+        .map(|(_, value)| value.as_str())
 }
 
 fn wasm() -> Vec<u8> {
@@ -114,6 +122,50 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
             "missing {required}"
         );
     }
+    assert_eq!(
+        header(&response, "cross-origin-opener-policy"),
+        Some("same-origin-allow-popups")
+    );
+    assert_eq!(
+        header(&response, "cross-origin-resource-policy"),
+        Some("same-origin")
+    );
+
+    let well_known_request = HttpRequest {
+        url: "/.well-known/ii-alternative-origins".into(),
+        ..request.clone()
+    };
+    let reply = pic
+        .query_call(
+            canister,
+            Principal::anonymous(),
+            "http_request",
+            Encode!(&well_known_request).unwrap(),
+        )
+        .unwrap();
+    let well_known = Decode!(&reply, HttpResponse).unwrap();
+    assert_eq!(well_known.status_code, 200);
+    assert_eq!(
+        String::from_utf8(well_known.body).unwrap(),
+        "{\"alternativeOrigins\":[]}"
+    );
+    assert_eq!(
+        header(&well_known, "content-type"),
+        Some("application/json; charset=utf-8")
+    );
+    assert_eq!(
+        header(&well_known, "access-control-allow-origin"),
+        Some("*")
+    );
+    assert_eq!(
+        header(&well_known, "cross-origin-resource-policy"),
+        Some("cross-origin")
+    );
+    assert!(
+        header(&well_known, "cache-control")
+            .unwrap()
+            .contains("no-cache")
+    );
 
     let checked = pic
         .update_call(

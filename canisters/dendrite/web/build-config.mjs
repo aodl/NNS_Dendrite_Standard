@@ -1,7 +1,7 @@
 import { Principal } from "@icp-sdk/core/principal";
 
 export const PRODUCTION_IC_API_HOST = "https://icp-api.io";
-export const PRODUCTION_IDENTITY_PROVIDER = "https://id.ai";
+export const PRODUCTION_IDENTITY_PROVIDER = "https://id.ai/authorize";
 export const AUTHENTICATION_DELEGATION_TTL_NS = 8n * 60n * 60n * 1_000_000_000n;
 export const ALLOW_PIN_AUTHENTICATION = false;
 export const LOCAL_IC_API_HOSTS = new Set([
@@ -39,6 +39,17 @@ export function normalizeAlternativeOrigins(value, derivationOrigin, mode) {
   if (new Set(normalized).size !== normalized.length) throw new Error("Alternative origins must be unique.");
   if (normalized.includes(derivationOrigin)) throw new Error("The canonical derivation origin cannot be an alternative.");
   return normalized.sort();
+}
+
+function exactIdentityProvider(value, mode) {
+  if (typeof value !== "string" || !value) throw new Error("DENDRITE_IDENTITY_PROVIDER is required.");
+  let parsed;
+  try { parsed = new URL(value); } catch { throw new Error("DENDRITE_IDENTITY_PROVIDER must be an absolute authorization URL."); }
+  const protocols = mode === "production" ? new Set(["https:"]) : new Set(["http:", "https:"]);
+  if (!protocols.has(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== "/authorize" || parsed.search || parsed.hash || value !== parsed.href) {
+    throw new Error("DENDRITE_IDENTITY_PROVIDER must be an exact /authorize URL without credentials, query, or fragment.");
+  }
+  return value;
 }
 
 export function resolveBuildConfiguration(environment = process.env) {
@@ -79,10 +90,9 @@ export function resolveBuildConfiguration(environment = process.env) {
     derivationOrigin,
     mode,
   );
-  const identityProvider = exactOrigin(
+  const identityProvider = exactIdentityProvider(
     environment.DENDRITE_IDENTITY_PROVIDER ?? (mode === "production" ? PRODUCTION_IDENTITY_PROVIDER : ""),
-    "DENDRITE_IDENTITY_PROVIDER",
-    mode === "production" ? new Set(["https:"]) : new Set(["http:", "https:"]),
+    mode,
   );
   if (mode === "production" && identityProvider !== PRODUCTION_IDENTITY_PROVIDER) {
     throw new Error(`Production DENDRITE_IDENTITY_PROVIDER must be ${PRODUCTION_IDENTITY_PROVIDER}.`);
