@@ -104,7 +104,7 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
     assert_eq!(response.status_code, 200);
     assert_eq!(response.upgrade, None);
     assert!(
-        String::from_utf8(response.body)
+        std::str::from_utf8(&response.body)
             .unwrap()
             .contains("Dendrite")
     );
@@ -146,7 +146,7 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
     let well_known = Decode!(&reply, HttpResponse).unwrap();
     assert_eq!(well_known.status_code, 200);
     assert_eq!(
-        String::from_utf8(well_known.body).unwrap(),
+        std::str::from_utf8(&well_known.body).unwrap(),
         "{\"alternativeOrigins\":[]}"
     );
     assert_eq!(
