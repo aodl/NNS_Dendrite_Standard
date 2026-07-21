@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { AUTHENTICATION_DELEGATION_TTL_NS, authenticationOrigin, createBrowserAuthSession } from "../src/auth.js";
+import { AUTHENTICATION_DELEGATION_TTL_NS, authenticationOrigin, createBrowserAuthSession, identityConfiguration } from "../src/auth.js";
 import { classifyManagerAuthority, renderManagerAuthority } from "../src/authority.js";
 
 const canonical = "https://dendrite.example";
@@ -41,6 +41,7 @@ test("canonical alternative and unapproved origins are explicit", () => {
   alternativeSession.restore();
   assert.equal(FakeAuthClient.instances.at(-1).options.derivationOrigin, canonical);
   assert.ok(session("https://evil.example").originError);
+  assert.throws(() => identityConfiguration({ derivationOrigin: canonical, alternativeOrigins: [] }), /configuration/);
 });
 
 test("one client restores signs in for at most eight hours and signs out", async () => {
@@ -76,6 +77,14 @@ test("cancel failure expiry malformed identity and storage errors fail closed", 
   await assert.rejects(() => auth.restore(), /malformed/);
   client.restoreError = new Error("storage unavailable");
   await assert.rejects(() => auth.restore(), /storage unavailable/);
+
+  auth = session();
+  await auth.signOut();
+  await auth.restore();
+  client = FakeAuthClient.instances.at(-1);
+  client.authenticated = true;
+  client.identity = identity(Principal.anonymous());
+  await assert.rejects(() => auth.restore(), /anonymous identity/);
 });
 
 const manager = (status, controller = [], hotKeys = []) => ({
