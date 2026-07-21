@@ -117,12 +117,17 @@ pub fn evaluate(
                 complete.status = RuleStatus::Indeterminate;
             }
             out.push(complete);
-            out.push(rule(
+            let mut provenance = rule(
                 now,
                 "DENDRITE-DATA-002",
                 provenance_complete(evidence, source_revision),
                 "timestamped fixed-source provenance is present",
-            ));
+            );
+            if now == 0 {
+                provenance.status = RuleStatus::Indeterminate;
+                provenance.message = "NNS evidence snapshot timestamp was unavailable".into();
+            }
+            out.push(provenance);
             let mut inferred = rule(
                 now,
                 "DENDRITE-DATA-003",

@@ -41,20 +41,7 @@ type Neuron = record {
   potential_voting_power : opt nat64;
 };
 type NeuronInfo = record {
-  dissolve_delay_seconds : nat64;
-  recent_ballots : vec record {};
-  neuron_type : opt int32;
-  created_timestamp_seconds : nat64;
-  state : int32;
-  stake_e8s : nat64;
-  joined_community_fund_timestamp_seconds : opt nat64;
   retrieved_at_timestamp_seconds : nat64;
-  known_neuron_data : opt KnownNeuronData;
-  voting_power_refreshed_timestamp_seconds : opt nat64;
-  voting_power : nat64;
-  visibility : opt int32;
-  deciding_voting_power : opt nat64;
-  potential_voting_power : opt nat64;
 };
 type ListNeurons = record {
   neuron_ids : vec nat64;

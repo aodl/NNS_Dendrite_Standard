@@ -4,11 +4,13 @@ use candid::Principal;
 use dendrite_types::{ALPHA_VOTE_NEURON_ID, MAX_DISSOLVE_DELAY_SECONDS, OMEGA_REJECT_NEURON_ID};
 use ic_clients::{
     DissolveState, Followees, KnownNeuronData, ListNeurons, ListNeuronsResponse, Neuron, NeuronId,
-    TopicToFollow,
+    NeuronInfo, TopicToFollow,
 };
 use std::cell::Cell;
 
 thread_local! { static CONTROLLER: Cell<Principal> = const { Cell::new(Principal::anonymous()) }; }
+
+const RETRIEVED_AT_TIMESTAMP_SECONDS: u64 = 1_700_000_000;
 
 #[ic_cdk::init]
 fn init(controller: Principal) {
@@ -90,7 +92,7 @@ fn fixtures() -> Vec<Neuron> {
 
 #[ic_cdk::query]
 fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
-    let full_neurons = fixtures()
+    let full_neurons: Vec<_> = fixtures()
         .into_iter()
         .filter(|neuron| {
             neuron
@@ -100,7 +102,19 @@ fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
         })
         .collect();
     ListNeuronsResponse {
-        neuron_infos: vec![],
+        neuron_infos: full_neurons
+            .iter()
+            .filter_map(|neuron| {
+                neuron.id.as_ref().map(|id| {
+                    (
+                        id.id,
+                        NeuronInfo {
+                            retrieved_at_timestamp_seconds: RETRIEVED_AT_TIMESTAMP_SECONDS,
+                        },
+                    )
+                })
+            })
+            .collect(),
         full_neurons,
         total_pages_available: Some(1),
     }

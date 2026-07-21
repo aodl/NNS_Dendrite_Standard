@@ -7,8 +7,8 @@ use dendrite_types::{
     SourceFailure, SourceFailureKind, evaluate,
 };
 use ic_clients::{
-    CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, SourceError,
-    TopicToFollow,
+    CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, NeuronInfo,
+    SourceError, TopicToFollow,
 };
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -229,11 +229,17 @@ fn invalid_failure(message: &str, affected_neuron_ids: &[u64]) -> SourceFailure 
     }
 }
 
+struct ValidatedBatch {
+    neurons: BTreeMap<u64, NeuronEvidence>,
+    unknown_committed_topics: usize,
+    neuron_infos: BTreeMap<u64, NeuronInfo>,
+}
+
 fn validate_list_neurons_batch(
     requested_ids: &[u64],
     response: ListNeuronsResponse,
     interpret_committed_topics: bool,
-) -> Result<(BTreeMap<u64, NeuronEvidence>, usize), SourceFailure> {
+) -> Result<ValidatedBatch, SourceFailure> {
     if requested_ids.is_empty() || requested_ids.len() > 50 {
         return Err(invalid_failure(
             "list_neurons request contains outside 1 to 50 IDs",
@@ -246,11 +252,20 @@ fn validate_list_neurons_batch(
             requested_ids,
         ));
     }
-    if response.neuron_infos.len() > requested_ids.len() {
-        return Err(invalid_failure(
-            "list_neurons response exceeds the requested batch bound",
-            requested_ids,
-        ));
+    let mut neuron_infos = BTreeMap::new();
+    for (id, info) in response.neuron_infos {
+        if id == 0 || !requested_ids.contains(&id) {
+            return Err(invalid_failure(
+                "list_neurons returned a zero or unexpected neuron-info ID",
+                requested_ids,
+            ));
+        }
+        if neuron_infos.insert(id, info).is_some() {
+            return Err(invalid_failure(
+                "list_neurons response contains a duplicate neuron-info ID",
+                requested_ids,
+            ));
+        }
     }
     let mut normalized = BTreeMap::new();
     let mut unknown_committed_topics = 0;
@@ -286,7 +301,11 @@ fn validate_list_neurons_batch(
         }
         unknown_committed_topics += unknown;
     }
-    Ok((normalized, unknown_committed_topics))
+    Ok(ValidatedBatch {
+        neurons: normalized,
+        unknown_committed_topics,
+        neuron_infos,
+    })
 }
 
 fn dependency_batches(ids: &[u64]) -> Vec<Vec<u64>> {
@@ -323,44 +342,60 @@ impl EvidenceClient for ProductionEvidenceClient {
 }
 
 async fn collect_live(neuron_id: u64) -> Result<ComplianceReport, DendriteError> {
-    collect_with(
-        &ProductionEvidenceClient,
-        neuron_id,
-        ic_cdk::api::time() / 1_000_000_000,
-    )
-    .await
+    collect_with(&ProductionEvidenceClient, neuron_id, 0).await
 }
 
 async fn collect_with(
     client: &impl EvidenceClient,
     neuron_id: u64,
-    now: u64,
+    _local_operational_timestamp_seconds: u64,
 ) -> Result<ComplianceReport, DendriteError> {
     let mut source_failures = Vec::new();
     let target_request = [neuron_id];
     let target_lookup = match client.list_neurons(target_request.to_vec()).await {
         Ok(response) => match validate_list_neurons_batch(&target_request, response, true) {
-            Ok((mut neurons, unknown_committed_topics)) => match neurons.remove(&neuron_id) {
-                Some(target) => (
-                    NeuronLookup::Found(Box::new(target)),
-                    unknown_committed_topics,
+            Ok(mut batch) => match batch.neurons.remove(&neuron_id) {
+                Some(target) => match batch.neuron_infos.remove(&neuron_id) {
+                    Some(info)
+                        if info.retrieved_at_timestamp_seconds > 0
+                            && target.voting_power_refreshed_timestamp_seconds.is_none_or(
+                                |refresh| refresh <= info.retrieved_at_timestamp_seconds,
+                            ) =>
+                    {
+                        (
+                            NeuronLookup::Found(Box::new(target)),
+                            batch.unknown_committed_topics,
+                            info.retrieved_at_timestamp_seconds,
+                        )
+                    }
+                    _ => {
+                        source_failures.push(invalid_failure(
+                            "returned target lacks valid, non-contradictory neuron-info timestamp",
+                            &target_request,
+                        ));
+                        (NeuronLookup::Unavailable, 0, 0)
+                    }
+                },
+                None => (
+                    NeuronLookup::ConfirmedMissing,
+                    batch.unknown_committed_topics,
+                    0,
                 ),
-                None => (NeuronLookup::ConfirmedMissing, unknown_committed_topics),
             },
             Err(failure) => {
                 source_failures.push(failure);
-                (NeuronLookup::Unavailable, 0)
+                (NeuronLookup::Unavailable, 0, 0)
             }
         },
         Err(error) => {
             source_failures.push(source_failure(error, &target_request));
-            (NeuronLookup::Unavailable, 0)
+            (NeuronLookup::Unavailable, 0, 0)
         }
     };
-    let (target_lookup, unknown_committed_topics) = target_lookup;
+    let (target_lookup, unknown_committed_topics, evaluation_timestamp_seconds) = target_lookup;
     let NeuronLookup::Found(target) = &target_lookup else {
         let evidence = EvaluationEvidence {
-            now_seconds: now,
+            now_seconds: evaluation_timestamp_seconds,
             target: target_lookup,
             dependencies: BTreeMap::new(),
             controller: None,
@@ -374,9 +409,10 @@ async fn collect_with(
     for batch in dependency_batches(&requested) {
         match client.list_neurons(batch.clone()).await {
             Ok(response) => match validate_list_neurons_batch(&batch, response, false) {
-                Ok((mut found, _)) => {
+                Ok(mut validated) => {
                     for id in batch {
-                        let lookup = found
+                        let lookup = validated
+                            .neurons
                             .remove(&id)
                             .map_or(NeuronLookup::ConfirmedMissing, |neuron| {
                                 NeuronLookup::Found(Box::new(neuron))
@@ -418,7 +454,7 @@ async fn collect_with(
         None => None,
     };
     let evidence = EvaluationEvidence {
-        now_seconds: now,
+        now_seconds: evaluation_timestamp_seconds,
         target: target_lookup,
         dependencies,
         controller,
@@ -508,7 +544,19 @@ mod tests {
     }
     fn response(neurons: Vec<Neuron>) -> ListNeuronsResponse {
         ListNeuronsResponse {
-            neuron_infos: vec![],
+            neuron_infos: neurons
+                .iter()
+                .filter_map(|neuron| {
+                    neuron.id.as_ref().map(|id| {
+                        (
+                            id.id,
+                            NeuronInfo {
+                                retrieved_at_timestamp_seconds: 1_000_000,
+                            },
+                        )
+                    })
+                })
+                .collect(),
             full_neurons: neurons,
             total_pages_available: Some(1),
         }
@@ -791,11 +839,101 @@ mod tests {
                 .all(|rule| rule.status == dendrite_types::RuleStatus::Pass)
         );
         assert_eq!(snapshot.quorum_threshold, Some(3));
+        assert_eq!(snapshot.checked_at_timestamp_seconds, 1_000_000);
         assert_eq!(client.calls.borrow()[0], RecordedCall::List(vec![42]));
         assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 7));
         assert_eq!(
             client.calls.borrow()[2],
             RecordedCall::CanisterInfo(Principal::from_slice(&[1]))
+        );
+    }
+    #[test]
+    fn local_operational_clock_does_not_affect_nns_evaluation_time() {
+        for local_time in [1, u64::MAX] {
+            let client = compliant_client();
+            let report = block_on(collect_with(&client, 42, local_time)).unwrap();
+            assert_eq!(report.checked_at_timestamp_seconds, 1_000_000);
+            assert_eq!(
+                report.overall_status,
+                dendrite_types::ComplianceStatus::Compliant
+            );
+        }
+    }
+    #[test]
+    fn target_neuron_info_is_required_unique_and_requested() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .neuron_infos
+            .clear();
+        let report = block_on(collect_with(&client, 42, 1)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert_eq!(
+            report.source_failures[0].kind,
+            SourceFailureKind::InvalidResponse
+        );
+
+        let client = compliant_client();
+        let duplicate = client.neurons.borrow()[0].as_ref().unwrap().neuron_infos[0].clone();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .neuron_infos
+            .push(duplicate);
+        let report = block_on(collect_with(&client, 42, 1)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert!(
+            report.source_failures[0]
+                .message
+                .contains("duplicate neuron-info")
+        );
+
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .neuron_infos[0]
+            .0 = 99;
+        let report = block_on(collect_with(&client, 42, 1)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert!(
+            report.source_failures[0]
+                .message
+                .contains("unexpected neuron-info")
+        );
+    }
+    #[test]
+    fn refresh_after_nns_snapshot_invalidates_the_target_batch() {
+        let client = compliant_client();
+        client.neurons.borrow_mut()[0]
+            .as_mut()
+            .unwrap()
+            .full_neurons[0]
+            .voting_power_refreshed_timestamp_seconds = Some(1_000_001);
+        let report = block_on(collect_with(&client, 42, 1)).unwrap();
+        assert_eq!(
+            report.overall_status,
+            dendrite_types::ComplianceStatus::Indeterminate
+        );
+        assert_eq!(
+            report.source_failures[0].kind,
+            SourceFailureKind::InvalidResponse
+        );
+        assert!(
+            report
+                .rules
+                .iter()
+                .all(|rule| rule.status != dendrite_types::RuleStatus::Fail)
         );
     }
     #[test]

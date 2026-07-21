@@ -162,8 +162,12 @@ pub struct NeuronSubaccount {
     pub subaccount: Vec<u8>,
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+pub struct NeuronInfo {
+    pub retrieved_at_timestamp_seconds: u64,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct ListNeuronsResponse {
-    pub neuron_infos: Vec<(u64, Reserved)>,
+    pub neuron_infos: Vec<(u64, NeuronInfo)>,
     pub full_neurons: Vec<Neuron>,
     pub total_pages_available: Option<u64>,
 }
@@ -379,7 +383,19 @@ mod tests {
 
     fn response(neurons: Vec<Neuron>) -> ListNeuronsResponse {
         ListNeuronsResponse {
-            neuron_infos: vec![],
+            neuron_infos: neurons
+                .iter()
+                .filter_map(|neuron| {
+                    neuron.id.as_ref().map(|id| {
+                        (
+                            id.id,
+                            NeuronInfo {
+                                retrieved_at_timestamp_seconds: 1,
+                            },
+                        )
+                    })
+                })
+                .collect(),
             full_neurons: neurons,
             total_pages_available: Some(1),
         }
