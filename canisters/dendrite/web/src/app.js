@@ -3,6 +3,8 @@ import { clear, element, safeHttpsLink } from "./dom.js";
 import { createAnonymousActor } from "./actor.js";
 import { errorMessage, renderReport } from "./compliance-view.js";
 import { checkLive } from "./live-check.js";
+import { createBrowserAuthSession } from "./auth.js";
+import { renderManagerAuthority } from "./authority.js";
 
 function resources() {
   const node = document.createElement("p");
@@ -30,8 +32,24 @@ export function createApplication({
   location,
   onHashChange,
   actorFactory = createAnonymousActor,
+  authSession,
+  copyText = (value) => globalThis.navigator.clipboard.writeText(value),
 }) {
+  let browserAuth;
+  try {
+    browserAuth = authSession ?? createBrowserAuthSession();
+  } catch (error) {
+    browserAuth = {
+      configuration: { derivationOrigin: "Unavailable" },
+      originError: error,
+      restore: async () => null,
+    };
+  }
   let actorPromise;
+  let authenticatedPrincipal;
+  let authenticationError = browserAuth.originError?.message;
+  let currentReport;
+  let currentNeuronId;
   const actor = () => {
     if (actorPromise) return actorPromise;
     let pending;
@@ -46,6 +64,66 @@ export function createApplication({
     });
     return pending;
   };
+
+  function authenticationPanel() {
+    const panel = document.createElement("section");
+    panel.className = "authentication";
+    panel.append(
+      element("h2", "Internet Identity"),
+      element("p", `Canonical derivation origin: ${browserAuth.configuration.derivationOrigin}`),
+    );
+    if (authenticationError) {
+      panel.append(element("p", authenticationError, "error"));
+      return panel;
+    }
+    if (!authenticatedPrincipal) {
+      const signIn = element("button", "Sign in with Internet Identity");
+      signIn.addEventListener("click", async () => {
+        try {
+          authenticatedPrincipal = await browserAuth.signIn();
+          authenticationError = undefined;
+        } catch (error) {
+          authenticationError = error instanceof Error ? error.message : "Internet Identity sign-in failed.";
+        }
+        renderCurrent();
+      });
+      panel.append(signIn, element("p", "Signed out. No manager authority is claimed."));
+      return panel;
+    }
+    const principalText = authenticatedPrincipal.toText();
+    panel.append(element("p", `Dendrite principal: ${principalText}`));
+    const copy = element("button", "Copy principal");
+    copy.addEventListener("click", () => copyText(principalText));
+    const signOut = element("button", "Sign out");
+    signOut.addEventListener("click", async () => {
+      try { await browserAuth.signOut(); } finally {
+        authenticatedPrincipal = undefined;
+        authenticationError = undefined;
+        renderCurrent();
+      }
+    });
+    panel.append(copy, signOut);
+    return panel;
+  }
+
+  function appendReportActions(id) {
+    root.append(authenticationPanel());
+    if (authenticatedPrincipal && currentReport) {
+      renderManagerAuthority(root, currentReport, authenticatedPrincipal);
+    }
+    const again = element("button", "Check again");
+    again.addEventListener("click", () => loadNeuron(id));
+    root.append(again, resources());
+  }
+
+  function renderCurrent() {
+    if (currentReport && currentNeuronId) {
+      renderReport(root, currentReport);
+      appendReportActions(currentNeuronId);
+    } else {
+      landing();
+    }
+  }
 
   function landing() {
     clear(root);
@@ -73,6 +151,7 @@ export function createApplication({
       }
     });
     root.append(
+      authenticationPanel(),
       form,
       element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."),
       resources(),
@@ -84,10 +163,10 @@ export function createApplication({
     root.setAttribute("aria-busy", "true");
     root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status"));
     try {
-      renderReport(root, await checkLive(await actor(), id));
-      const again = element("button", "Check again");
-      again.addEventListener("click", () => loadNeuron(id));
-      root.append(again, resources());
+      currentReport = await checkLive(await actor(), id);
+      currentNeuronId = id;
+      renderReport(root, currentReport);
+      appendReportActions(id);
     } catch (error) {
       clear(root);
       root.append(element("h1", `Neuron ${id}`));
@@ -114,9 +193,17 @@ export function createApplication({
     landing,
     loadNeuron,
     route,
-    start() {
+    async start() {
       onHashChange("hashchange", route);
-      return route();
+      const routed = route();
+      try {
+        authenticatedPrincipal = await browserAuth.restore();
+        authenticationError = undefined;
+      } catch (error) {
+        authenticationError = error instanceof Error ? error.message : "Stored Internet Identity session is unavailable.";
+      }
+      if (!currentReport) landing();
+      return routed;
     },
   };
 }

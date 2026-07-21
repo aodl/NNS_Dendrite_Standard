@@ -108,8 +108,10 @@ export function renderReport(root, report) {
       row("Returned controllers", returnedControllers),
     ]));
   }
-  root.append(table("Managers", report.managers.map((manager) =>
-    row(String(manager.neuron_id), manager.known_neuron?.[0]?.name ?? "Not returned as a known neuron"))));
+  root.append(table("Managers", report.managers.map((manager) => row(
+    String(manager.neuron_id),
+    `${variantName(manager.evidence_status)} · ${manager.known_neuron?.[0]?.name ?? "No known-neuron metadata"} · controller ${manager.controller?.[0] ? principalText(manager.controller[0]) : "none"} · hotkeys ${ids(manager.hot_keys)}`,
+  ))));
   root.append(table("Committed topics", report.committed_topics.map((topic) =>
     row(topicLabel(topic.topic), ids(topic.delegate_ids)))));
   root.append(table("Non-committed topic checks", report.non_committed_topics.map((topic) =>
