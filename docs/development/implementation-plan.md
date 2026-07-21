@@ -1,5 +1,9 @@
 # Aggressive simplification implementation plan
 
+The anonymous-verifier tranche is complete after the NNS snapshot-clock correction and
+its final verification. This does not complete the original product brief; Internet
+Identity and authenticated governance functionality remain the next tranche.
+
 This plan replaces the completed cache-oriented tranche. Net deletion and a smaller
 auditable surface are explicit success criteria.
 

@@ -19,3 +19,6 @@ mandatory `DENDRITE_CANISTER_ID` build argument, pins
 Node and Rust base-image indexes by digest, and exports only Wasm, frontend, and hashes.
 Node/npm versions are pinned by `.nvmrc`, `packageManager`, and exact engines. Production
 builds never fetch Candid interfaces or generate broad NNS bindings dynamically.
+Runtime report timestamps do not enter the embedded artifact: the report's
+`checked_at_timestamp_seconds` comes from each live NNS evidence response, while local
+time is used only by the heap-only abuse guard.

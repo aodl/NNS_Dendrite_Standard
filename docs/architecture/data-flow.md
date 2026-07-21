@@ -2,7 +2,8 @@
 
 1. Validate a non-zero `nat64` target ID and admit it through the heap-only global guard.
 2. Request the full public target with fixed Governance `list_neurons`.
-3. Atomically validate the target response. On confirmed omission, return a completed
+3. Atomically validate full-neuron and neuron-info keys and use the target NNS retrieval
+   timestamp for activity evaluation and `checked_at_timestamp_seconds`. On confirmed omission, return a completed
    non-compliant report; on unavailable evidence, return indeterminate immediately.
 4. Preserve raw manager/topic vectors, add alpha-vote and omega-reject, enforce the
    derived 272-ID graph bound, and split unique dependencies into batches of at most 50.
@@ -17,3 +18,5 @@
 No step accepts a destination, method, raw Candid payload, delegation, configuration,
 or proposal record from a caller. No catalogue, economics, mutation, cache, timer,
 history, or background call exists.
+The local canister clock appears only in step 1's operational guard and is never used as
+the NNS evidence timestamp.

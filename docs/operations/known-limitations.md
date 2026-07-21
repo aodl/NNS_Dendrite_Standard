@@ -5,6 +5,9 @@ origin, authenticated manager recognition, controller-only hotkey onboarding, pr
 construction/simulation/submission, open-proposal views, voting, and reward assistance
 are deferred. No UI text may imply those functions exist. A later tranche must keep
 privileged calls browser-to-NNS and delegations outside Dendrite.
+The anonymous verifier tranche is complete. The product as a whole is not complete
+against the original brief until this deferred identity and authenticated governance
+tranche is implemented and reviewed.
 
 Each check consumes canister cycles and may be temporarily rejected by the global
 heap-only guard. The guard resets on upgrade. Results are not cached, certified in a

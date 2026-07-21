@@ -2,9 +2,16 @@
 
 Dendrite is a single-canister, anonymous verifier for the NNS Dendrite Standard. Every check is a live consensus-backed update call. The canister reads bounded public evidence from NNS Governance and the IC management canister, evaluates deterministic rules, returns the complete report directly, stores no application data, and serves its certified vanilla-JavaScript frontend from the same Rust Wasm.
 
+The anonymous-verifier tranche is complete. The product as a whole is not yet complete
+against the original brief: Internet Identity and authenticated governance functionality
+remain the next product tranche.
+
 The fixed identities are alpha-vote `2947465672511369` and omega-reject `18422777432977120264`. Omega-reject is not omega-vote. A compliant target has no hotkeys and has `not_for_profit = false`.
 
 The anonymous neuron page validates an exact decimal `u64`, calls `check_neuron`, renders the live report safely, and can perform another live check. There is no cache, stale-result state, dynamic compliance certification, timer, or persistent operational state.
+`checked_at_timestamp_seconds` is the NNS Governance evidence snapshot time returned
+with the target neuron. Dendrite's local canister clock is used only by the heap-only
+abuse guard.
 
 ## Local verification
 

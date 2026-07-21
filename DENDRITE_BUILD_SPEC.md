@@ -60,7 +60,7 @@ available evidence and never invents a pass.
 
 The returned `ComplianceReport` contains:
 
-- standard version, pinned source revision, target ID, and check timestamp;
+- standard version, pinned source revision, target ID, and NNS evidence snapshot timestamp;
 - explicit target summary where available;
 - manager summaries;
 - committed-topic summaries;
@@ -144,6 +144,9 @@ For each committed topic:
 Raw following vectors and map-like Candid vectors must remain intact until duplicate
 checks finish. Duplicate topic keys, duplicate target/dependency records, unexpected
 records, and contradictory records are invalid responses, not values to overwrite.
+Activity is evaluated against `NeuronInfo.retrieved_at_timestamp_seconds` from the
+target response. A refresh timestamp after that NNS snapshot invalidates the target
+batch; Dendrite canister time is not cross-compared with NNS timestamps.
 
 ## 5. Topics and graph bound
 
@@ -213,6 +216,8 @@ Use a small checked-in reviewed Candid subset containing only exact wire types r
 by those methods. Production builds do not fetch interfaces, run bindgen, depend on
 broad `dfinity/ic` crates, or include generic transport. Keep semantic drift checks
 against the pinned upstream source.
+The `NeuronInfo` subset retains only `retrieved_at_timestamp_seconds`; additional
+upstream record fields are skipped by Candid decoding.
 
 Known-neuron status comes only from `Neuron.known_neuron_data`. Never call
 `list_known_neurons`, `get_network_economics_parameters`, proposal methods, or mutation
@@ -226,8 +231,9 @@ response that omits a requested full public neuron is evidence, not a source fai
 ## 8. Exact live call plan
 
 1. Call `list_neurons` for the target with public full-neuron inclusion enabled.
-2. Validate the target batch atomically, including page count, IDs, duplicates, topic
-   keys, pinned collection bounds, and stake arithmetic.
+2. Validate the target batch atomically, including page count, full-neuron and
+   neuron-info IDs, duplicates, topic keys, pinned collection bounds, stake arithmetic,
+   and a nonzero matching target NNS snapshot timestamp.
 3. If a valid successful response omits the target, return a completed `NON_COMPLIANT`
    report; if the call or batch is unavailable, return `INDETERMINATE`. In either case,
    make no dependency or controller call.
@@ -252,6 +258,8 @@ Return one bounded suggested delay for temporary rejection. The guard resets on 
 has no stable persistence, no per-user state, and no public counters. Each admission
 prunes in-flight entries at least 300 seconds old so a post-await trap cannot consume a
 slot indefinitely.
+The local canister clock is used only for this operational guard, including rate-window
+and in-flight expiry behavior; it is never exposed as the NNS evidence timestamp.
 
 ## 10. Certified frontend
 
@@ -341,3 +349,7 @@ The final report records commits; line/file deltas; Candid API; exact outbound m
 destinations, and source revision; command results and coverage; PocketIC and dependency
 reachability; scan exceptions; Wasm/frontend/SBOM/reproducible hashes; byte identity;
 limitations; and explicit deferral of Internet Identity and governance controls.
+
+The anonymous-verifier tranche is complete once these requirements pass. The product
+as a whole remains incomplete against the original brief: Internet Identity and
+authenticated governance controls are explicitly deferred to the next tranche.

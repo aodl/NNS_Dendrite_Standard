@@ -8,6 +8,7 @@
 6. Configure each non-committed recognised topic and CatchAll to alpha-vote `2947465672511369` exactly.
 7. Register known-neuron data, run Dendrite, and resolve every failure except the pending blackhole checks.
 8. Uninstall the controller canister Wasm and set its controllers to an empty list.
-9. Run Dendrite again and archive evidence and source/artifact hashes externally.
+9. Run Dendrite again and archive the report, whose check timestamp is the NNS evidence
+   snapshot time, and source/artifact hashes externally.
 
 Blackholing is intentionally irreversible. Dendrite verifies this sequence; it does not perform it.

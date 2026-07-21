@@ -27,3 +27,7 @@ deployable only after the operator creates and explicitly authorizes an actual m
 Dendrite canister ID.
 
 Mainnet deployment is intentionally not scripted here and must not be performed without explicit authorization. Before production deployment, review the compile-time canister ID, fixed cycle reserve, domain and CSP gateway origins. The certified alternative-origin list is empty because identity is deferred. There is no mutable deployment configuration or stable application state to migrate.
+
+The anonymous verifier is complete after the snapshot-time correction, but this is not
+completion of the original product brief. Internet Identity and authenticated governance
+functionality remain deferred to the next tranche.

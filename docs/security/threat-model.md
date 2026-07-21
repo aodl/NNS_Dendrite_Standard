@@ -6,12 +6,16 @@ duplicate records and topic keys before map construction. Unknown semantic varia
 require a standard update. Successful omission is factual evidence; transport/decode
 failure is never rewritten as a factual failure. Structural invalidity rejects the
 entire affected batch, and bounded source failures name the affected IDs.
+Neuron-info keys must be nonzero, requested, and unique. A returned full target must
+have a matching nonzero NNS retrieval timestamp, and a refresh later than that snapshot
+invalidates the batch rather than producing a factual failure.
 
 Cycle exhaustion is limited by a fixed reserve, at most two concurrent checks,
 same-neuron in-flight rejection, and a short global start window. This tiny guard is
 heap-only, anonymous/global, exposes no counters, prunes entries at least 300 seconds old
 on admission, and resets on upgrade. There is no
 cache, persistent rate limit, stable application state, timer, or background work.
+Only this guard uses Dendrite local time; reports and activity rules use the NNS snapshot.
 
 The frontend uses constructed nodes and `textContent`, HTTPS-only link validation, and
 no dynamic `innerHTML`. NNS identifiers remain strings or `bigint`, never JavaScript

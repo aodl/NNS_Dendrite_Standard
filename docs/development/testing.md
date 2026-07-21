@@ -12,6 +12,9 @@ stake arithmetic, topic-local availability, blackhole evidence, hotkeys,
 `not_for_profit`, batching at 50/51/>100, unexpected responses, and exact omega-reject
 `u64`. One recording fake asserts exact client call order and proves the boundary has no
 arbitrary destination or method.
+Focused timestamp tests cover the exact six-month NNS boundary, one second beyond it,
+local clocks far behind and ahead, future refresh contradiction, and missing, duplicate,
+zero, or unexpected neuron-info keys. The derived 272-neuron graph remains covered.
 
 PocketIC covers compliant, non-compliant, and rejected live checks, controller inspection
 where supported, certified landing assets, and certified assets after upgrade. Frontend
