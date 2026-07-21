@@ -1,5 +1,5 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal, Reserved};
-use dendrite_types::{ComplianceReport, ComplianceStatus};
+use dendrite_types::{ComplianceReport, ComplianceStatus, ManagerEvidenceStatus};
 use ic_clients::NNS_GOVERNANCE;
 use pocket_ic::{PocketIc, PocketIcBuilder};
 use std::{
@@ -181,5 +181,11 @@ fn live_compliant_and_non_compliant_checks_use_fixed_governance_and_real_control
             report.rules, report.source_failures
         );
         assert_eq!(report.neuron_id, neuron_id);
+        assert_eq!(report.managers.len(), 5);
+        assert!(report.managers.iter().all(|manager| {
+            manager.evidence_status == ManagerEvidenceStatus::Found
+                && manager.known_neuron.is_some()
+                && manager.hot_keys.len() <= ic_clients::MAX_HOT_KEYS
+        }));
     }
 }

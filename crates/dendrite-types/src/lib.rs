@@ -569,9 +569,22 @@ fn finish(
     };
     let manager_summaries = managers
         .iter()
-        .map(|id| ManagerSummary {
-            neuron_id: *id,
-            known_neuron: lookup_known(evidence.dependencies.get(id)).cloned(),
+        .map(|id| {
+            let lookup = evidence.dependencies.get(id);
+            let found = lookup.and_then(NeuronLookup::as_ref);
+            ManagerSummary {
+                neuron_id: *id,
+                evidence_status: match lookup {
+                    Some(NeuronLookup::Found(_)) => ManagerEvidenceStatus::Found,
+                    Some(NeuronLookup::ConfirmedMissing) | None => {
+                        ManagerEvidenceStatus::ConfirmedMissing
+                    }
+                    Some(NeuronLookup::Unavailable) => ManagerEvidenceStatus::Unavailable,
+                },
+                known_neuron: found.and_then(|neuron| neuron.known_data.clone()),
+                controller: found.and_then(|neuron| neuron.controller),
+                hot_keys: found.map_or_else(Vec::new, |neuron| neuron.hot_keys.clone()),
+            }
         })
         .collect();
     let committed_topics = topics
@@ -760,9 +773,73 @@ mod tests {
         assert_eq!(snapshot.controller.as_ref().unwrap().module_hash, None);
         assert_eq!(snapshot.managers[0].neuron_id, 100);
         assert_eq!(
+            snapshot.managers[0].evidence_status,
+            ManagerEvidenceStatus::Found
+        );
+        assert_eq!(
             snapshot.committed_topics[0].delegate_ids,
             vec![100, 101, 102]
         );
+    }
+
+    #[test]
+    fn manager_summaries_preserve_raw_order_and_lookup_status() {
+        let mut evidence = compliant_evidence();
+        let authority = Principal::from_slice(&[9]);
+        let manager = evidence
+            .dependencies
+            .get_mut(&100)
+            .unwrap()
+            .as_mut()
+            .unwrap();
+        manager.controller = Some(authority);
+        manager.hot_keys = vec![authority];
+        evidence
+            .dependencies
+            .get_mut(&101)
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .known_data = None;
+        evidence
+            .dependencies
+            .insert(102, NeuronLookup::ConfirmedMissing);
+        evidence.dependencies.insert(103, NeuronLookup::Unavailable);
+        evidence
+            .target
+            .as_mut()
+            .unwrap()
+            .followees
+            .insert(1, vec![100, 101, 102, 103, 100]);
+
+        let report = evaluate(42, &evidence, SOURCE_REVISION);
+        assert_eq!(
+            report
+                .managers
+                .iter()
+                .map(|manager| manager.neuron_id)
+                .collect::<Vec<_>>(),
+            vec![100, 101, 102, 103, 100]
+        );
+        assert_eq!(report.managers[0].controller, Some(authority));
+        assert_eq!(report.managers[0].hot_keys, vec![authority]);
+        assert_eq!(
+            report.managers[1].evidence_status,
+            ManagerEvidenceStatus::Found
+        );
+        assert!(report.managers[1].known_neuron.is_none());
+        assert_eq!(
+            report.managers[2].evidence_status,
+            ManagerEvidenceStatus::ConfirmedMissing
+        );
+        assert_eq!(
+            report.managers[3].evidence_status,
+            ManagerEvidenceStatus::Unavailable
+        );
+        for manager in &report.managers[2..4] {
+            assert!(manager.controller.is_none());
+            assert!(manager.hot_keys.is_empty());
+        }
     }
 
     #[test]

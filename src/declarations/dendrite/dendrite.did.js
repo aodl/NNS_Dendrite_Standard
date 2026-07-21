@@ -11,7 +11,15 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Opt(IDL.Text),
     'links' : IDL.Vec(IDL.Text),
   });
+  const ManagerEvidenceStatus = IDL.Variant({
+    'Unavailable' : IDL.Null,
+    'ConfirmedMissing' : IDL.Null,
+    'Found' : IDL.Null,
+  });
   const ManagerSummary = IDL.Record({
+    'controller' : IDL.Opt(IDL.Principal),
+    'evidence_status' : ManagerEvidenceStatus,
+    'hot_keys' : IDL.Vec(IDL.Principal),
     'known_neuron' : IDL.Opt(KnownNeuron),
     'neuron_id' : IDL.Nat64,
   });

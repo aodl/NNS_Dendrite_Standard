@@ -53,9 +53,15 @@ export interface KnownNeuron {
   'links' : Array<string>,
 }
 export interface ManagerSummary {
+  'controller' : [] | [Principal],
+  'evidence_status' : ManagerEvidenceStatus,
+  'hot_keys' : Array<Principal>,
   'known_neuron' : [] | [KnownNeuron],
   'neuron_id' : bigint,
 }
+export type ManagerEvidenceStatus = { 'Unavailable' : null } |
+  { 'ConfirmedMissing' : null } |
+  { 'Found' : null };
 export interface NonCommittedTopicCheck {
   'topic' : number,
   'followee_ids' : BigUint64Array | bigint[],

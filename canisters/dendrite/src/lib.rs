@@ -848,6 +848,30 @@ mod tests {
         );
     }
     #[test]
+    fn collector_propagates_manager_controller_and_hotkeys_without_extra_calls() {
+        let client = compliant_client();
+        let authority = Principal::from_slice(&[8]);
+        {
+            let mut responses = client.neurons.borrow_mut();
+            let manager = &mut responses[1].as_mut().unwrap().full_neurons[0];
+            manager.controller = Some(authority);
+            manager.hot_keys = vec![authority];
+        }
+        let report = block_on(collect_with(&client, 42, 1)).unwrap();
+        let manager = report
+            .managers
+            .iter()
+            .find(|manager| manager.neuron_id == 100)
+            .unwrap();
+        assert_eq!(
+            manager.evidence_status,
+            dendrite_types::ManagerEvidenceStatus::Found
+        );
+        assert_eq!(manager.controller, Some(authority));
+        assert_eq!(manager.hot_keys, vec![authority]);
+        assert_eq!(client.calls.borrow().len(), 3);
+    }
+    #[test]
     fn local_operational_clock_does_not_affect_nns_evaluation_time() {
         for local_time in [1, u64::MAX] {
             let client = compliant_client();

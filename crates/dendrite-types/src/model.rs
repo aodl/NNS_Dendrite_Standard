@@ -129,9 +129,19 @@ pub struct TargetSummary {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
+pub enum ManagerEvidenceStatus {
+    Found,
+    ConfirmedMissing,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
 pub struct ManagerSummary {
     pub neuron_id: u64,
+    pub evidence_status: ManagerEvidenceStatus,
     pub known_neuron: Option<KnownNeuron>,
+    pub controller: Option<Principal>,
+    pub hot_keys: Vec<Principal>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]
