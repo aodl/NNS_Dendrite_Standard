@@ -4,6 +4,39 @@ The anonymous-verifier tranche is complete after the NNS snapshot-clock correcti
 its final verification. This does not complete the original product brief; Internet
 Identity and authenticated governance functionality remain the next tranche.
 
+## Browser-only identity and read-only manager recognition tranche
+
+Starting boundary: reviewed commit
+`899c34b2a71a1676775c318796fe2baa3f7ec079`. The anonymous verifier remains frozen
+except for the manager report fields and certified frontend assets required here. The
+canister remains stateless and anonymous, its public methods and outbound calls remain
+unchanged, and it never receives a user principal, identity, or delegation.
+
+- [ ] Extend raw manager summaries with explicit found/missing/unavailable status and
+  bounded controller/hotkey evidence already present in existing dependency responses.
+- [ ] Add mandatory deterministic derivation-origin, normalized alternative-origin,
+  and fixed production Internet Identity provider build inputs.
+- [ ] Generate and certify the exact alternative-origin document with endpoint-specific
+  CORS/resource-policy headers and popup-compatible COOP.
+- [ ] Add one pinned official browser AuthClient wrapper with session restore, eight-hour
+  delegation lifetime, explicit sign-in/sign-out, origin enforcement, and no Dendrite
+  identity propagation.
+- [ ] Render the exact principal and recompute read-only controller/hotkey authority from
+  each current live report, including instruction-only external hotkey onboarding help.
+- [ ] Prove the Dendrite actor remains anonymous, no authenticated NNS actor or mutation
+  request exists, duplicate raw managers remain auditable, and unavailable evidence
+  never becomes authority.
+- [ ] Run all Rust, PocketIC, frontend, coverage, certification, security, SBOM, asset
+  identity, and two-clean-build reproducibility gates with identical explicit identity
+  inputs; document any actual manual local Internet Identity popup smoke test precisely.
+- [ ] Record final commands, coverage, hashes, exceptions, limitations, and explicit
+  deferral of the single audited direct browser-to-NNS transaction pipeline.
+
+The canonical derivation origin is security-critical: changing it changes users'
+Dendrite principals, so it must be finalized before any operator performs external
+hotkey onboarding. Every alternative origin must be operator-controlled. This tranche
+adds no NNS mutation and does not complete the original product brief.
+
 This plan replaces the completed cache-oriented tranche. Net deletion and a smaller
 auditable surface are explicit success criteria.
 
