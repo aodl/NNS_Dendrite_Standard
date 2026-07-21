@@ -205,3 +205,76 @@ outbound methods remain fixed Governance `list_neurons` and management
 `canister_info`. Internet Identity, authentication, hotkey onboarding, proposal
 construction/simulation/submission, voting, rewards assistance, history, caches, stable
 application state, timers, analytics, and background work remain deferred.
+
+## NNS snapshot-clock release evidence — 2026-07-21
+
+The anonymous-verifier implementation through `765cc67` was verified with explicit
+reproducibility-fixture canister ID `v27v7-7x777-77774-qaaha-cai`, fixed API host
+`https://icp-api.io`, and root-key fetching disabled. These deterministic fixture bytes
+are not authorization to deploy to mainnet, and no mainnet deployment was performed.
+The three implementation, scope-documentation, and licence commits changed 19 files,
+with 475 insertions and 54 deletions relative to the starting `main`; this final evidence
+section is the fourth requested documentation checkpoint.
+
+Rust `1.94.1`, Node `24.15.0`, npm `11.12.1`, dfx `0.27.0`, and active dfx identity
+`codex_local` were used. `cargo fmt --all -- --check`, strict warnings-denied workspace
+Clippy, `cargo xtask check`, configured `cargo xtask test`, `cargo xtask coverage`, the
+semantic interface-drift script, both PocketIC tests, `npm ci`, `npm test`, `npm run
+test:coverage`, explicit-fixture `cargo xtask build`, the production asset byte-identity
+check, the production dependency-reachability script, `cargo xtask security-scan`,
+`cargo xtask sbom`, configured `cargo xtask build-reproducible`, and configured `cargo
+xtask verify-reproducible` all exited successfully. A diagnostic direct `cargo test
+--workspace --locked` invocation before fixture generation failed only because the test
+Governance Wasm did not yet exist; the required configured xtask flow built the fixture
+and both PocketIC tests passed.
+
+Workspace Rust line coverage was 90.12%. Pure-engine line coverage was 99.73% and
+branch coverage was 99.15%. Frontend coverage was 98.73% lines, 90.16% branches, and
+97.50% functions. The checked-in production asset tree hash was
+`0b81502e0f55f1c54cae487d3791a4637ffe8692c8cb8841f554f3f1e18058bd`
+before and after the standalone frontend test and coverage suites. PocketIC passed the
+compliant and non-compliant live graph, rejection/indeterminate behavior, real
+controller inspection, certified HTTP, and certified upgrade paths; its Governance
+fixture returns an explicit NNS retrieval timestamp. The derived 272-neuron graph and
+50-ID dependency batching remain covered.
+
+Production reachability excludes `pocket-ic`, `backoff`, and `instant`; `serde_cbor`
+remains reachable only through the reviewed HTTP-certification libraries. Security
+scans found no unapproved vulnerability. The existing documented exceptions remain
+the unmaintained compile-time `paste`, PocketIC-only `backoff`/`instant`, and
+HTTP-certification/PocketIC `serde_cbor`; SBOM generation emitted only the documented
+non-RFC-3986 `ic-cdk-executor` metadata warning.
+
+Production reproducibility-fixture hashes:
+
+- Wasm, both clean builds:
+  `bde9c55b20edb35f45059a4fb28907c8bc32100e4d271d181fc78c0dca2cc319`.
+- Frontend file-hash manifest, both clean builds:
+  `0b81502e0f55f1c54cae487d3791a4637ffe8692c8cb8841f554f3f1e18058bd`.
+- Asset manifest:
+  `a3fccf85161cfad6f8bad8545587b1ec3fbb018da9d7a84d4e9cb09aeefa86b8`.
+- Build configuration:
+  `9ea483fac33afb138b9527eda0e88d4ab8d521cac7f8350560029c700666b21b`.
+- Dendrite Rust SBOM:
+  `dd8f26527628a328d3ef5a012cc729d3bfecd5a711bb75c49d570ff6ac55d343`.
+- Test Governance Rust SBOM:
+  `37ce4e86216d4c74ab8f4e4f51f0a96248df68b0b87f07c207231739a6e6b974`.
+- Rule-engine Rust SBOM:
+  `d054b86a61667413430174f58bf25a5f04a79de75c1773b3c1150ae6e2d8fa8a`.
+- IC clients Rust SBOM:
+  `ee0f26c479439b30802a057cbb5dab31bcd8112fcee133c816b423ad555a7350`.
+- npm SBOM:
+  `cbf1cce702ba65292bda4501b049b82fd56fc35d56b3a07a6a5f102f02480a96`.
+- xtask Rust SBOM:
+  `f6ae066312d885e51adee4bb48989e364707df825fce803386b3af696a81ad40`.
+
+The application Candid API remains update `check_neuron : (nat64) -> (CheckResult)` and
+certified query `http_request`. Outbound calls remain fixed to NNS Governance
+`list_neurons` and management `canister_info` at source revision
+`d55a0f4d4edfabe49d8fd543aff473084cb741f2`. `checked_at_timestamp_seconds` now exposes
+the validated NNS evidence snapshot, while local canister time is confined to the abuse
+guard. The anonymous verifier tranche is complete. The product as a whole remains
+incomplete against the original brief: Internet Identity and authenticated governance
+functionality are the next product tranche, and identity, delegations, proposals,
+voting, rewards, history, caches, stable application state, timers, and background work
+remain deferred.
