@@ -21,7 +21,7 @@ const SECURITY_HEADERS: [(&str, &str); 7] = [
         "Permissions-Policy",
         "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     ),
-    ("Cross-Origin-Opener-Policy", "same-origin"),
+    ("Cross-Origin-Opener-Policy", "same-origin-allow-popups"),
     ("Cross-Origin-Resource-Policy", "same-origin"),
 ];
 
@@ -37,6 +37,20 @@ fn headers(cache_control: &str) -> Vec<(String, String)> {
             "Cache-Control".into(),
             cache_control.into(),
         )))
+        .collect()
+}
+
+fn well_known_headers() -> Vec<(String, String)> {
+    headers("no-cache, no-store, must-revalidate")
+        .into_iter()
+        .map(|(name, value)| {
+            if name == "Cross-Origin-Resource-Policy" {
+                (name, "cross-origin".into())
+            } else {
+                (name, value)
+            }
+        })
+        .chain([("Access-Control-Allow-Origin".into(), "*".into())])
         .collect()
 }
 
@@ -92,7 +106,7 @@ fn configs() -> Vec<AssetConfig> {
         AssetConfig::File {
             path: ".well-known/ii-alternative-origins".into(),
             content_type: Some("application/json; charset=utf-8".into()),
-            headers: no_cache,
+            headers: well_known_headers(),
             fallback_for: vec![],
             aliased_by: vec![],
             encodings: vec![],
@@ -164,6 +178,9 @@ mod tests {
             "Content-Security-Policy",
             "X-Content-Type-Options",
             "frame-ancestors 'none'",
+            "same-origin-allow-popups",
+            "Cross-Origin-Resource-Policy\", \"cross-origin",
+            "Access-Control-Allow-Origin\", \"*",
         ] {
             assert!(rendered.contains(expected), "missing {expected}");
         }

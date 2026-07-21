@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 : "${DENDRITE_CANISTER_ID:?DENDRITE_CANISTER_ID is required}"
+: "${DENDRITE_DERIVATION_ORIGIN:?DENDRITE_DERIVATION_ORIGIN is required}"
 export DENDRITE_API_HOST=${DENDRITE_API_HOST:-https://icp-api.io}
 export DENDRITE_BUILD_MODE=production
 export DENDRITE_FETCH_ROOT_KEY=false
@@ -15,6 +16,11 @@ cp canisters/dendrite/public/asset-manifest.json dist/asset-manifest.json
   echo "DENDRITE_CANISTER_ID=$DENDRITE_CANISTER_ID"
   echo "DENDRITE_API_HOST=$DENDRITE_API_HOST"
   echo "DENDRITE_FETCH_ROOT_KEY=$DENDRITE_FETCH_ROOT_KEY"
+  echo "DENDRITE_DERIVATION_ORIGIN=$DENDRITE_DERIVATION_ORIGIN"
+  echo "DENDRITE_ALTERNATIVE_ORIGINS_JSON=${DENDRITE_ALTERNATIVE_ORIGINS_JSON:-[]}"
+  echo "DENDRITE_IDENTITY_PROVIDER=${DENDRITE_IDENTITY_PROVIDER:-https://id.ai}"
+  echo "DENDRITE_AUTHENTICATION_DELEGATION_TTL_NS=28800000000000"
+  echo "DENDRITE_ALLOW_PIN_AUTHENTICATION=false"
 } > dist/build-configuration.txt
 find canisters/dendrite/public -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > dist/frontend.sha256
 sha256sum dist/dendrite.wasm dist/frontend.sha256 dist/asset-manifest.json dist/build-configuration.txt > dist/artifacts.sha256
