@@ -26,10 +26,10 @@ unchanged, and it never receives a user principal, identity, or delegation.
 - [x] Prove the Dendrite actor remains anonymous, no authenticated NNS actor or mutation
   request exists, duplicate raw managers remain auditable, and unavailable evidence
   never becomes authority.
-- [ ] Run all Rust, PocketIC, frontend, coverage, certification, security, SBOM, asset
+- [x] Run all Rust, PocketIC, frontend, coverage, certification, security, SBOM, asset
   identity, and two-clean-build reproducibility gates with identical explicit identity
   inputs; document any actual manual local Internet Identity popup smoke test precisely.
-- [ ] Record final commands, coverage, hashes, exceptions, limitations, and explicit
+- [x] Record final commands, coverage, hashes, exceptions, limitations, and explicit
   deferral of the single audited direct browser-to-NNS transaction pipeline.
 
 The canonical derivation origin is security-critical: changing it changes users'

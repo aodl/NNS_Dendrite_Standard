@@ -278,3 +278,47 @@ incomplete against the original brief: Internet Identity and authenticated gover
 functionality are the next product tranche, and identity, delegations, proposals,
 voting, rewards, history, caches, stable application state, timers, and background work
 remain deferred.
+
+## Browser-only identity and read-only manager-recognition evidence — 2026-07-21
+
+The implementation through `b23d336` was verified with fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, canonical derivation origin
+`https://dendrite.example`, normalized alternatives `[]`, production identity provider
+`https://id.ai/authorize`, delegation TTL `28800000000000` nanoseconds, and PIN policy
+`false`. These are reproducibility-fixture inputs, not a mainnet identity deployment or
+a principal that any manager should install as a hotkey.
+
+`npm ci`, `cargo fmt --all -- --check`, warnings-denied workspace Clippy, `cargo xtask
+check`, configured `cargo xtask test`, `cargo xtask coverage`, semantic interface drift,
+both PocketIC scenarios, `npm test`, `npm run test:coverage`, the production asset
+byte-identity check, configured `cargo xtask build`, production dependency reachability,
+`cargo xtask security-scan`, `cargo xtask sbom`, configured `cargo xtask
+build-reproducible`, and configured `cargo xtask verify-reproducible` exited
+successfully. The certified PocketIC assertions include the exact generated well-known
+body, CORS and cross-origin resource policy, ordinary same-origin resource policy, and
+popup-compatible COOP. Frontend coverage was 96.36% lines, 85.78% branches, and 95.24%
+functions; the pure Rust rule engine was 98.25% lines and 99.18% branches. Existing
+documented scan exceptions remained unchanged. The local popup smoke procedure was not
+run because this environment had no display, interactive browser, or configured local
+Internet Identity service; it is documented as a manual check in `deployment.md` and is
+not claimed as automated E2E.
+
+Production reproducibility-fixture hashes:
+
+- Wasm: `8ad372e5930258b1ea22f0e84cc94a2383fc3fb01264218228290f67853acd42`.
+- Frontend tree: `404f74ada2f57fecac60d2a8b06a2a4f1c1a506b7ea298a7fd9545ab0a5aed85`.
+- Asset manifest: `dfd07d02f5634f7e1530702fa49892c4977606cf1f0e1ca307b37dc5de7ae292`.
+- Build configuration: `a3b648bce333d3bdcb6e83cbc014d2e0889c4fc7a650dc61f01203302418fbe7`.
+- Dendrite Rust SBOM: `870608d95188c8da277811ef2110c647d9770dcd1db349471f46f2eb4636327e`.
+- Governance fixture Rust SBOM: `adc470e48bceb4656fd82299eb834543bf6098e10087ccf4391a4d64c4343d22`.
+- Types Rust SBOM: `cf7fad839aba09a11b8f12e75463d4ca760d4e3933b0799108bf1bafce8533ba`.
+- IC clients Rust SBOM: `e72708a330fa8e3be636e7bbcdaa889757f3069cba2851c841df73d1f87c47b5`.
+- npm SBOM: `f97f562c8a2d3e8b3b7154e851209c494852ae5c0661a4a135d830f4fd95ff79`.
+- xtask Rust SBOM: `9bae7865bfff1881482dc3523f11f34a148c7123be05c5abbd0fe3fce553c87e`.
+
+Both clean builds were byte-identical with the same explicit identity inputs. The
+canister remains stateless and its public methods and outbound call set are unchanged.
+The delegation and authenticated principal remain browser-only; manager recognition is
+read-only, and no authenticated NNS actor or mutation exists. The next product tranche
+is one audited direct browser-to-NNS transaction pipeline. The full product is not yet
+complete against the original brief.
