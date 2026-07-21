@@ -3,7 +3,6 @@ import { Principal } from "@icp-sdk/core/principal";
 export const PRODUCTION_IC_API_HOST = "https://icp-api.io";
 export const PRODUCTION_IDENTITY_PROVIDER = "https://id.ai/authorize";
 export const AUTHENTICATION_DELEGATION_TTL_NS = 8n * 60n * 60n * 1_000_000_000n;
-export const ALLOW_PIN_AUTHENTICATION = false;
 export const LOCAL_IC_API_HOSTS = new Set([
   "http://127.0.0.1:4943",
   "http://localhost:4943",
@@ -97,7 +96,8 @@ export function resolveBuildConfiguration(environment = process.env) {
   if (mode === "production" && identityProvider !== PRODUCTION_IDENTITY_PROVIDER) {
     throw new Error(`Production DENDRITE_IDENTITY_PROVIDER must be ${PRODUCTION_IDENTITY_PROVIDER}.`);
   }
-  if (mode === "local" && !new Set(["localhost", "127.0.0.1"]).has(new URL(identityProvider).hostname)) {
+  const providerHostname = new URL(identityProvider).hostname;
+  if (mode === "local" && providerHostname !== "localhost" && providerHostname !== "127.0.0.1" && !providerHostname.endsWith(".localhost")) {
     throw new Error("Local identity provider must use an explicit localhost or loopback origin.");
   }
   return { canisterId, apiHost, fetchRootKey, mode, derivationOrigin, alternativeOrigins, identityProvider };
