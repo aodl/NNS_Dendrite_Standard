@@ -27,6 +27,13 @@ function showError(root, message) {
   box.focus();
 }
 
+const MAX_AUTHENTICATION_ERROR_LENGTH = 512;
+
+export function boundedAuthenticationError(error, fallback) {
+  const message = error instanceof Error ? error.message : fallback;
+  return String(message || fallback).slice(0, MAX_AUTHENTICATION_ERROR_LENGTH);
+}
+
 export function createApplication({
   root,
   location,
@@ -47,7 +54,10 @@ export function createApplication({
   }
   let actorPromise;
   let authenticatedPrincipal;
-  let authenticationError = browserAuth.originError?.message;
+  const permanentAuthenticationError = browserAuth.originError
+    ? boundedAuthenticationError(browserAuth.originError, "Internet Identity origin configuration is invalid.")
+    : undefined;
+  let recoverableAuthenticationError;
   let currentReport;
   let currentNeuronId;
   const actor = () => {
@@ -72,18 +82,27 @@ export function createApplication({
       element("h2", "Internet Identity"),
       element("p", `Canonical derivation origin: ${browserAuth.configuration.derivationOrigin}`),
     );
-    if (authenticationError) {
-      panel.append(element("p", authenticationError, "error"));
+    if (permanentAuthenticationError) {
+      panel.append(element("p", permanentAuthenticationError, "error"));
       return panel;
     }
+    if (recoverableAuthenticationError) {
+      panel.append(element("p", recoverableAuthenticationError, "error"));
+    }
     if (!authenticatedPrincipal) {
-      const signIn = element("button", "Sign in with Internet Identity");
+      const signIn = element(
+        "button",
+        recoverableAuthenticationError ? "Try again" : "Sign in with Internet Identity",
+      );
       signIn.addEventListener("click", async () => {
         try {
           authenticatedPrincipal = await browserAuth.signIn();
-          authenticationError = undefined;
+          recoverableAuthenticationError = undefined;
         } catch (error) {
-          authenticationError = error instanceof Error ? error.message : "Internet Identity sign-in failed.";
+          recoverableAuthenticationError = boundedAuthenticationError(
+            error,
+            "Internet Identity sign-in failed.",
+          );
         }
         renderCurrent();
       });
@@ -96,11 +115,17 @@ export function createApplication({
     copy.addEventListener("click", () => copyText(principalText));
     const signOut = element("button", "Sign out");
     signOut.addEventListener("click", async () => {
-      try { await browserAuth.signOut(); } finally {
+      try {
+        await browserAuth.signOut();
         authenticatedPrincipal = undefined;
-        authenticationError = undefined;
-        renderCurrent();
+        recoverableAuthenticationError = undefined;
+      } catch (error) {
+        recoverableAuthenticationError = boundedAuthenticationError(
+          error,
+          "Internet Identity sign-out failed.",
+        );
       }
+      renderCurrent();
     });
     panel.append(copy, signOut);
     return panel;
@@ -195,15 +220,18 @@ export function createApplication({
     route,
     async start() {
       onHashChange("hashchange", route);
-      const routed = route();
-      try {
-        authenticatedPrincipal = await browserAuth.restore();
-        authenticationError = undefined;
-      } catch (error) {
-        authenticationError = error instanceof Error ? error.message : "Stored Internet Identity session is unavailable.";
+      if (!permanentAuthenticationError) {
+        try {
+          authenticatedPrincipal = await browserAuth.restore();
+          recoverableAuthenticationError = undefined;
+        } catch (error) {
+          recoverableAuthenticationError = boundedAuthenticationError(
+            error,
+            "Stored Internet Identity session is unavailable.",
+          );
+        }
       }
-      if (!currentReport) landing();
-      return routed;
+      return route();
     },
   };
 }
