@@ -323,3 +323,47 @@ The delegation and authenticated principal remain browser-only; manager recognit
 read-only, and no authenticated NNS actor or mutation exists. The next product tranche
 is one audited direct browser-to-NNS transaction pipeline. The full product is not yet
 complete against the original brief.
+
+## Browser-identity hardening evidence — 2026-07-21
+
+The implementation through `3cb9413` was verified with fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, canonical derivation origin
+`https://dendrite.example`, normalized alternatives `[]`, production identity provider
+`https://id.ai/authorize`, and delegation TTL `28800000000000` nanoseconds. The build
+configuration contains no PIN-policy field, because the selected SDK wrapper exposes no
+such option and Dendrite makes no separate claim. These remain reproducibility-fixture
+inputs, not a mainnet deployment or a principal suitable for manager hotkey onboarding.
+
+`npm ci`, `npm test`, `npm run test:coverage`, production-asset byte identity, `cargo
+fmt --all -- --check`, warnings-denied Clippy, `cargo xtask check`, configured `cargo
+xtask test`, both PocketIC scenarios, semantic interface drift, `cargo xtask coverage`,
+configured `cargo xtask build`, production dependency reachability, `cargo xtask
+security-scan`, `cargo xtask sbom`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible` exited successfully. The 35 frontend tests
+passed at 99.27% lines, 89.14% branches, and 95.31% functions. Rust coverage retained
+the existing thresholds. Certified alternative-origin, CORS/resource-policy, ordinary
+asset policy, and popup-compatible COOP assertions passed in PocketIC. Existing scan
+exceptions and the production dependency tree were unchanged.
+
+Affected production reproducibility-fixture hashes:
+
+- Wasm: `0d6692ca3129c601db26f2114af2a18847151ddf4fbfc27accfe09d2ae055960`.
+- Frontend tree: `9d95768047d43770486fb4d964d6b71ea18adcce215abdc47c009919cfa3314d`.
+- Asset manifest: `cbbc09d9e81bd1280a622760b2ba5a95531cf965bbbb6b38838aa2d17f746839`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+
+Regenerated SBOM hashes:
+
+- Dendrite Rust: `4e6f5b2c870f785732961e720e7f9b300f89325b4efc9cb0ce90350620af56ba`.
+- Governance fixture Rust: `991cf66e53f80cbf5eb668deb945f0caefa2264835fa0153a5a281aaf5c180aa`.
+- Types Rust: `5d08d8b71d213c1b9b4d39f2ad4a4a48128fc52eefefdd1ec5f10ddb0bde7bc1`.
+- IC clients Rust: `be9a06c3709faf2b6b517f92a5899bb2ac0fdd76eb1773d9a0f1f803f57506b7`.
+- npm: `d1fb70bda96b03df02f29cc7820e9b1cd97dbf92d475e4f2c93be21482896443`.
+- xtask Rust: `8a9339ebf6a267ad68b65f015130bf2cf66550d62d5778f3c696400b6285d090`.
+
+Both clean builds were byte-identical. The real popup smoke test was not run because
+this environment has no display, interactive browser, or configured local Internet
+Identity service. It remains an explicit operator release gate with the full checklist
+in `deployment.md`; no manager should add a Dendrite principal as a hotkey until it
+passes on the finalized canonical origin. The browser-only identity tranche is frozen
+after this hardening pass. No browser-to-NNS transaction work was begun.
