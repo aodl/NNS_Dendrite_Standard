@@ -76,7 +76,7 @@ function reviewNode(pipeline, review, onSuccess, setControlsDisabled = () => {})
   const label = document.createElement("label"); label.append(confirmation, document.createTextNode(" I have reviewed this exact request"));
   root.append(label);
   let typed;
-  if (review.highRisk) { typed = input("target-confirmation", "Type target neuron ID"); root.append(typed); }
+  if (review.highRisk) { typed = input("target-confirmation", "Type mutation target neuron ID"); root.append(typed); }
   const submit = element("button", "Submit exact reviewed request"); submit.type = "button";
   submit.addEventListener("click", async () => {
     setControlsDisabled(true); submit.disabled = true;
