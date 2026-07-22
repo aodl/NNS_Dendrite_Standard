@@ -367,3 +367,89 @@ Identity service. It remains an explicit operator release gate with the full che
 in `deployment.md`; no manager should add a Dendrite principal as a hotkey until it
 passes on the finalized canonical origin. The browser-only identity tranche is frozen
 after this hardening pass. No browser-to-NNS transaction work was begun.
+
+## Browser-to-NNS management evidence — 2026-07-22
+
+The implementation through `b7fc1e6` was verified with fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, canonical derivation origin
+`https://dendrite.example`, alternative-origin list `[]`, fixed Governance principal
+`rrkah-fqaaa-aaaaa-aaaaq-cai`, and delegation target list containing exactly that
+Governance principal. These are deterministic release-fixture inputs, not evidence of
+a mainnet deployment or real transaction.
+
+`npm ci`, `npm test`, `npm run test:coverage`, production asset byte identity, `cargo
+fmt --all -- --check`, warnings-denied workspace/all-target/all-feature Clippy, `cargo
+xtask check`, configured `cargo xtask test`, all three PocketIC scenarios, semantic
+anonymous-verifier and Governance-transaction interface drift, `cargo xtask coverage`,
+configured `cargo xtask build`, production dependency reachability, `cargo xtask
+security-scan`, `cargo xtask sbom`, configured `cargo xtask build-reproducible`, and a
+configured `cargo xtask verify-reproducible` starting from `cargo clean` exited
+successfully. The first coverage attempt after the clean reproducibility run correctly
+failed because the test-only Governance Wasm had been cleaned; the required configured
+test flow regenerated it, after which the final coverage command passed. The semantic
+checker emitted didc diagnostics for intentionally narrowed optional `By` and
+`ProposalActionRequest` payloads, while the compatibility check and exact command and
+response tag assertions passed.
+
+The 60 frontend tests passed at 98.21% lines, 85.20% branches, and 90.86% functions.
+Workspace Rust line coverage was 90.68%. The pure rule engine reached 98.28% lines and
+99.18% branches. PocketIC proved the unchanged anonymous Dendrite API, fixed Governance
+destination, exact outer `MakeProposal` and inner command nesting, current fee data,
+proposal-ID response, direct manager `RegisterVote`, certified HTTP/alternative-origin
+behavior, and absence of an authenticated call to Dendrite. Security scanning found no
+unfiltered issue after the dev-only transitive `fast-uri` lock resolution was updated
+from 3.1.3 to 3.1.4. Existing reviewed Rust advisory exceptions remain unchanged. SBOM
+generation emitted only the existing upstream non-RFC-3986 `ic-cdk-executor` metadata
+warning.
+
+Privileged interface and capability evidence:
+
+- Governance transaction Candid:
+  `d48292d56a91e0d87930a54e34a6f6e04b4b849fe5369aeddb26e453dec92fe0`.
+- Generated Governance declaration:
+  `780749962674f89cbcfce88f9d89b65f64f91aca453fd84512f5856167160c02`.
+- Command capability policy:
+  `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response capability policy:
+  `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Enabled command families: `ClaimOrRefresh`, `Configure`, `DisburseMaturity`,
+  `Follow`, `Merge`, `RefreshVotingPower`, `RegisterVote`, `SetFollowing`, `Spawn`,
+  `Split`, and `StakeMaturity`; high-risk policy applies where recorded in the checked-in
+  capability file.
+- Unavailable command families: target-incompatible `Disburse` and
+  `DisburseToNeuron`, nested `MakeProposal`, and upstream-removed `MergeMaturity`.
+
+Production reproducibility-fixture hashes:
+
+- Wasm, both clean builds:
+  `479a4a9d0e07318d9ba7bb6ccaabd48bad996069cfe29968cde137d902607cd7`.
+- Frontend tree, both clean builds:
+  `8591b926ae1f1eef9d9e61827177a74c7c3bd9d88f0e8257e85ef3e49486551c`.
+- Asset manifest:
+  `5329b65f2176fb2c295e6a729889691a38d9e307a0866bf9f0f0a513182169dd`.
+- Build configuration:
+  `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite Rust SBOM:
+  `6d6324860892c7a4da38049f0e4586e32a3eae7ec6fae781d2904d48ffe0eee1`.
+- Governance fixture Rust SBOM:
+  `9f614c547044b9f401b74205f3acb8625083209e7657a4428e941898a80ffa4e`.
+- Types Rust SBOM:
+  `6ff92ac11cff955a74b75012e4b79511ef83bd9e68297fb2cb4bf7b5a2dccbac`.
+- IC clients Rust SBOM:
+  `6d94772905f5a1860fa488e12509e38359d2e60b0c3323d63369379673031026`.
+- npm SBOM:
+  `02d8f3870f57f8a26b3430e15f9ef21983d777a3df3171530ac0b5fce0d961cf`.
+- xtask Rust SBOM:
+  `067f12c5db419c4251f43266854a5204aa623d3625996a8adbaed33543c5b66c`.
+
+The canister remains stateless, anonymous, and limited to `check_neuron` and
+`http_request`. Browser mutations use the one fixed Governance actor and immutable
+review pipeline; no proposal, transaction, authority, delegation, or history data is
+stored or sent to Dendrite. `simulate_manage_neuron` is absent because the pinned NNS
+does not support these outer proposal workflows. Open proposals are fetched live and
+discarded, and reward calculation/distribution remains out of scope.
+
+The real Internet Identity popup/restoration/origin/targeted-delegation/live-manager
+gate and the controlled transaction smoke procedure were not run in this noninteractive
+environment. They remain explicit operator deployment gates in `deployment.md`. No
+mainnet mutation, proposal, manager vote, or deployment is claimed.

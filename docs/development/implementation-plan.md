@@ -30,7 +30,7 @@ to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source rem
   commands and explicit reasons for nested `MakeProposal`, removed `MergeMaturity`, and
   target-incompatible `Disburse`/`DisburseToNeuron`; fail drift and unknown variants
   closed without schema-generated runtime forms.
-- [ ] Phase G: extend Rust, fake-DOM, fake-actor, interface, and PocketIC coverage;
+- [x] Phase G: extend Rust, fake-DOM, fake-actor, interface, and PocketIC coverage;
   update existing architecture/security/operations/standard documents; record Candid,
   declaration, capability, Wasm, frontend, manifest, configuration, and SBOM evidence;
   run every required gate and prove two clean builds byte-identical.
