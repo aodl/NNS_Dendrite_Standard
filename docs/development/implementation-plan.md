@@ -19,10 +19,10 @@ to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source rem
 - [x] Phase C: prominently expose validated single-topic `Follow`,
   `RefreshVotingPower`, and target `RegisterVote` proposal workflows, preserving raw ID
   order and the standard's manager, omega-reject, alpha-vote, and topic restrictions.
-- [ ] Phase D: fetch a bounded live set of open restricted proposals, filter exact
+- [x] Phase D: fetch a bounded live set of open restricted proposals, filter exact
   stored `ManageNeuron` actions for the viewed target, and submit direct manager Yes/No
   votes through the same pipeline with proposal-ID lookup fallback and no history.
-- [ ] Phase E: make hotkey assistance controller-honest and add controller-only direct
+- [x] Phase E: make hotkey assistance controller-honest and add controller-only direct
   hotkey setup for a different Dendrite principal; classify raw manager reward-receiver
   readiness and support one warned controller-only singleton receiver `Follow` setup.
 - [ ] Phase F: give every pinned current `ManageNeuronCommandRequest` variant an

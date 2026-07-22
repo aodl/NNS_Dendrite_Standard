@@ -1,7 +1,7 @@
 import { element, safeHttpsLink } from "./dom.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
-import { buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, createTransactionPipeline, formatE8s } from "./transaction.js";
+import { buildAddManagerHotkeyCommand, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, classifyRewardReceiver, createTransactionPipeline, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, validateOpenManagerProposal } from "./transaction.js";
 
 const input = (name, placeholder = "") => {
   const node = document.createElement("input"); node.name = name; node.placeholder = placeholder; return node;
@@ -86,5 +86,25 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   const voteReview = element("button", "Review target vote"); voteReview.type = "button";
   voteReview.addEventListener("click", async () => { try { const proposalId = parseNeuronId(proposal.value); const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; const command = buildRegisterVoteCommand(info, Number(choice.value), BigInt(Math.floor(Date.now() / 1000))); showReview(await pipeline.reviewProposal({ targetId: report.neuron_id, managerId: parseNeuronId(managers.value), innerCommand: command, operation: `Vote ${choice.value === "1" ? "Yes" : "No"} on proposal ${proposalId}` })); } catch (error) { fail(error); } });
   vote.append(proposal, choice, voteReview);
-  panel.append(follow, refresh, vote, output); root.append(panel);
+
+  const managerVote = document.createElement("fieldset"); managerVote.append(element("legend", "Vote as a manager on an open target management proposal"));
+  const managementProposal = input("management-proposal", "Proposal ID"), managerChoice = document.createElement("select"); managerChoice.append(option("1", "Yes"), option("2", "No"));
+  const loadOpen = element("button", "Load bounded open proposals"), managerVoteReview = element("button", "Review manager vote"); loadOpen.type = managerVoteReview.type = "button";
+  loadOpen.addEventListener("click", async () => { try { const response = await nnsActor.list_proposals(openManageNeuronProposalRequest()); const matching = filterTargetManageNeuronProposals(response.proposal_info, report.neuron_id); output.replaceChildren(element("p", matching.length ? `Open target proposals: ${matching.map((entry) => entry.id?.[0]?.id).join(", ")}` : "No matching proposal in the bounded live result; use proposal-ID lookup.")); } catch (error) { fail(error); } });
+  managerVoteReview.addEventListener("click", async () => { try {
+    const proposalId = parseNeuronId(managementProposal.value), managerId = parseNeuronId(managers.value), selectedVote = Number(managerChoice.value);
+    const loadAndValidate = async () => { const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; return validateOpenManagerProposal(info, report.neuron_id, managerId, selectedVote, BigInt(Math.floor(Date.now() / 1000))); };
+    const command = await loadAndValidate();
+    showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, command, operation: `Manager vote ${selectedVote === 1 ? "Yes" : "No"} on proposal ${proposalId}`, revalidate: loadAndValidate }));
+  } catch (error) { fail(error); } });
+  managerVote.append(loadOpen, managementProposal, managerChoice, managerVoteReview);
+
+  const readiness = document.createElement("fieldset"); readiness.append(element("legend", "Manager onboarding and reward-receiver readiness"));
+  for (const manager of report.managers) { const receiver = classifyRewardReceiver(manager); readiness.append(element("p", `Manager ${manager.neuron_id}: ${receiver.status}${receiver.receiverId ? ` — receiver ${receiver.receiverId}` : ""}; hotkeys ${manager.hot_keys.length}/10.`)); }
+  const newHotkey = input("new-hotkey", "Different Dendrite principal"), hotkeyReview = element("button", "Review controller-only AddHotKey"); hotkeyReview.type = "button";
+  hotkeyReview.addEventListener("click", async () => { try { const managerId = parseNeuronId(managers.value), selectedManager = report.managers.find((entry) => entry.neuron_id === managerId); const command = buildAddManagerHotkeyCommand(selectedManager, report.neuron_id, newHotkey.value); showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, command, operation: `Add manager hotkey ${newHotkey.value}`, controllerOnly: true })); } catch (error) { fail(error); } });
+  const receiver = input("receiver", "Reward-receiver neuron ID"), receiverReview = element("button", "Review controller-only reward receiver setup"); receiverReview.type = "button";
+  receiverReview.addEventListener("click", async () => { try { const managerId = parseNeuronId(managers.value), receiverId = parseNeuronId(receiver.value); const response = await nnsActor.list_neurons({ neuron_ids: [receiverId], include_neurons_readable_by_caller: true, include_empty_neurons_readable_by_caller: [true], include_public_neurons_in_full_neurons: [true], page_number: [], page_size: [], neuron_subaccounts: [] }); if (!response.full_neurons.some((entry) => entry.id?.[0]?.id === receiverId)) throw new Error("Receiver neuron was not returned as readable to this caller."); showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, command: buildRewardReceiverCommand(receiverId), operation: `Set sole Neuron Management reward receiver ${receiverId}`, controllerOnly: true, highRisk: true })); } catch (error) { fail(error); } });
+  readiness.append(element("p", "Adding a hotkey is controller-only; an existing hotkey cannot add another. Reward receiver setup gives that receiver sole Neuron Management proposal authority over the known manager neuron."), newHotkey, hotkeyReview, receiver, receiverReview);
+  panel.append(follow, refresh, vote, managerVote, readiness, output); root.append(panel);
 }

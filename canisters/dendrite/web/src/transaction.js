@@ -256,14 +256,14 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
         quorum: context.report.quorum_threshold?.[0] });
       return pending;
     },
-    async reviewDirect({ targetId, managerId, command, operation, highRisk = false, controllerOnly = false }) {
+    async reviewDirect({ targetId, managerId, command, operation, highRisk = false, controllerOnly = false, revalidate }) {
       clear();
       const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
       const context = await liveContext(target, manager);
       const authority = classifyManagerAuthority(context.manager, context.session.principal);
       if (controllerOnly && !authority.isController) throw new Error("This operation requires the manager controller.");
       pending = deepFreeze({ kind: "DirectManagerOperation", targetId: target, managerId: manager,
-        operation, highRisk, request: buildDirectManagerOperation(manager, command) });
+        operation, highRisk, request: buildDirectManagerOperation(manager, command), revalidate });
       return pending;
     },
     async submit(review, { confirmed = false, typedTarget = "" } = {}) {
@@ -273,6 +273,7 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
       inFlight = true;
       try {
         const context = await liveContext(review.targetId, review.managerId);
+        if (review.revalidate) await review.revalidate();
         if (review.kind === "SubmitManageNeuronProposal") {
           const economics = await (await getNnsActor()).get_network_economics_parameters();
           if (economics?.neuron_management_fee_per_proposal_e8s !== review.reviewedFeeE8s) {
