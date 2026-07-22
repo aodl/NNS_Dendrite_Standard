@@ -144,6 +144,9 @@ test("raw duplicates and hostile names render inert while new reports recompute 
     assert.equal((rendered.match(/<img onerror=attack>/g) ?? []).length, 2);
     assert.equal((rendered.match(/Controller/g) ?? []).length >= 2, true);
     assert.doesNotMatch(rendered, /AddHotKey|manage_neuron/);
+    assert.match(rendered, /Eligible proposer/);
+    assert.match(rendered, /subject to fresh preflight and confirmation/);
+    assert.doesNotMatch(rendered, /future proposer|separately audited transaction tranche|No NNS mutation is performed/);
     assert.equal(classifyManagerAuthority(first, user).eligible, true);
     assert.equal(classifyManagerAuthority(manager("Found", [other]), user).eligible, false);
   } finally {

@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareStandardSetFollowing, prepareTargetVote, proposalReviewDetails, validateOpenManagerProposal, verifyRewardReceivers } from "../src/transaction.js";
-import { directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, encodeManageNeuronRequest, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareStandardSetFollowing, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, selfAuthenticatingPrincipal, validateOpenManagerProposal, verifyRewardReceivers } from "../src/transaction.js";
+import { actionableManagers, directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
 import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
 const principal = Principal.fromText("aaaaa-aa");
+const userPrincipal = Principal.selfAuthenticating(Uint8Array.from([1, 2, 3]));
 const signingIdentity = { getPrincipal: () => principal };
 const targetedSession = () => ({ principal, signingIdentity, validate: async () => true });
 const manager = (overrides = {}) => ({ neuron_id: 10n, evidence_status: { Found: null }, known_neuron: [{ name: "Manager" }], controller: [principal], hot_keys: [], minted_stake_e8s: [200_000_000n], neuron_management_followees: [], omega_ready_topics: [4], ...overrides });
@@ -92,9 +93,34 @@ test("direct controller-only review and high-risk exact target confirmation", as
   let calls = 0; const actor = { manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
   const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
   const review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, command: { Configure: { operation: [{ AddHotKey: { new_hot_key: [Principal.fromText("2vxsx-fae")] } }] } }, operation: "Add hotkey", controllerOnly: true, highRisk: true });
-  await assert.rejects(() => pipeline.submit(review, { confirmed: true, typedTarget: "020" }), /exactly/);
+  assert.equal(review.dendriteContextNeuronId, 20n); assert.equal(review.mutationNeuronId, 10n); assert.equal(review.confirmationNeuronId, 10n);
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true, typedTarget: "20" }), /exactly/);
   assert.equal(calls, 0);
-  assert.deepEqual(await pipeline.submit(review, { confirmed: true, typedTarget: "20" }), { operation: "Configure" });
+  assert.deepEqual(await pipeline.submit(review, { confirmed: true, typedTarget: "10" }), { operation: "Configure" });
+});
+
+test("proposal and direct reviews confirm and encode their actual mutation targets", async () => {
+  let expected = "MakeProposal";
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => ({ command: [{ [expected]: expected === "MakeProposal" ? { proposal_id: [{ id: 1n }] } : {} }] }) };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  const proposalReview = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} }, highRisk: true });
+  assert.equal(proposalReview.confirmationNeuronId, 20n);
+  await assert.rejects(() => pipeline.submit(proposalReview, { confirmed: true, typedTarget: "10" }), /exactly/);
+  await pipeline.submit(proposalReview, { confirmed: true, typedTarget: "20" });
+
+  expected = "Follow";
+  const receiverReview = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, command: buildRewardReceiverCommand(99n), operation: "Set reward receiver", highRisk: true });
+  assert.equal(receiverReview.mutationNeuronId, 10n); assert.equal(receiverReview.confirmationNeuronId, 10n);
+  assert.equal(receiverReview.request.neuron_id_or_subaccount[0].NeuronId.id, receiverReview.mutationNeuronId);
+  await assert.rejects(() => pipeline.submit(receiverReview, { confirmed: true, typedTarget: "20" }), /exactly/);
+  await pipeline.submit(receiverReview, { confirmed: true, typedTarget: "10" });
+});
+
+test("actionable manager options deduplicate raw IDs and prefer eligible Found evidence", () => {
+  const unavailable = manager({ evidence_status: { Unavailable: null }, controller: [], neuron_id: 10n });
+  const eligible = manager({ neuron_id: 10n, controller: [principal] });
+  const other = manager({ neuron_id: 11n, controller: [principal] });
+  assert.deepEqual(actionableManagers(report({ managers: [unavailable, eligible, eligible, other] }), principal).map((entry) => entry.neuron_id), [10n, 11n]);
 });
 
 test("controller-only authority is rechecked and every failed final preflight clears review", async () => {
@@ -259,7 +285,7 @@ test("refresh and target vote builders use replicated Open state, never browser 
 test("every pinned command has an explicit policy and every enabled advanced builder is typed", () => {
   assert.deepEqual(Object.keys(COMMAND_CAPABILITIES).sort(), ["ClaimOrRefresh","Configure","Disburse","DisburseMaturity","DisburseToNeuron","Follow","MakeProposal","Merge","MergeMaturity","RefreshVotingPower","RegisterVote","SetFollowing","Spawn","Split","StakeMaturity"].sort());
   for (const kind of ["MakeProposal", "MergeMaturity", "Disburse", "DisburseToNeuron"]) assert.throws(() => buildAdvancedCommand(kind), /unavailable/);
-  assert.ok(buildAdvancedCommand("Spawn", { percentage: 50, newController: "aaaaa-aa", nonce: 1n }).Spawn);
+  assert.ok(buildAdvancedCommand("Spawn", { percentage: 50, newController: userPrincipal.toText(), nonce: 1n }).Spawn);
   assert.ok(buildAdvancedCommand("Split", { amountE8s: 1n }).Split);
   assert.ok(buildAdvancedCommand("Follow", { topic: 4, followeeIds: [1n] }).Follow);
   assert.ok(buildAdvancedCommand("ClaimOrRefresh").ClaimOrRefresh);
@@ -280,7 +306,8 @@ test("control panel renders primary workflows and performs no mutation before ex
     const root = new FakeNode("main"), current = report({ checked_at_timestamp_seconds: 50n, target: [{ voting_power_refreshed_timestamp_seconds: [40n] }], committed_topics: [] });
     let mutations = 0, refreshed = 0;
     const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }), manage_neuron: async () => { mutations++; return { command: [{ MakeProposal: { proposal_id: [{ id: 8n }], message: [] } }] }; } };
-    const cleanup = renderControlPanel(root, { report: current, session: targetedSession(), nnsActor: actor, checkNeuron: async () => current, onSuccess: async () => { refreshed++; } });
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+    const cleanup = renderControlPanel(root, { report: current, session: targetedSession(), nnsActor: actor, pipeline, onSuccess: async () => { refreshed++; } });
     const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root); selects[0].value = "10";
     await find(root, (node) => node.textContent === "Review voting-power refresh").dispatch("click");
     assert.equal(mutations, 0); assert.match(JSON.stringify(root), /No NNS simulation was performed/);
@@ -298,6 +325,7 @@ test("control panel renders primary workflows and performs no mutation before ex
     find(root, (node) => node.name === "receiver").value = "99";
     await find(root, (node) => node.textContent === "Review controller-only reward receiver setup").dispatch("click");
     assert.ok(find(root, (node) => node.name === "target-confirmation"));
+    assert.match(JSON.stringify(root), /Dendrite context: 20/); assert.match(JSON.stringify(root), /Direct NNS mutation target: 10/);
     cleanup();
     const staleCheckbox = find(root, (node) => node.name === "confirmation"); staleCheckbox.checked = true;
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
@@ -314,7 +342,7 @@ test("control panel disables transactions when no Found manager grants authority
   const previous = globalThis.document; globalThis.document = { createElement: (tag) => new FakeNode(tag), createTextNode: (text) => ({ textContent: text }) };
   try {
     const root = new FakeNode("main");
-    assert.equal(renderControlPanel(root, { report: report({ managers: [] }), session: targetedSession(), nnsActor: {}, checkNeuron: async () => report(), onSuccess: async () => {} }), undefined);
+    assert.equal(renderControlPanel(root, { report: report({ managers: [] }), session: targetedSession(), nnsActor: {}, pipeline: {}, onSuccess: async () => {} }), undefined);
     assert.match(JSON.stringify(root), /no authority over a Found target manager/);
   } finally { globalThis.document = previous; }
 });
@@ -326,7 +354,7 @@ test("open manager proposal helpers are bounded target-specific and vote-aware",
   assert.deepEqual(request.include_all_manage_neuron_proposals, []);
   assert.throws(() => openManageNeuronProposalRequest(101), /1–100/);
   const info = { id: [{ id: 7n }], status: 1, topic: 1, deadline_timestamp_seconds: [100n], ballots: [[10n, { vote: 0, voting_power: 1n }]], proposal: [{ action: [{ ManageNeuron: { id: [], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }], command: [{ RefreshVotingPower: {} }] } }] }] };
-  assert.deepEqual(filterTargetManageNeuronProposals([info], 20n), [info]);
+  assert.deepEqual(selectTargetManageNeuronProposals([info], 20n).proposals, [info]);
   assert.deepEqual(validateOpenManagerProposal({ ...info, deadline_timestamp_seconds: [1n] }, 20n, 10n, 2), { RegisterVote: { proposal: [{ id: 7n }], vote: 2 } });
   assert.deepEqual(validateOpenManagerProposal({ ...info, deadline_timestamp_seconds: [9_999_999_999_999n] }, 20n, 10n, 1).RegisterVote.vote, 1);
   assert.throws(() => validateOpenManagerProposal({ ...info, status: 2 }, 20n, 10n, 1), /no longer Open/);
@@ -348,7 +376,35 @@ test("stored management targets accept legacy and modern neuron IDs and fail clo
   assert.throws(() => managedNeuronId(wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [{ NeuronId: { id: 21n } }] })), /conflict/);
   assert.throws(() => managedNeuronId(wrap({ id: [], neuron_id_or_subaccount: [{ Subaccount: new Uint8Array(32) }] })), /Subaccount/);
   assert.throws(() => managedNeuronId(wrap({ id: [], neuron_id_or_subaccount: [] })), /missing/);
-  assert.deepEqual(filterTargetManageNeuronProposals([wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [] })], 20n).length, 1);
+  assert.equal(selectTargetManageNeuronProposals([{ topic: 1, ...wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [] }) }], 20n).proposals.length, 1);
+});
+
+test("mixed Open proposals retain valid target management entries and bound malformed warnings", () => {
+  const managed = (id, target) => ({ id: [{ id }], topic: 1, proposal: [{ action: [{ ManageNeuron: target }] }] });
+  const target = managed(2n, { id: [], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }] });
+  const selected = selectTargetManageNeuronProposals([
+    { id: [{ id: 1n }], topic: 4, proposal: [{ action: [{ Motion: {} }] }] },
+    target,
+    managed(3n, { id: [{ id: 21n }], neuron_id_or_subaccount: [] }),
+    { id: [{ id: 4n }], topic: 1, proposal: [{ action: [{ Motion: {} }] }] },
+    managed(5n, { id: [{ id: 20n }], neuron_id_or_subaccount: [{ NeuronId: { id: 21n } }] }),
+  ], 20n);
+  assert.deepEqual(selected.proposals, [target]);
+  assert.equal(selected.warnings.length, 2);
+  assert.ok(selected.warnings.every((warning) => warning.length <= 512));
+});
+
+test("control panel renders valid target proposals alongside bounded malformed warnings", async () => {
+  const previous = globalThis.document; globalThis.document = { createElement: (tag) => new FakeNode(tag), createTextNode: (text) => ({ textContent: text }) };
+  try {
+    const valid = { id: [{ id: 2n }], topic: 1, status: 1, ballots: [], proposal: [{ title: ["Valid"], summary: "summary", action: [{ ManageNeuron: { id: [], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }], command: [{ RefreshVotingPower: {} }] } }] }] };
+    const actor = { list_proposals: async () => ({ proposal_info: [{ id: [{ id: 1n }], topic: 4 }, valid, { id: [{ id: 3n }], topic: 1, proposal: [{ action: [{ Motion: {} }] }] }] }) };
+    const root = new FakeNode("main");
+    renderControlPanel(root, { report: report(), session: targetedSession(), nnsActor: actor, pipeline: { state: "none", discardReadyReview() {} }, onSuccess: async () => {} });
+    await find(root, (node) => node.textContent === "Load bounded open proposals").dispatch("click");
+    const rendered = JSON.stringify(root);
+    assert.match(rendered, /Proposal 2/); assert.match(rendered, /Skipped proposal warnings/); assert.match(rendered, /Proposal 3/);
+  } finally { globalThis.document = previous; }
 });
 
 test("hotkey and reward readiness helpers preserve controller-honest boundaries", async () => {
@@ -376,6 +432,16 @@ test("advanced command bounds fail closed", () => {
   assert.throws(() => buildAdvancedCommand("Spawn", { percentage: 0 }), /1–100/);
   assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1 }), /exactly one/);
   assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1, account: { owner: "aaaaa-aa" }, accountIdentifier: new Uint8Array(32) }), /exactly one/);
+});
+
+test("Spawn requires exactly one valid self-authenticating controller", () => {
+  for (const value of [undefined, "", "2vxsx-fae", "aaaaa-aa", "rrkah-fqaaa-aaaaa-aaaaq-cai", "not-a-principal"]) {
+    assert.throws(() => buildAdvancedCommand("Spawn", { newController: value }), /controller|principal/);
+  }
+  assert.equal(selfAuthenticatingPrincipal(userPrincipal.toText()).toText(), userPrincipal.toText());
+  const command = buildAdvancedCommand("Spawn", { newController: userPrincipal.toText(), percentage: 50, nonce: 1n });
+  assert.deepEqual(command.Spawn.new_controller, [userPrincipal]);
+  assert.match(encodeManageNeuronRequest(buildManageNeuronProposal(10n, 20n, command)), /^[0-9a-f]+$/);
 });
 
 test("all current Configure operations use explicit typed builders", () => {
@@ -409,7 +475,7 @@ test("advanced panel exposes explicit typed forms and unavailable reasons", asyn
     const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root);
     selects[0].value = "StartDissolving"; await click("Review Configure");
     for (const [kind, value] of [["IncreaseDissolveDelay","1"],["SetDissolveTimestamp","2"],["AddHotKey","aaaaa-aa"],["RemoveHotKey","aaaaa-aa"],["JoinCommunityFund",""],["LeaveCommunityFund",""],["ChangeAutoStakeMaturity","true"],["SetVisibility","2"]]) { selects[0].value = kind; byName("configure-value").value = value; await click("Review Configure"); }
-    byName("spawn-percent").value = "50"; byName("spawn-controller").value = "aaaaa-aa"; byName("spawn-nonce").value = "1"; await click("Review Spawn");
+    byName("spawn-percent").value = "50"; byName("spawn-controller").value = userPrincipal.toText(); byName("spawn-nonce").value = "1"; await click("Review Spawn");
     byName("split-amount").value = "1.25"; await click("Review Split");
     await click("Review ClaimOrRefresh");
     byName("merge-source").value = "99"; await click("Review Merge");
