@@ -10,6 +10,8 @@ use std::cell::{Cell, RefCell};
 
 thread_local! { static CONTROLLER: Cell<Principal> = const { Cell::new(Principal::anonymous()) }; }
 thread_local! { static MANAGE_REQUESTS: RefCell<Vec<ManageNeuronRequest>> = const { RefCell::new(Vec::new()) }; }
+thread_local! { static MANAGE_REQUEST_BYTES: RefCell<Vec<Vec<u8>>> = const { RefCell::new(Vec::new()) }; }
+thread_local! { static LIST_PROPOSAL_REQUESTS: RefCell<Vec<ListProposalInfoRequest>> = const { RefCell::new(Vec::new()) }; }
 
 const RETRIEVED_AT_TIMESTAMP_SECONDS: u64 = 1_700_000_000;
 
@@ -251,7 +253,7 @@ struct ProposalInfo {
     proposer: Option<NeuronId>,
 }
 
-#[derive(Clone, Debug, CandidType, Deserialize)]
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 struct ListProposalInfoRequest {
     include_reward_status: Vec<i32>,
     omit_large_fields: Option<bool>,
@@ -296,6 +298,36 @@ fn open_proposal() -> ProposalInfo {
     }
 }
 
+fn proposal_with_target(id: u64) -> ProposalInfo {
+    let mut proposal = open_proposal();
+    proposal.id = Some(ProposalId { id });
+    if let Some(StoredProposal {
+        action: Some(StoredAction::ManageNeuron(managed)),
+        ..
+    }) = proposal.proposal.as_mut()
+    {
+        match id {
+            778 => {
+                managed.id = Some(NeuronId { id: 42 });
+                managed.neuron_id_or_subaccount = None;
+            }
+            779 => managed.id = Some(NeuronId { id: 42 }),
+            780 => managed.id = Some(NeuronId { id: 43 }),
+            781 => {
+                managed.id = None;
+                managed.neuron_id_or_subaccount =
+                    Some(NeuronIdOrSubaccount::Subaccount(vec![0; 32]));
+            }
+            782 => {
+                managed.id = None;
+                managed.neuron_id_or_subaccount = None;
+            }
+            _ => {}
+        }
+    }
+    proposal
+}
+
 #[ic_cdk::query]
 fn get_network_economics_parameters() -> NetworkEconomics {
     NetworkEconomics {
@@ -305,11 +337,12 @@ fn get_network_economics_parameters() -> NetworkEconomics {
 
 #[ic_cdk::query]
 fn get_proposal_info(id: u64) -> Option<ProposalInfo> {
-    (id == 777).then(open_proposal)
+    (777..=782).contains(&id).then(|| proposal_with_target(id))
 }
 
 #[ic_cdk::query]
 fn list_proposals(request: ListProposalInfoRequest) -> ListProposalInfoResponse {
+    LIST_PROPOSAL_REQUESTS.with(|requests| requests.borrow_mut().push(request.clone()));
     let include_open = request.include_status.is_empty() || request.include_status.contains(&1);
     ListProposalInfoResponse {
         proposal_info: if include_open && request.limit > 0 {
@@ -320,8 +353,14 @@ fn list_proposals(request: ListProposalInfoRequest) -> ListProposalInfoResponse 
     }
 }
 
+#[ic_cdk::query]
+fn recorded_list_proposal_requests() -> Vec<ListProposalInfoRequest> {
+    LIST_PROPOSAL_REQUESTS.with(|requests| requests.borrow().clone())
+}
+
 #[ic_cdk::update]
 fn manage_neuron(request: ManageNeuronRequest) -> ManageNeuronResponse {
+    MANAGE_REQUEST_BYTES.with(|requests| requests.borrow_mut().push(ic_cdk::api::msg_arg_data()));
     MANAGE_REQUESTS.with(|requests| requests.borrow_mut().push(request.clone()));
     let command = match request.command {
         Some(ManageNeuronCommandRequest::MakeProposal(_)) => {
@@ -351,4 +390,9 @@ fn manage_neuron(request: ManageNeuronRequest) -> ManageNeuronResponse {
 #[ic_cdk::query]
 fn recorded_manage_requests() -> Vec<ManageNeuronRequest> {
     MANAGE_REQUESTS.with(|requests| requests.borrow().clone())
+}
+
+#[ic_cdk::query]
+fn recorded_manage_request_bytes() -> Vec<Vec<u8>> {
+    MANAGE_REQUEST_BYTES.with(|requests| requests.borrow().clone())
 }

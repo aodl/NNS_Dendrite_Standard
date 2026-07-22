@@ -98,6 +98,34 @@ struct TxManageNeuronResponse {
 struct TxEconomics {
     neuron_management_fee_per_proposal_e8s: u64,
 }
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxListProposalInfoRequest {
+    include_reward_status: Vec<i32>,
+    omit_large_fields: Option<bool>,
+    before_proposal: Option<TxProposalId>,
+    limit: u32,
+    exclude_topic: Vec<i32>,
+    include_all_manage_neuron_proposals: Option<bool>,
+    include_status: Vec<i32>,
+    return_self_describing_action: Option<bool>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxStoredManagedTarget {
+    id: Option<TxNeuronId>,
+    neuron_id_or_subaccount: Option<TxNeuronIdOrSubaccount>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+enum TxStoredAction {
+    ManageNeuron(TxStoredManagedTarget),
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxStoredProposal {
+    action: Option<TxStoredAction>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxProposalInfoTarget {
+    proposal: Option<TxStoredProposal>,
+}
 
 fn header<'a>(response: &'a HttpResponse, name: &str) -> Option<&'a str> {
     response
@@ -347,6 +375,81 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
         100_000_000
     );
 
+    let list_request = TxListProposalInfoRequest {
+        include_reward_status: vec![],
+        omit_large_fields: Some(true),
+        before_proposal: None,
+        limit: 50,
+        exclude_topic: vec![],
+        include_all_manage_neuron_proposals: None,
+        include_status: vec![1],
+        return_self_describing_action: Some(false),
+    };
+    pic.query_call(
+        governance,
+        Principal::anonymous(),
+        "list_proposals",
+        Encode!(&list_request).unwrap(),
+    )
+    .unwrap();
+    let recorded_lists = pic
+        .query_call(
+            governance,
+            Principal::anonymous(),
+            "recorded_list_proposal_requests",
+            Encode!().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        Decode!(&recorded_lists, Vec<TxListProposalInfoRequest>).unwrap(),
+        vec![list_request]
+    );
+    let mut targets = Vec::new();
+    for id in 777_u64..=782 {
+        let raw = pic
+            .query_call(
+                governance,
+                Principal::anonymous(),
+                "get_proposal_info",
+                Encode!(&id).unwrap(),
+            )
+            .unwrap();
+        let value = Decode!(&raw, Option<TxProposalInfoTarget>)
+            .unwrap()
+            .unwrap();
+        let Some(TxStoredAction::ManageNeuron(target)) = value.proposal.unwrap().action else {
+            panic!("missing stored management target")
+        };
+        targets.push((target.id, target.neuron_id_or_subaccount));
+    }
+    assert_eq!(
+        targets[0],
+        (
+            None,
+            Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 42 }))
+        )
+    );
+    assert_eq!(targets[1], (Some(TxNeuronId { id: 42 }), None));
+    assert_eq!(
+        targets[2],
+        (
+            Some(TxNeuronId { id: 42 }),
+            Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 42 }))
+        )
+    );
+    assert_eq!(
+        targets[3],
+        (
+            Some(TxNeuronId { id: 43 }),
+            Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 42 }))
+        )
+    );
+    assert!(matches!(
+        targets[4].1,
+        Some(TxNeuronIdOrSubaccount::Subaccount(_))
+    ));
+    assert_eq!(targets[5], (None, None));
+
     let inner = TxManageNeuronRequest {
         id: None,
         neuron_id_or_subaccount: Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 42 })),
@@ -408,6 +511,19 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
         .unwrap();
     assert_eq!(
         Decode!(&recorded, Vec<TxManageNeuronRequest>).unwrap(),
-        vec![outer, direct]
+        vec![outer.clone(), direct.clone()]
+    );
+    let recorded_bytes = pic
+        .query_call(
+            governance,
+            Principal::anonymous(),
+            "recorded_manage_request_bytes",
+            Encode!().unwrap(),
+        )
+        .unwrap();
+    let exact_bytes = Decode!(&recorded_bytes, Vec<Vec<u8>>).unwrap();
+    assert_eq!(
+        exact_bytes,
+        vec![Encode!(&outer).unwrap(), Encode!(&direct).unwrap()]
     );
 }
