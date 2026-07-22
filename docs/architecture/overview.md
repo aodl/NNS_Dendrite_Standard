@@ -33,7 +33,17 @@ see `docs/standard/SOURCE_BASELINE.md`.
 ## Browser-to-NNS management
 
 The browser holds an inspectable unexpired delegation targeted only to NNS Governance
-and creates one fixed actor. Mutations freeze one reviewed request, require explicit
-confirmation and fresh authority/fee/target checks, submit once without retry, strictly
-decode the response tag, and refresh the anonymous report. No authenticated call crosses
-the Dendrite boundary and no proposal or transaction history is retained.
+and creates one fixed actor. Mutations encode and digest one reviewed request, require
+explicit confirmation, repeat fresh operation-specific authority/fee/target checks,
+and submit those exact bytes once. Every failed final preflight discards the review. An
+ambiguous post-call outcome is terminal for that review and cannot be resubmitted. No
+authenticated call crosses the Dendrite boundary and no proposal or transaction history
+is retained.
+
+Bounded Open Neuron Management proposal reads preserve Governance's caller-sensitive
+visibility filter; JavaScript filters only the visible result to the current target.
+Voting requires a replicated Open proposal and, for a manager vote, its visible
+Unspecified ballot. Displayed NNS deadlines are informational: Governance, not the
+browser clock, decides whether a vote is still accepted. Stored proposal targets accept
+consistent legacy or modern neuron-ID fields and fail closed for conflicts, subaccounts,
+or missing targets.

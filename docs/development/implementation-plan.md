@@ -7,26 +7,26 @@ completed command set and the anonymous, stateless, two-method Dendrite canister
 correcting only transaction visibility, freshness, final-preflight, recovery, exact
 payload, form, and interface-maintenance defects.
 
-- [ ] Preserve caller-sensitive Governance visibility for bounded Open Neuron
+- [x] Preserve caller-sensitive Governance visibility for bounded Open Neuron
   Management proposal reads; remove browser-clock vote gating; require a visible
   Unspecified manager ballot; and safely support legacy, modern, equal-dual, and
   fail-closed stored targets.
-- [ ] Prepare proposal commands from fresh evidence through one narrow callback and
+- [x] Prepare proposal commands from fresh evidence through one narrow callback and
   re-run it before submission; fingerprint manager order/count, quorum, committed
   topics, principal, target, proposer, and fee; clear every failed final preflight.
-- [ ] Retain and revalidate controller-only authority, candidates, ballots, hotkeys,
+- [x] Retain and revalidate controller-only authority, candidates, ballots, hotkeys,
   receiver readability, and exact operation inputs immediately before submission.
-- [ ] Make ambiguous or structurally unexpected post-call outcomes terminal and
+- [x] Make ambiguous or structurally unexpected post-call outcomes terminal and
   non-repeatable; reject review replacement while an update is in flight; expose only
   bounded read-only recovery actions.
-- [ ] Encode the exact reviewed `ManageNeuronRequest`, record its deterministic digest,
+- [x] Encode the exact reviewed `ManageNeuronRequest`, record its deterministic digest,
   clone caller-owned byte arrays, and reject byte changes before submission.
-- [ ] Replace free-text topic codes with explicit recognised-topic selectors; ensure
+- [x] Replace free-text topic codes with explicit recognised-topic selectors; ensure
   fixed alpha following and review text derive from the actual command; tighten the
   listed high-risk Configure boundaries without adding command scope.
-- [ ] Correct structural receiver-readiness semantics and add one bounded, live,
+- [x] Correct structural receiver-readiness semantics and add one bounded, live,
   authenticated replicated verification action with no persistence.
-- [ ] Derive the production transaction IDL deterministically from the reviewed Candid
+- [x] Derive the production transaction IDL deterministically from the reviewed Candid
   with one explicit replicated-read annotation transformation and byte-equality drift
   gate.
 - [ ] Extend focused frontend and PocketIC coverage, regenerate certified assets,

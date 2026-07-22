@@ -8,6 +8,10 @@ live replicated reads and explicitly confirmed mutations through one immutable r
 pipeline; the Dendrite actor remains anonymous. The pinned NNS cannot simulate these
 proposal commands, so Dendrite performs fresh local preflight and exact review and
 leaves final validation to Governance. No proposal or transaction history is stored.
+Open management proposals retain Governance's caller-sensitive visibility filtering.
+Voting uses replicated NNS Open status rather than the browser clock, and every mutation
+revalidates fresh evidence plus the exact reviewed Candid bytes immediately before its
+single, non-retried submission.
 
 The fixed identities are alpha-vote `2947465672511369` and omega-reject `18422777432977120264`. Omega-reject is not omega-vote. A compliant target has no hotkeys and has `not_for_profit = false`.
 

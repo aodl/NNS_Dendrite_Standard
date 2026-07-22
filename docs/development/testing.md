@@ -48,3 +48,10 @@ Transaction tests cover exact delegation targets, legacy-session rejection, the 
 Governance actor, recursive proposal nesting, immutable request identity, fee/stake and
 authority changes, confirmation, response tags, every pinned command capability,
 primary workflows, manager voting, hotkey/reward readiness, nat64, and exact e8s.
+They also cover caller-filtered proposal reads, browser clocks on both sides of an NNS
+deadline, explicit ballots, all legacy/modern stored-target combinations, fresh
+operation fingerprints, controller downgrade, candidate/hotkey/receiver drift,
+byte-level tamper detection, terminal ambiguous outcomes, and in-flight review
+exclusion. PocketIC records the safe list request and exact submitted ingress bytes.
+The production IDL must equal deterministic output from the reviewed transaction Candid
+after the explicit removal of query annotations for replicated reads.

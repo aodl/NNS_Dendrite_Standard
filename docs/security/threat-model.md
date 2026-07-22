@@ -47,3 +47,11 @@ mutation requires a current Governance-only delegation, fresh manager authority 
 target evidence, immutable review, explicit confirmation, strict response tags, and no
 automatic retry. The signing identity is never rendered, logged, serialized by
 Dendrite, or sent to the Dendrite canister. NNS errors are bounded text.
+
+Fresh preparation fingerprints the authenticated principal, target and proposer,
+ordered raw managers, distinct-manager count, quorum, committed topics, fee, and
+operation-specific evidence. Any drift clears the review. Manager voting additionally
+requires a caller-visible Unspecified ballot from the proposal's fixed electoral roll.
+Transport ambiguity or an unexpected post-call response cannot be retried from the same
+review. Configured reward-receiver IDs are not treated as proof of existence; the
+bounded live check distinguishes readable, not returned to this caller, and unavailable.
