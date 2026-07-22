@@ -7,6 +7,7 @@ import { createBrowserAuthSession } from "./auth.js";
 import { renderManagerAuthority } from "./authority.js";
 import { createAuthenticatedNnsActor } from "./nns-actor.js";
 import { renderControlPanel } from "./control-panel.js";
+import { createTransactionPipeline } from "./transaction.js";
 
 function resources() {
   const node = document.createElement("p");
@@ -92,6 +93,14 @@ export function createApplication({
     });
     return pending;
   };
+  const transactionPipeline = createTransactionPipeline({
+    getSession: async () => authenticatedSession,
+    getNnsActor: async () => {
+      if (!authenticatedNnsActor) throw new Error("A current authenticated NNS actor is required.");
+      return authenticatedNnsActor;
+    },
+    checkNeuron: async (targetId) => checkLive(await actor(), targetId.toString()),
+  });
 
   function authenticationPanel() {
     const panel = document.createElement("section");
@@ -133,6 +142,11 @@ export function createApplication({
     copy.addEventListener("click", () => copyText(principalText));
     const signOut = element("button", "Sign out");
     signOut.addEventListener("click", async () => {
+      if (transactionPipeline.state === "in-flight") {
+        recoverableAuthenticationError = "Sign-out is unavailable while an NNS transaction is in flight. Wait for its outcome.";
+        renderCurrent();
+        return;
+      }
       cancelPendingTransaction?.();
       cancelPendingTransaction = undefined;
       authenticatedNnsActor = undefined;
@@ -161,7 +175,7 @@ export function createApplication({
         report: currentReport,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
-        checkNeuron: async (targetId) => checkLive(await actor(), targetId.toString()),
+        pipeline: transactionPipeline,
         onSuccess: async () => loadNeuron(id),
       });
     }

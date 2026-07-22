@@ -170,6 +170,15 @@ const bytes32 = (value, label) => {
   return Uint8Array.from(value);
 };
 
+export function selfAuthenticatingPrincipal(value) {
+  if (typeof value !== "string" || value === "") throw new TypeError("Spawn controller is required.");
+  let principal;
+  try { principal = Principal.fromText(value); } catch (_error) { throw new TypeError("Spawn controller must be a valid principal."); }
+  const bytes = principal.toUint8Array();
+  if (bytes.length !== 29 || bytes[28] !== 2) throw new TypeError("Spawn controller must be a self-authenticating user principal.");
+  return principal;
+}
+
 export function buildConfigureOperation(kind, fields = {}) {
   switch (kind) {
     case "IncreaseDissolveDelay": return { IncreaseDissolveDelay: { additional_dissolve_delay_seconds: nat32(fields.seconds, "Dissolve delay increase") } };
@@ -194,7 +203,7 @@ export function buildAdvancedCommand(kind, fields = {}) {
   if (!(kind in COMMAND_CAPABILITIES)) throw new Error("Unknown command; interface update required.");
   if (COMMAND_CAPABILITIES[kind].startsWith("unavailable")) throw new Error(`Command unavailable: ${COMMAND_CAPABILITIES[kind]}.`);
   switch (kind) {
-    case "Spawn": return deepFreeze({ Spawn: { percentage_to_spawn: optional(fields.percentage === undefined ? undefined : percentage(fields.percentage)), new_controller: optional(fields.newController === undefined ? undefined : Principal.fromText(fields.newController)), nonce: optional(fields.nonce === undefined ? undefined : nat64(fields.nonce, "Nonce")) } });
+    case "Spawn": return deepFreeze({ Spawn: { percentage_to_spawn: optional(fields.percentage === undefined ? undefined : percentage(fields.percentage)), new_controller: [selfAuthenticatingPrincipal(fields.newController)], nonce: optional(fields.nonce === undefined ? undefined : nat64(fields.nonce, "Nonce")) } });
     case "Split": return deepFreeze({ Split: { amount_e8s: nat64(fields.amountE8s, "Amount"), memo: optional(fields.memo === undefined ? undefined : nat64(fields.memo, "Memo")) } });
     case "Follow": return buildFollowCommand(fields.topic, fields.followeeIds);
     case "ClaimOrRefresh": return deepFreeze({ ClaimOrRefresh: { by: [{ NeuronIdOrSubaccount: {} }] } });
@@ -243,9 +252,23 @@ export function managedNeuronId(info) {
   if (typeof id !== "bigint") throw new Error("Stored proposal target is missing.");
   return id;
 }
-export function filterTargetManageNeuronProposals(proposals, targetId) {
+const proposalWarning = (info, message) => `Proposal ${info?.id?.[0]?.id ?? "unknown"}: ${message}`.slice(0, MAX_NNS_ERROR_CHARS);
+export function selectTargetManageNeuronProposals(proposals, targetId) {
   const target = parseNeuronId(String(targetId));
-  return proposals.filter((info) => managedNeuronId(info) === target);
+  const matching = [], warnings = [];
+  for (const info of proposals ?? []) {
+    if (info?.topic !== 1) continue;
+    if (!storedManageNeuron(info)) {
+      warnings.push(proposalWarning(info, "Neuron Management proposal has no stored ManageNeuron action and was skipped."));
+      continue;
+    }
+    try {
+      if (managedNeuronId(info) === target) matching.push(info);
+    } catch (error) {
+      warnings.push(proposalWarning(info, String(error?.message ?? "Malformed stored management target was skipped.")));
+    }
+  }
+  return Object.freeze({ proposals: Object.freeze(matching), warnings: Object.freeze(warnings) });
 }
 
 export function validateOpenManagerProposal(info, targetId, managerId, vote) {
@@ -474,7 +497,9 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
     return { command: prepared.command, details: boundedDetails(prepared.details), securityFingerprint: prepared.securityFingerprint };
   };
   return Object.freeze({
-    clear,
+    discardReadyReview() {
+      if (state === "ready") clear();
+    },
     get state() { return state; },
     get pending() { return pending; },
     async reviewProposal({ targetId, managerId, innerCommand, prepare, operation, note = "", highRisk = false, details = [] }) {
@@ -487,7 +512,9 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
       const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager });
       const request = buildManageNeuronProposal(manager, target, prepared.command, note);
       const encodedRequest = encodeManageNeuronRequest(request);
-      pending = deepFreeze({ kind: "SubmitManageNeuronProposal", targetId: target, managerId: manager,
+      pending = deepFreeze({ kind: "SubmitManageNeuronProposal",
+        dendriteContextNeuronId: target, proposerManagerNeuronId: manager,
+        managedNeuronId: target, confirmationNeuronId: target,
         operation, details: prepared.details, highRisk, request, encodedRequest,
         requestDigest: await requestDigest(encodedRequest), prepare: preparation,
         securityFingerprint: `${baseProposalFingerprint(context, target, manager, fee)}|${prepared.securityFingerprint}`,
@@ -514,7 +541,9 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
       const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager });
       const request = buildDirectManagerOperation(manager, prepared.command);
       const encodedRequest = encodeManageNeuronRequest(request);
-      pending = deepFreeze({ kind: "DirectManagerOperation", targetId: target, managerId: manager,
+      pending = deepFreeze({ kind: "DirectManagerOperation",
+        dendriteContextNeuronId: target, mutationNeuronId: manager,
+        confirmationNeuronId: manager,
         operation, details: prepared.details, highRisk, controllerOnly, request, encodedRequest,
         requestDigest: await requestDigest(encodedRequest), prepare: preparation,
         securityFingerprint: prepared.securityFingerprint,
@@ -527,24 +556,26 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
     async submit(review, { confirmed = false, typedTarget = "" } = {}) {
       if (state === "in-flight") throw new Error("Another transaction is already in flight.");
       if (!confirmed || state !== "ready" || review !== pending) throw new Error("Submit the current explicitly confirmed review.");
-      if (review.highRisk && typedTarget !== review.targetId.toString()) throw new Error("Type the target neuron ID exactly.");
+      if (review.highRisk && typedTarget !== review.confirmationNeuronId.toString()) throw new Error("Type the mutation target neuron ID exactly.");
       state = "in-flight";
       let reachedUpdate = false;
       try {
         let context, actor, prepared;
         try {
-          context = await liveContext(review.targetId, review.managerId);
+          const targetId = review.dendriteContextNeuronId;
+          const managerId = review.kind === "SubmitManageNeuronProposal" ? review.proposerManagerNeuronId : review.mutationNeuronId;
+          context = await liveContext(targetId, managerId);
           if (context.session.principal.toText() !== review.principal) throw new Error("Authenticated principal changed; create a new review.");
           const authority = classifyManagerAuthority(context.manager, context.session.principal);
           if (review.controllerOnly && !authority.isController) throw new Error("Controller authority changed; create a new review.");
           actor = await getNnsActor();
           if (encodeManageNeuronRequest(review.request) !== review.encodedRequest) throw new Error("Exact reviewed request bytes changed; create a new review.");
-          prepared = await runPreparation(review.prepare, context, actor, review);
+          prepared = await runPreparation(review.prepare, context, actor, { targetId, managerId });
           if (review.kind === "SubmitManageNeuronProposal") {
             const current = await economics(actor, context.manager);
             if (current.fee !== review.reviewedFeeE8s) throw new Error("The proposal fee changed; create a new review.");
             if (current.stake < review.reviewedFeeE8s) throw new Error("Manager stake changed; create a new review.");
-            const fingerprint = `${baseProposalFingerprint(context, review.targetId, review.managerId, current.fee)}|${prepared.securityFingerprint}`;
+            const fingerprint = `${baseProposalFingerprint(context, review.managedNeuronId, review.proposerManagerNeuronId, current.fee)}|${prepared.securityFingerprint}`;
             if (fingerprint !== review.securityFingerprint) throw new Error("Security-relevant proposal evidence changed; create a new review.");
           } else if (prepared.securityFingerprint !== review.securityFingerprint) {
             throw new Error("Security-relevant direct-operation evidence changed; create a new review.");

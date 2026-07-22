@@ -21,12 +21,12 @@ export function classifyManagerAuthority(manager, authenticatedPrincipal) {
 export function renderManagerAuthority(root, report, authenticatedPrincipal) {
   root.append(
     element("h2", "Read-only manager authority recognition"),
-    element("p", "Roles below are computed locally from this current live report. No NNS mutation is performed."),
+    element("p", "Roles in this table are computed locally from the current live report and are read-only. Transaction controls below can submit signed calls directly from this browser to NNS Governance after fresh preflight, exact review, and confirmation. Dendrite remains anonymous and stores no identity or transaction history."),
   );
   const table = document.createElement("table");
   table.append(element("caption", "Current principal and raw manager entries"));
   const head = document.createElement("tr");
-  for (const label of ["Manager neuron", "Known name", "Evidence", "Your role", "Potential future proposer"]) head.append(element("th", label));
+  for (const label of ["Manager neuron", "Known name", "Evidence", "Your role", "Eligible proposer"]) head.append(element("th", label));
   table.append(head);
   for (const manager of report.managers) {
     const classification = classifyManagerAuthority(manager, authenticatedPrincipal);
@@ -36,7 +36,7 @@ export function renderManagerAuthority(root, report, authenticatedPrincipal) {
       manager.known_neuron?.[0]?.name ?? "None",
       variantName(manager.evidence_status),
       classification.role,
-      classification.eligible ? "Yes — after a separately audited transaction tranche" : "No",
+      classification.eligible ? "Yes — subject to fresh preflight and confirmation" : "No",
     ]) row.append(element("td", value));
     table.append(row);
   }

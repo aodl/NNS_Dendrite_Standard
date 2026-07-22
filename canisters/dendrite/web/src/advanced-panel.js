@@ -48,9 +48,9 @@ export function renderAdvancedCommands(root, context) {
     await review(buildAdvancedCommand("Configure", fields), `Configure: ${kind}`, ["SetDissolveTimestamp","StartDissolving","AddHotKey","RemoveHotKey","JoinCommunityFund","LeaveCommunityFund","SetVisibility"].includes(kind));
   })));
 
-  const spawn = box("Spawn", "May create a new neuron and move maturity.");
-  const spawnPercent = field("spawn-percent", "Optional percentage 1–100"), spawnController = field("spawn-controller", "Optional new controller principal"), spawnNonce = field("spawn-nonce", "Optional nonce");
-  spawn.append(spawnPercent, spawnController, spawnNonce, button("Review Spawn", run(() => review(buildAdvancedCommand("Spawn", { percentage: optionalPercent(spawnPercent.value), newController: spawnController.value || undefined, nonce: optionalNat(spawnNonce.value) }), "Spawn from target maturity", true))));
+  const spawn = box("Spawn", "Spawn moves maturity into a newly created neuron. A self-authenticating user controller is mandatory; omission would fall back to the blackholed Dendrite target controller and fail.");
+  const spawnPercent = field("spawn-percent", "Optional percentage 1–100"), spawnController = field("spawn-controller", "Required self-authenticating user principal"), spawnNonce = field("spawn-nonce", "Optional nonce");
+  spawn.append(spawnPercent, spawnController, spawnNonce, button("Review Spawn", run(() => review(buildAdvancedCommand("Spawn", { percentage: optionalPercent(spawnPercent.value), newController: spawnController.value, nonce: optionalNat(spawnNonce.value) }), "Spawn from target maturity", true))));
 
   const split = box("Split", "Moves stake to a child neuron.");
   const splitAmount = field("split-amount", "Exact ICP amount"), splitMemo = field("split-memo", "Optional memo");

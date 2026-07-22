@@ -1,7 +1,7 @@
 import { element, safeHttpsLink } from "./dom.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
-import { buildRefreshVotingPowerCommand, classifyRewardReceiver, createTransactionPipeline, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, verifyRewardReceivers } from "./transaction.js";
+import { buildRefreshVotingPowerCommand, classifyRewardReceiver, formatE8s, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, verifyRewardReceivers } from "./transaction.js";
 import { renderAdvancedCommands } from "./advanced-panel.js";
 import { TOPIC_LABELS } from "./compliance-view.js";
 
@@ -12,10 +12,19 @@ const option = (value, label) => { const node = document.createElement("option")
 const topicSelect = () => { const node = document.createElement("select"); node.name = "topic"; for (const [code, label] of TOPIC_LABELS) node.append(option(String(code), `${code} — ${label}`)); node.value = "1"; return node; };
 const ids = (value) => String(value).split(",").map((entry) => entry.trim()).filter(Boolean).map(parseNeuronId);
 
+export function actionableManagers(report, principal) {
+  const order = [], selected = new Map();
+  for (const manager of report.managers) {
+    const key = manager.neuron_id.toString();
+    if (!selected.has(key)) { order.push(key); selected.set(key, manager); continue; }
+    if (!classifyManagerAuthority(selected.get(key), principal).eligible && classifyManagerAuthority(manager, principal).eligible) selected.set(key, manager);
+  }
+  return order.map((key) => selected.get(key)).filter((manager) => classifyManagerAuthority(manager, principal).eligible);
+}
+
 function managerSelect(report, principal) {
   const select = document.createElement("select");
-  for (const manager of report.managers) {
-    if (!classifyManagerAuthority(manager, principal).eligible) continue;
+  for (const manager of actionableManagers(report, principal)) {
     select.append(option(manager.neuron_id.toString(), `${manager.neuron_id} — ${manager.known_neuron?.[0]?.name ?? "unknown"}`));
   }
   return select;
@@ -45,7 +54,14 @@ function reviewNode(pipeline, review, onSuccess, setControlsDisabled = () => {})
     element("h3", "Exact NNS request review"),
     element("p", `Authenticated principal: ${review.principal}`),
     element("p", `Operation: ${review.operation}`),
-    element("p", `Target: ${review.targetId} — ${review.targetName}; proposer/manager: ${review.managerId} — ${review.managerName}`),
+  );
+  if (review.kind === "SubmitManageNeuronProposal") root.append(
+    element("p", `Dendrite managed target: ${review.managedNeuronId} — ${review.targetName}`),
+    element("p", `Proposer manager: ${review.proposerManagerNeuronId} — ${review.managerName}`),
+  );
+  else root.append(
+    element("p", `Dendrite context: ${review.dendriteContextNeuronId} — ${review.targetName}`),
+    element("p", `Direct NNS mutation target: ${review.mutationNeuronId} — ${review.managerName}`),
   );
   for (const detail of review.details) root.append(element("p", detail));
   const impact = directImpact(review.operation); if (impact) root.append(element("p", impact));
@@ -78,14 +94,13 @@ function reviewNode(pipeline, review, onSuccess, setControlsDisabled = () => {})
   return root;
 }
 
-export function renderControlPanel(root, { report, session, nnsActor, checkNeuron, onSuccess }) {
+export function renderControlPanel(root, { report, session, nnsActor, pipeline, onSuccess }) {
   const panel = document.createElement("section"); panel.className = "control-panel";
   panel.append(element("h2", "Manage through NNS Governance"), element("p", "Privileged calls are signed in this browser and sent only to NNS Governance. Dendrite remains anonymous and stores no transaction or proposal history."));
   const managers = managerSelect(report, session.principal);
   if (!managers.children?.length) { panel.append(element("p", "This principal has no authority over a Found target manager.")); root.append(panel); return; }
   panel.append(element("label", "Proposer manager "), managers);
   const output = document.createElement("div");
-  const pipeline = createTransactionPipeline({ getSession: async () => session, getNnsActor: async () => nnsActor, checkNeuron });
   const setControlsDisabled = (disabled) => { const visit = (node) => { if (node.tagName === "BUTTON" || node.tag === "button") node.disabled = disabled; for (const child of node.children ?? []) visit(child); }; visit(panel); };
   const showReview = (review) => output.replaceChildren(reviewNode(pipeline, review, onSuccess, setControlsDisabled));
   const fail = (error) => output.replaceChildren(element("p", String(error?.message ?? error).slice(0, 512), "error"));
@@ -118,7 +133,7 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   const managerVote = document.createElement("fieldset"); managerVote.append(element("legend", "Vote as a manager on an open target management proposal"));
   const managementProposal = input("management-proposal", "Proposal ID"), managerChoice = document.createElement("select"); managerChoice.append(option("1", "Yes"), option("2", "No"));
   const loadOpen = element("button", "Load bounded open proposals"), managerVoteReview = element("button", "Review manager vote"); loadOpen.type = managerVoteReview.type = "button";
-  loadOpen.addEventListener("click", async () => { try { const response = await nnsActor.list_proposals(openManageNeuronProposalRequest()); const matching = filterTargetManageNeuronProposals(response.proposal_info, report.neuron_id); const result = document.createElement("section"); result.append(element("p", matching.length ? "Bounded live Open proposals visible to this caller under Governance's restricted Neuron Management visibility rules (not stored):" : "No matching proposal in the bounded caller-visible live result; use proposal-ID lookup.")); for (const entry of matching) { result.append(element("h4", `Proposal ${entry.id?.[0]?.id ?? "unknown"}`)); for (const detail of proposalReviewDetails(entry, undefined, managedNeuronId(entry))) result.append(element("p", detail)); } output.replaceChildren(result); } catch (error) { fail(error); } });
+  loadOpen.addEventListener("click", async () => { try { const response = await nnsActor.list_proposals(openManageNeuronProposalRequest()); const selected = selectTargetManageNeuronProposals(response.proposal_info, report.neuron_id); const result = document.createElement("section"); result.append(element("p", selected.proposals.length ? "Bounded live Open proposals visible to this caller under Governance's restricted Neuron Management visibility rules (not stored):" : "No matching proposal in the bounded caller-visible live result; use proposal-ID lookup.")); for (const entry of selected.proposals) { result.append(element("h4", `Proposal ${entry.id?.[0]?.id ?? "unknown"}`)); for (const detail of proposalReviewDetails(entry, undefined, managedNeuronId(entry))) result.append(element("p", detail)); } if (selected.warnings.length) { result.append(element("h4", "Skipped proposal warnings")); for (const warning of selected.warnings) result.append(element("p", warning, "warning")); } output.replaceChildren(result); } catch (error) { fail(error); } });
   managerVoteReview.addEventListener("click", async () => { try {
     const proposalId = parseNeuronId(managementProposal.value), managerId = parseNeuronId(managers.value), selectedVote = Number(managerChoice.value);
     showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, prepare: prepareManagerVote(proposalId, selectedVote), operation: `Manager vote ${selectedVote === 1 ? "Yes" : "No"} on proposal ${proposalId}` }));
@@ -139,5 +154,6 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   panel.append(follow, refresh, vote, managerVote, readiness);
   renderAdvancedCommands(panel, { report, nnsActor, pipeline, managerId: () => parseNeuronId(managers.value), showReview, fail });
   panel.append(output); root.append(panel);
-  return () => pipeline.clear();
+  if (pipeline.state === "in-flight") setControlsDisabled(true);
+  return () => pipeline.discardReadyReview();
 }
