@@ -1,14 +1,15 @@
 #![forbid(unsafe_code)]
 
-use candid::Principal;
+use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{ALPHA_VOTE_NEURON_ID, MAX_DISSOLVE_DELAY_SECONDS, OMEGA_REJECT_NEURON_ID};
 use ic_clients::{
     DissolveState, Followees, KnownNeuronData, ListNeurons, ListNeuronsResponse, Neuron, NeuronId,
     NeuronInfo, TopicToFollow,
 };
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 thread_local! { static CONTROLLER: Cell<Principal> = const { Cell::new(Principal::anonymous()) }; }
+thread_local! { static MANAGE_REQUESTS: RefCell<Vec<ManageNeuronRequest>> = const { RefCell::new(Vec::new()) }; }
 
 const RETRIEVED_AT_TIMESTAMP_SECONDS: u64 = 1_700_000_000;
 
@@ -118,4 +119,236 @@ fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
         full_neurons,
         total_pages_available: Some(1),
     }
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct ProposalId {
+    id: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum NeuronIdOrSubaccount {
+    NeuronId(NeuronId),
+    Subaccount(Vec<u8>),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct Empty {}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct RegisterVote {
+    vote: i32,
+    proposal: Option<ProposalId>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct Follow {
+    topic: i32,
+    followees: Vec<NeuronId>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct MakeProposalRequest {
+    url: String,
+    title: Option<String>,
+    action: Option<ProposalActionRequest>,
+    summary: String,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum ProposalActionRequest {
+    ManageNeuron(Box<ManageNeuronRequest>),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum ManageNeuronCommandRequest {
+    Follow(Follow),
+    MakeProposal(MakeProposalRequest),
+    RefreshVotingPower(Empty),
+    RegisterVote(RegisterVote),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct ManageNeuronRequest {
+    neuron_id_or_subaccount: Option<NeuronIdOrSubaccount>,
+    command: Option<ManageNeuronCommandRequest>,
+    id: Option<NeuronId>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct GovernanceError {
+    error_message: String,
+    error_type: i32,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct MakeProposalResponse {
+    message: Option<String>,
+    proposal_id: Option<ProposalId>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum ManageNeuronResponseCommand {
+    Error(GovernanceError),
+    MakeProposal(MakeProposalResponse),
+    RefreshVotingPower(Empty),
+    RegisterVote(Empty),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct ManageNeuronResponse {
+    command: Option<ManageNeuronResponseCommand>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct NetworkEconomics {
+    neuron_management_fee_per_proposal_e8s: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct Ballot {
+    vote: i32,
+    voting_power: u64,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct StoredManageNeuronProposal {
+    id: Option<NeuronId>,
+    command: Option<StoredManageNeuronCommand>,
+    neuron_id_or_subaccount: Option<NeuronIdOrSubaccount>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+enum StoredManageNeuronCommand {
+    Follow(Follow),
+    MakeProposal(Box<StoredProposal>),
+    RefreshVotingPower(Empty),
+    RegisterVote(RegisterVote),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+enum StoredAction {
+    ManageNeuron(StoredManageNeuronProposal),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct StoredProposal {
+    url: String,
+    title: Option<String>,
+    action: Option<StoredAction>,
+    summary: String,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct ProposalInfo {
+    id: Option<ProposalId>,
+    status: i32,
+    topic: i32,
+    ballots: Vec<(u64, Ballot)>,
+    proposal_timestamp_seconds: u64,
+    deadline_timestamp_seconds: Option<u64>,
+    proposal: Option<StoredProposal>,
+    proposer: Option<NeuronId>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct ListProposalInfoRequest {
+    include_reward_status: Vec<i32>,
+    omit_large_fields: Option<bool>,
+    before_proposal: Option<ProposalId>,
+    limit: u32,
+    exclude_topic: Vec<i32>,
+    include_all_manage_neuron_proposals: Option<bool>,
+    include_status: Vec<i32>,
+    return_self_describing_action: Option<bool>,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct ListProposalInfoResponse {
+    proposal_info: Vec<ProposalInfo>,
+}
+
+fn open_proposal() -> ProposalInfo {
+    ProposalInfo {
+        id: Some(ProposalId { id: 777 }),
+        status: 1,
+        topic: 1,
+        ballots: vec![(
+            100,
+            Ballot {
+                vote: 0,
+                voting_power: 1,
+            },
+        )],
+        proposal_timestamp_seconds: RETRIEVED_AT_TIMESTAMP_SECONDS,
+        deadline_timestamp_seconds: Some(RETRIEVED_AT_TIMESTAMP_SECONDS + 86_400),
+        proposal: Some(StoredProposal {
+            url: String::new(),
+            title: Some("Dendrite neuron management request".into()),
+            action: Some(StoredAction::ManageNeuron(StoredManageNeuronProposal {
+                id: None,
+                command: Some(StoredManageNeuronCommand::RefreshVotingPower(Empty {})),
+                neuron_id_or_subaccount: Some(NeuronIdOrSubaccount::NeuronId(NeuronId { id: 42 })),
+            })),
+            summary: "Fixture target refresh".into(),
+        }),
+        proposer: Some(NeuronId { id: 100 }),
+    }
+}
+
+#[ic_cdk::query]
+fn get_network_economics_parameters() -> NetworkEconomics {
+    NetworkEconomics {
+        neuron_management_fee_per_proposal_e8s: 100_000_000,
+    }
+}
+
+#[ic_cdk::query]
+fn get_proposal_info(id: u64) -> Option<ProposalInfo> {
+    (id == 777).then(open_proposal)
+}
+
+#[ic_cdk::query]
+fn list_proposals(request: ListProposalInfoRequest) -> ListProposalInfoResponse {
+    let include_open = request.include_status.is_empty() || request.include_status.contains(&1);
+    ListProposalInfoResponse {
+        proposal_info: if include_open && request.limit > 0 {
+            vec![open_proposal()]
+        } else {
+            vec![]
+        },
+    }
+}
+
+#[ic_cdk::update]
+fn manage_neuron(request: ManageNeuronRequest) -> ManageNeuronResponse {
+    MANAGE_REQUESTS.with(|requests| requests.borrow_mut().push(request.clone()));
+    let command = match request.command {
+        Some(ManageNeuronCommandRequest::MakeProposal(_)) => {
+            ManageNeuronResponseCommand::MakeProposal(MakeProposalResponse {
+                message: None,
+                proposal_id: Some(ProposalId { id: 777 }),
+            })
+        }
+        Some(ManageNeuronCommandRequest::RegisterVote(_)) => {
+            ManageNeuronResponseCommand::RegisterVote(Empty {})
+        }
+        Some(ManageNeuronCommandRequest::RefreshVotingPower(_)) => {
+            ManageNeuronResponseCommand::RefreshVotingPower(Empty {})
+        }
+        Some(ManageNeuronCommandRequest::Follow(_)) | None => {
+            ManageNeuronResponseCommand::Error(GovernanceError {
+                error_message: "unsupported fixture command".into(),
+                error_type: 3,
+            })
+        }
+    };
+    ManageNeuronResponse {
+        command: Some(command),
+    }
+}
+
+#[ic_cdk::query]
+fn recorded_manage_requests() -> Vec<ManageNeuronRequest> {
+    MANAGE_REQUESTS.with(|requests| requests.borrow().clone())
 }

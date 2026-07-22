@@ -24,6 +24,81 @@ struct HttpResponse {
     upgrade: Option<bool>,
 }
 
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxNeuronId {
+    id: u64,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxProposalId {
+    id: u64,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum TxNeuronIdOrSubaccount {
+    NeuronId(TxNeuronId),
+    Subaccount(Vec<u8>),
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxEmpty {}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxRegisterVote {
+    vote: i32,
+    proposal: Option<TxProposalId>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxMakeProposal {
+    url: String,
+    title: Option<String>,
+    action: Option<TxProposalAction>,
+    summary: String,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum TxProposalAction {
+    ManageNeuron(Box<TxManageNeuronRequest>),
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+enum TxCommand {
+    MakeProposal(TxMakeProposal),
+    RefreshVotingPower(TxEmpty),
+    RegisterVote(TxRegisterVote),
+    Follow(TxFollow),
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxFollow {
+    topic: i32,
+    followees: Vec<TxNeuronId>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+struct TxManageNeuronRequest {
+    neuron_id_or_subaccount: Option<TxNeuronIdOrSubaccount>,
+    command: Option<TxCommand>,
+    id: Option<TxNeuronId>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxMakeProposalResponse {
+    message: Option<String>,
+    proposal_id: Option<TxProposalId>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxGovernanceError {
+    error_message: String,
+    error_type: i32,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+enum TxResponseCommand {
+    Error(TxGovernanceError),
+    MakeProposal(TxMakeProposalResponse),
+    RefreshVotingPower(TxEmpty),
+    RegisterVote(TxEmpty),
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxManageNeuronResponse {
+    command: Option<TxResponseCommand>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize)]
+struct TxEconomics {
+    neuron_management_fee_per_proposal_e8s: u64,
+}
+
 fn header<'a>(response: &'a HttpResponse, name: &str) -> Option<&'a str> {
     response
         .headers
@@ -240,4 +315,99 @@ fn live_compliant_and_non_compliant_checks_use_fixed_governance_and_real_control
                 && manager.hot_keys.len() <= ic_clients::MAX_HOT_KEYS
         }));
     }
+}
+
+#[test]
+fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
+    let pic = pocket_ic_with_nns();
+    pic.set_time((UNIX_EPOCH + Duration::from_secs(1_700_000_000)).into());
+    let controller = pic.create_canister();
+    let governance = pic
+        .create_canister_with_id(None, None, NNS_GOVERNANCE)
+        .unwrap();
+    pic.install_canister(
+        governance,
+        governance_wasm(),
+        Encode!(&controller).unwrap(),
+        None,
+    );
+
+    let economics = pic
+        .query_call(
+            governance,
+            Principal::anonymous(),
+            "get_network_economics_parameters",
+            Encode!().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        Decode!(&economics, TxEconomics)
+            .unwrap()
+            .neuron_management_fee_per_proposal_e8s,
+        100_000_000
+    );
+
+    let inner = TxManageNeuronRequest {
+        id: None,
+        neuron_id_or_subaccount: Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 42 })),
+        command: Some(TxCommand::RefreshVotingPower(TxEmpty {})),
+    };
+    let outer = TxManageNeuronRequest {
+        id: None,
+        neuron_id_or_subaccount: Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 100 })),
+        command: Some(TxCommand::MakeProposal(TxMakeProposal {
+            url: String::new(),
+            title: Some("Dendrite neuron management request".into()),
+            summary: "Manage Dendrite neuron 42.".into(),
+            action: Some(TxProposalAction::ManageNeuron(Box::new(inner.clone()))),
+        })),
+    };
+    let response = pic
+        .update_call(
+            governance,
+            Principal::anonymous(),
+            "manage_neuron",
+            Encode!(&outer).unwrap(),
+        )
+        .unwrap();
+    match Decode!(&response, TxManageNeuronResponse).unwrap().command {
+        Some(TxResponseCommand::MakeProposal(value)) => {
+            assert_eq!(value.proposal_id.unwrap().id, 777)
+        }
+        other => panic!("unexpected proposal response: {other:?}"),
+    }
+
+    let direct = TxManageNeuronRequest {
+        id: None,
+        neuron_id_or_subaccount: Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 100 })),
+        command: Some(TxCommand::RegisterVote(TxRegisterVote {
+            vote: 1,
+            proposal: Some(TxProposalId { id: 777 }),
+        })),
+    };
+    let response = pic
+        .update_call(
+            governance,
+            Principal::anonymous(),
+            "manage_neuron",
+            Encode!(&direct).unwrap(),
+        )
+        .unwrap();
+    assert!(matches!(
+        Decode!(&response, TxManageNeuronResponse).unwrap().command,
+        Some(TxResponseCommand::RegisterVote(_))
+    ));
+
+    let recorded = pic
+        .query_call(
+            governance,
+            Principal::anonymous(),
+            "recorded_manage_requests",
+            Encode!().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        Decode!(&recorded, Vec<TxManageNeuronRequest>).unwrap(),
+        vec![outer, direct]
+    );
 }

@@ -339,6 +339,7 @@ dependencies = [
  "dendrite-types",
  "ic-cdk",
  "ic-clients",
+ "serde",
 ]
 
 [[package]]
