@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, prepareManagerHotkey, preparePrimaryFollow, prepareRewardReceiver, prepareTargetVote, validateOpenManagerProposal, verifyRewardReceivers } from "../src/transaction.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareStandardSetFollowing, prepareTargetVote, proposalReviewDetails, validateOpenManagerProposal, verifyRewardReceivers } from "../src/transaction.js";
 import { directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
 import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
@@ -204,6 +204,31 @@ test("hotkey and receiver facts are re-read immediately before direct submission
   readable = false;
   await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /not returned as readable/);
   assert.equal(pipeline.pending, undefined); assert.equal(calls, 0);
+});
+
+test("SetFollowing and manager-vote preparation derive exact commands from fresh reads", async () => {
+  const fresh = report({ committed_topics: [{ topic: 4 }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
+  const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }) };
+  const prepared = await prepareStandardSetFollowing([{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 17, followeeIds: [999n] }])({ report: fresh, nnsActor: actor });
+  assert.deepEqual(prepared.command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [2_947_465_672_511_369n]);
+  const info = { id: [{ id: 7n }], status: 1, topic: 1, ballots: [[10n, { vote: 0 }]], deadline_timestamp_seconds: [1n], proposer: [{ id: 10n }], proposal: [{ title: ["Title"], summary: "Summary", action: [{ ManageNeuron: { id: [{ id: 20n }], neuron_id_or_subaccount: [], command: [{ RefreshVotingPower: {} }] } }] }] };
+  const vote = await prepareManagerVote(7n, 1)({ nnsActor: { get_proposal_info: async () => [info] }, targetId: 20n, managerId: 10n });
+  assert.equal(vote.command.RegisterVote.vote, 1); assert.match(vote.details.join(" "), /Managed target: 20/);
+  assert.match(proposalReviewDetails({}, undefined).join(" "), /unavailable/);
+});
+
+test("invalid preparation and changed direct fingerprints fail closed", async () => {
+  let current = report(), calls = 0;
+  const actor = { manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+  for (const prepare of [async () => ({}), async () => ({ command: {}, securityFingerprint: "x" }), async () => ({ command: { Configure: {} } })]) {
+    await assert.rejects(() => pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare }), /invalid command or security fingerprint/);
+  }
+  const prepare = async ({ report: fresh }) => ({ command: { Configure: { operation: [] } }, details: [], securityFingerprint: String(fresh.managers[0].hot_keys.length) });
+  const review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare });
+  current = report({ managers: [manager({ hot_keys: [Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai")] })] });
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /direct-operation evidence changed/);
+  assert.equal(calls, 0); assert.equal(pipeline.pending, undefined);
 });
 
 test("primary following enforces manager, committed omega, and fixed alpha policies", () => {
