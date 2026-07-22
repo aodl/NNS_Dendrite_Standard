@@ -55,3 +55,11 @@ byte-level tamper detection, terminal ambiguous outcomes, and in-flight review
 exclusion. PocketIC records the safe list request and exact submitted ingress bytes.
 The production IDL must equal deterministic output from the reviewed transaction Candid
 after the explicit removal of query annotations for replicated reads.
+
+Final coordination regressions mix ordinary, target, other-target, and malformed Open
+proposals; valid target entries remain usable while malformed management entries render
+bounded warnings. An application-entry deferred-update test rerenders the panel, reloads
+the report, changes route, rejects sign-out, and attempts another review and submit while
+proving that exactly one `manage_neuron` call occurs. Review tests distinguish proposal
+managed targets from direct manager mutation targets, enforce self-authenticating Spawn
+controllers, and preserve duplicate raw authority rows while deduplicating actions.

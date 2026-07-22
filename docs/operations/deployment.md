@@ -66,3 +66,7 @@ Also verify that open management-proposal enumeration retains Governance caller
 visibility, the selected manager has a visible Unspecified ballot, final-preflight drift
 discards the review, and an intentionally ambiguous transport result cannot submit the
 same review twice.
+The smoke test must also confirm that an in-flight call survives report and route
+rerenders, sign-out is rejected until it settles, direct-operation confirmation names
+the manager neuron actually mutated, and Spawn rejects an omitted or non-user
+controller. These remain operator checks and are not run by the automated release pass.

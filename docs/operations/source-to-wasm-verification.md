@@ -497,3 +497,43 @@ Production reproducibility-fixture hashes:
 The real Internet Identity canonical/alternative-origin popup gate and controlled
 transaction smoke gate were not run. They remain mandatory operator gates. No mainnet
 mutation, deployment, proposal, or manager vote is claimed.
+
+## Final transaction-coordination evidence — 2026-07-22
+
+Starting from `4b0d318d28d60dc0c4d217df9a1a25ade01a2d40`, this pass made
+mixed Open-proposal selection fail-soft, moved the transaction coordinator to page
+application scope, separated direct mutation and proposal target identities, required
+an explicit self-authenticating Spawn controller, deduplicated actionable managers
+without changing raw audit evidence, and corrected authority wording. It added no
+command, canister method, storage, retry, timer, framework, or background work.
+
+`npm ci`, `npm test`, `npm run test:coverage`, production asset byte identity, `cargo
+fmt --all -- --check`, warnings-denied workspace/all-target/all-feature Clippy, `cargo
+xtask check`, configured `cargo xtask test`, all three PocketIC scenarios, `cargo xtask
+coverage`, semantic anonymous/transaction interface drift, generated-IDL equality,
+production dependency reachability, `cargo xtask security-scan`, `cargo xtask sbom`,
+configured `cargo xtask build`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible` exited successfully. The 78 frontend tests
+reached 99.48% lines, 87.81% branches, and 93.65% functions. Workspace Rust line
+coverage was 90.68%. Two clean builds were byte-identical.
+
+Current deterministic hashes:
+
+- Transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Wasm, both clean builds: `7534dcd8c14f49b5bee6673edfe78dd014b22ff8f367f9a0ea8de20b45853d6b`.
+- Frontend tree, both clean builds: `51bd1c0b871dfccf4e895789ad10414203c9accb3b53bc943e173daf096da39b`.
+- Asset manifest: `b14d15820e62f63fc3676116856f3baed0b0ab3a6f539a1c4b126bee4e62eda9`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite SBOM: `bc10ff58e812b6119324a519b396d4ba21311b433a586feb4e04c83139fda165`.
+- Governance fixture SBOM: `7a8a513138b420838d060aa7375fb9e9c8f44f391608650dc36d4208defe1fd5`.
+- Types SBOM: `ac02ef00758d2cf76ede13a2cfe6256b1c2f4251b4663ea7a18223e680857ddb`.
+- IC clients SBOM: `89a72f0f5aac0ac434e08525db470e1ea3e5dd70bb796e39edf0e259451c58f3`.
+- npm SBOM: `660211f3768ec1c7d3e8399b5855a590ba6b3c6868bf14377989b52745778f2c`.
+- xtask SBOM: `7cce12d272d13110205aa240dd555a0b94915854c3aa9495351290bd4cd81769`.
+
+The real Internet Identity canonical/alternative-origin popup test and controlled
+transaction smoke test were not run. They remain the two mandatory operator gates. No
+mainnet mutation, proposal, vote, deployment, or operator-gate success is claimed.
