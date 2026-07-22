@@ -128,6 +128,30 @@ const nat64 = (value, label) => {
   if (parsed < 0n || parsed > 18_446_744_073_709_551_615n) throw new RangeError(`${label} must be nat64.`);
   return parsed;
 };
+const nat32 = (value, label) => {
+  if (!Number.isInteger(value) || value < 0 || value > 4_294_967_295) throw new RangeError(`${label} must be nat32.`);
+  return value;
+};
+const bytes32 = (value, label) => {
+  if (!(value instanceof Uint8Array) || value.length !== 32) throw new TypeError(`${label} must be exactly 32 bytes.`);
+  return value;
+};
+
+export function buildConfigureOperation(kind, fields = {}) {
+  switch (kind) {
+    case "IncreaseDissolveDelay": return { IncreaseDissolveDelay: { additional_dissolve_delay_seconds: nat32(fields.seconds, "Dissolve delay increase") } };
+    case "SetDissolveTimestamp": return { SetDissolveTimestamp: { dissolve_timestamp_seconds: nat64(fields.timestampSeconds, "Dissolve timestamp") } };
+    case "StartDissolving": return { StartDissolving: {} };
+    case "StopDissolving": return { StopDissolving: {} };
+    case "AddHotKey": return { AddHotKey: { new_hot_key: [Principal.fromText(fields.principal)] } };
+    case "RemoveHotKey": return { RemoveHotKey: { hot_key_to_remove: [Principal.fromText(fields.principal)] } };
+    case "JoinCommunityFund": return { JoinCommunityFund: {} };
+    case "LeaveCommunityFund": return { LeaveCommunityFund: {} };
+    case "ChangeAutoStakeMaturity": if (typeof fields.enabled !== "boolean") throw new TypeError("Auto-stake maturity setting must be boolean."); else return { ChangeAutoStakeMaturity: { requested_setting_for_auto_stake_maturity: fields.enabled } };
+    case "SetVisibility": return { SetVisibility: { visibility: [nat32(fields.visibility, "Visibility")] } };
+    default: throw new Error("Unknown Configure operation; interface update required.");
+  }
+}
 
 export function buildAdvancedCommand(kind, fields = {}) {
   if (!(kind in COMMAND_CAPABILITIES)) throw new Error("Unknown command; interface update required.");
@@ -143,13 +167,20 @@ export function buildAdvancedCommand(kind, fields = {}) {
     case "RefreshVotingPower": return buildRefreshVotingPowerCommand();
     case "DisburseMaturity": {
       const command = { percentage_to_disburse: percentage(fields.percentage), to_account: [], to_account_identifier: [] };
-      if (fields.account) command.to_account = [{ owner: [Principal.fromText(fields.account.owner)], subaccount: optional(fields.account.subaccount) }];
-      if (fields.accountIdentifier) command.to_account_identifier = [{ hash: fields.accountIdentifier }];
+      if (fields.account) command.to_account = [{ owner: [Principal.fromText(fields.account.owner)], subaccount: optional(fields.account.subaccount === undefined ? undefined : bytes32(fields.account.subaccount, "ICRC subaccount")) }];
+      if (fields.accountIdentifier) command.to_account_identifier = [{ hash: bytes32(fields.accountIdentifier, "Account identifier") }];
       if ((command.to_account.length + command.to_account_identifier.length) !== 1) throw new Error("Choose exactly one explicit maturity destination.");
       return deepFreeze({ DisburseMaturity: command });
     }
-    case "SetFollowing": return deepFreeze({ SetFollowing: { topic_following: [fields.rows.map((row) => ({ topic: [row.topic], followees: [distinctNeuronIds(row.followeeIds).map((id) => ({ id }))] }))] } });
-    case "Configure": return deepFreeze({ Configure: { operation: [fields.operation] } });
+    case "SetFollowing": {
+      if (!Array.isArray(fields.rows) || fields.rows.length > TOPIC_LABELS.size) throw new RangeError("SetFollowing rows exceed the recognised topic bound.");
+      if (new Set(fields.rows.map((row) => row.topic)).size !== fields.rows.length) throw new Error("SetFollowing topics must be unique.");
+      return deepFreeze({ SetFollowing: { topic_following: [fields.rows.map((row) => {
+        if (!TOPIC_LABELS.has(row.topic) || row.topic === 11) throw new Error("Unknown or reserved topic; interface update required.");
+        return { topic: [row.topic], followees: [distinctNeuronIds(row.followeeIds).map((id) => ({ id }))] };
+      })] } });
+    }
+    case "Configure": return deepFreeze({ Configure: { operation: [buildConfigureOperation(fields.configureKind, fields)] } });
     default: throw new Error(`Enabled command ${kind} needs an explicit reviewed builder.`);
   }
 }

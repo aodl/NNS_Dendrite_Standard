@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
 import { renderControlPanel } from "../src/control-panel.js";
 
 const principal = Principal.fromText("aaaaa-aa");
@@ -117,7 +117,7 @@ test("every pinned command has an explicit policy and every enabled advanced bui
   assert.ok(buildAdvancedCommand("Split", { amountE8s: 1n }).Split);
   assert.ok(buildAdvancedCommand("Follow", { topic: 4, followeeIds: [1n] }).Follow);
   assert.ok(buildAdvancedCommand("ClaimOrRefresh").ClaimOrRefresh);
-  assert.ok(buildAdvancedCommand("Configure", { operation: { StartDissolving: {} } }).Configure);
+  assert.ok(buildAdvancedCommand("Configure", { configureKind: "StartDissolving" }).Configure);
   assert.ok(buildAdvancedCommand("RegisterVote", { proposalInfo: { id: [{ id: 1n }], status: 1, topic: 4, deadline_timestamp_seconds: [2n] }, vote: 1, nowSeconds: 1n }).RegisterVote);
   assert.ok(buildAdvancedCommand("Merge", { sourceNeuronId: 1n }).Merge);
   assert.ok(buildAdvancedCommand("StakeMaturity", {}).StakeMaturity);
@@ -174,4 +174,17 @@ test("advanced command bounds fail closed", () => {
   assert.throws(() => buildAdvancedCommand("Spawn", { percentage: 0 }), /1–100/);
   assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1 }), /exactly one/);
   assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1, account: { owner: "aaaaa-aa" }, accountIdentifier: new Uint8Array(32) }), /exactly one/);
+});
+
+test("all current Configure operations use explicit typed builders", () => {
+  assert.ok(buildConfigureOperation("IncreaseDissolveDelay", { seconds: 1 }).IncreaseDissolveDelay);
+  assert.ok(buildConfigureOperation("SetDissolveTimestamp", { timestampSeconds: 1n }).SetDissolveTimestamp);
+  for (const kind of ["StartDissolving","StopDissolving","JoinCommunityFund","LeaveCommunityFund"]) assert.ok(buildConfigureOperation(kind)[kind]);
+  assert.ok(buildConfigureOperation("AddHotKey", { principal: "aaaaa-aa" }).AddHotKey);
+  assert.ok(buildConfigureOperation("RemoveHotKey", { principal: "aaaaa-aa" }).RemoveHotKey);
+  assert.ok(buildConfigureOperation("ChangeAutoStakeMaturity", { enabled: true }).ChangeAutoStakeMaturity);
+  assert.ok(buildConfigureOperation("SetVisibility", { visibility: 1 }).SetVisibility);
+  assert.throws(() => buildConfigureOperation("Future"), /Unknown Configure/);
+  assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1, accountIdentifier: new Uint8Array(31) }), /32 bytes/);
+  assert.throws(() => buildAdvancedCommand("SetFollowing", { rows: [{ topic: 99, followeeIds: [] }] }), /Unknown/);
 });

@@ -16,6 +16,14 @@ curl --fail --silent --show-error \
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance.subset.did
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance-transaction.subset.did
 
+awk '
+  /^type ManageNeuronCommandRequest = variant/ { inside = 1; next }
+  inside && /^};/ { exit }
+  inside && /^[[:space:]]*[A-Za-z]/ { line = $0; sub(/^[[:space:]]*/, "", line); sub(/[[:space:]]*:.*/, "", line); print line }
+' "$tmp_dir/governance.did" | sort > "$tmp_dir/upstream-commands"
+awk '{ print $1 }' candid/nns-governance/command-capabilities.txt | sort > "$tmp_dir/local-commands"
+cmp "$tmp_dir/upstream-commands" "$tmp_dir/local-commands"
+
 # The management interface is documented as Candid in the official Rust source.
 # Extract those two authoritative code blocks and compare them structurally.
 awk '
