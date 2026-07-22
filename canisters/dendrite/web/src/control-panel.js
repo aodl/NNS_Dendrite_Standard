@@ -2,6 +2,7 @@ import { element, safeHttpsLink } from "./dom.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
 import { buildAddManagerHotkeyCommand, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, classifyRewardReceiver, createTransactionPipeline, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, validateOpenManagerProposal } from "./transaction.js";
+import { renderAdvancedCommands } from "./advanced-panel.js";
 
 const input = (name, placeholder = "") => {
   const node = document.createElement("input"); node.name = name; node.placeholder = placeholder; return node;
@@ -106,5 +107,7 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   const receiver = input("receiver", "Reward-receiver neuron ID"), receiverReview = element("button", "Review controller-only reward receiver setup"); receiverReview.type = "button";
   receiverReview.addEventListener("click", async () => { try { const managerId = parseNeuronId(managers.value), receiverId = parseNeuronId(receiver.value); const response = await nnsActor.list_neurons({ neuron_ids: [receiverId], include_neurons_readable_by_caller: true, include_empty_neurons_readable_by_caller: [true], include_public_neurons_in_full_neurons: [true], page_number: [], page_size: [], neuron_subaccounts: [] }); if (!response.full_neurons.some((entry) => entry.id?.[0]?.id === receiverId)) throw new Error("Receiver neuron was not returned as readable to this caller."); showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, command: buildRewardReceiverCommand(receiverId), operation: `Set sole Neuron Management reward receiver ${receiverId}`, controllerOnly: true, highRisk: true })); } catch (error) { fail(error); } });
   readiness.append(element("p", "Adding a hotkey is controller-only; an existing hotkey cannot add another. Reward receiver setup gives that receiver sole Neuron Management proposal authority over the known manager neuron."), newHotkey, hotkeyReview, receiver, receiverReview);
-  panel.append(follow, refresh, vote, managerVote, readiness, output); root.append(panel);
+  panel.append(follow, refresh, vote, managerVote, readiness);
+  renderAdvancedCommands(panel, { report, nnsActor, pipeline, managerId: () => parseNeuronId(managers.value), showReview, fail });
+  panel.append(output); root.append(panel);
 }

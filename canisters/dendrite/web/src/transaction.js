@@ -108,6 +108,16 @@ export function buildPrimaryFollowCommand(report, topic, selectedIds = [], known
 
 export const buildRefreshVotingPowerCommand = () => deepFreeze({ RefreshVotingPower: {} });
 
+export function buildStandardSetFollowingCommand(report, rows, knownCandidates = []) {
+  if (!Array.isArray(rows) || rows.length > TOPIC_LABELS.size) throw new RangeError("SetFollowing rows exceed the recognised topic bound.");
+  if (new Set(rows.map((row) => row.topic)).size !== rows.length) throw new Error("SetFollowing topics must be unique.");
+  const topicFollowing = rows.map((row) => {
+    const follow = buildPrimaryFollowCommand(report, row.topic, row.followeeIds, knownCandidates).Follow;
+    return { topic: [row.topic], followees: [follow.followees] };
+  });
+  return deepFreeze({ SetFollowing: { topic_following: [topicFollowing] } });
+}
+
 export function buildRegisterVoteCommand(proposalInfo, vote, nowSeconds) {
   const id = proposalInfo?.id?.[0]?.id;
   if (typeof id !== "bigint") throw new Error("Proposal does not exist.");

@@ -25,7 +25,7 @@ to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source rem
 - [x] Phase E: make hotkey assistance controller-honest and add controller-only direct
   hotkey setup for a different Dendrite principal; classify raw manager reward-receiver
   readiness and support one warned controller-only singleton receiver `Follow` setup.
-- [ ] Phase F: give every pinned current `ManageNeuronCommandRequest` variant an
+- [x] Phase F: give every pinned current `ManageNeuronCommandRequest` variant an
   explicit reviewed capability policy; implement typed bounded forms for enabled
   commands and explicit reasons for nested `MakeProposal`, removed `MergeMaturity`, and
   target-incompatible `Disburse`/`DisburseToNeuron`; fail drift and unknown variants

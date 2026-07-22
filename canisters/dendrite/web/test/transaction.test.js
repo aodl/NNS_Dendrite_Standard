@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
 import { renderControlPanel } from "../src/control-panel.js";
+import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
 const principal = Principal.fromText("aaaaa-aa");
 const signingIdentity = { getPrincipal: () => principal };
@@ -187,4 +188,34 @@ test("all current Configure operations use explicit typed builders", () => {
   assert.throws(() => buildConfigureOperation("Future"), /Unknown Configure/);
   assert.throws(() => buildAdvancedCommand("DisburseMaturity", { percentage: 1, accountIdentifier: new Uint8Array(31) }), /32 bytes/);
   assert.throws(() => buildAdvancedCommand("SetFollowing", { rows: [{ topic: 99, followeeIds: [] }] }), /Unknown/);
+});
+
+test("SetFollowing applies the same standard candidate rules to every row", () => {
+  const value = report({ committed_topics: [{ topic: 4 }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
+  const command = buildStandardSetFollowingCommand(value, [{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 0, followeeIds: [99n] }]);
+  assert.deepEqual(command.SetFollowing.topic_following[0][0].followees[0].map((entry) => entry.id), [10n, 11n, 12n]);
+  assert.deepEqual(command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [2_947_465_672_511_369n]);
+  assert.throws(() => buildStandardSetFollowingCommand(value, [{ topic: 4, followeeIds: [10n, 99n, 12n] }]), /known target managers/);
+});
+
+test("advanced panel exposes explicit typed forms and unavailable reasons", async () => {
+  const previous = globalThis.document; globalThis.document = { createElement: (tag) => new FakeNode(tag), createTextNode: (text) => ({ textContent: text }) };
+  try {
+    const root = new FakeNode("main"), reviews = [];
+    renderAdvancedCommands(root, { report: { neuron_id: 20n }, managerId: () => 10n, pipeline: { reviewProposal: async (value) => { reviews.push(value); return value; } }, showReview: () => {}, fail: (error) => { throw error; } });
+    const byName = (name) => find(root, (node) => node.name === name);
+    const click = async (label) => find(root, (node) => node.textContent === label).dispatch("click");
+    const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root);
+    selects[0].value = "StartDissolving"; await click("Review Configure");
+    for (const [kind, value] of [["IncreaseDissolveDelay","1"],["SetDissolveTimestamp","2"],["AddHotKey","aaaaa-aa"],["ChangeAutoStakeMaturity","true"],["SetVisibility","2"]]) { selects[0].value = kind; byName("configure-value").value = value; await click("Review Configure"); }
+    byName("spawn-percent").value = "50"; byName("spawn-controller").value = "aaaaa-aa"; byName("spawn-nonce").value = "1"; await click("Review Spawn");
+    byName("split-amount").value = "1.25"; await click("Review Split");
+    await click("Review ClaimOrRefresh");
+    byName("merge-source").value = "99"; await click("Review Merge");
+    await click("Review StakeMaturity");
+    byName("maturity-percent").value = "10"; selects[1].value = "legacy"; byName("maturity-bytes").value = "00".repeat(32); await click("Review DisburseMaturity");
+    selects[1].value = "icrc"; byName("maturity-owner").value = "aaaaa-aa"; byName("maturity-bytes").value = ""; await click("Review DisburseMaturity");
+    byName("set-topic").value = "4"; byName("set-followees").value = "10,11"; await click("Review SetFollowing");
+    assert.equal(reviews.length, 14); assert.match(JSON.stringify(root), /Nested MakeProposal/); assert.equal(reviews.filter((value) => value.highRisk).length >= 8, true);
+  } finally { globalThis.document = previous; }
 });
