@@ -16,6 +16,24 @@ curl --fail --silent --show-error \
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance.subset.did
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance-transaction.subset.did
 
+# The reviewed transaction Candid is the sole production actor type source. The
+# generator performs one explicit transformation: replicated reads lose `query`.
+tools/scripts/generate-transaction-idl.sh \
+  candid/nns-governance/governance-transaction.subset.did \
+  "$tmp_dir/generated-transaction-idl.js"
+cmp "$tmp_dir/generated-transaction-idl.js" src/declarations/nns-governance/nns-governance.did.js
+if grep -q "\['query'\]" src/declarations/nns-governance/nns-governance.did.js; then
+  echo 'replicated-read query annotation remained in production transaction IDL' >&2
+  exit 1
+fi
+sed 's/cached_neuron_stake_e8s : nat64/cached_neuron_stake_e8s : nat32/' \
+  candid/nns-governance/governance-transaction.subset.did > "$tmp_dir/changed-consumed-field.did"
+tools/scripts/generate-transaction-idl.sh "$tmp_dir/changed-consumed-field.did" "$tmp_dir/changed-idl.js"
+if cmp -s "$tmp_dir/changed-idl.js" src/declarations/nns-governance/nns-governance.did.js; then
+  echo 'required browser-consumed field change did not alter generated transaction IDL' >&2
+  exit 1
+fi
+
 awk '
   /^type ManageNeuronCommandRequest = variant/ { inside = 1; next }
   inside && /^};/ { exit }

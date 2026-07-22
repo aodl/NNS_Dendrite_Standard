@@ -107,7 +107,15 @@ type ListNeurons = record {
   include_public_neurons_in_full_neurons : opt bool; page_number : opt nat64;
   page_size : opt nat64; neuron_subaccounts : opt vec record { subaccount : blob }
 };
-type ListNeuronsResponse = record { neuron_infos : reserved; full_neurons : reserved; total_pages_available : opt nat64 };
+type KnownNeuronData = record {
+  name : text; description : opt text; links : opt vec text; committed_topics : reserved
+};
+type FullNeuron = record {
+  id : opt NeuronId; controller : opt principal; hot_keys : vec principal;
+  cached_neuron_stake_e8s : nat64; neuron_fees_e8s : nat64;
+  known_neuron_data : opt KnownNeuronData; followees : reserved
+};
+type ListNeuronsResponse = record { neuron_infos : reserved; full_neurons : vec FullNeuron; total_pages_available : opt nat64 };
 service : {
   list_neurons : (ListNeurons) -> (ListNeuronsResponse) query;
   get_network_economics_parameters : () -> (NetworkEconomics) query;
