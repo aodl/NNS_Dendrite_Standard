@@ -110,4 +110,5 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   panel.append(follow, refresh, vote, managerVote, readiness);
   renderAdvancedCommands(panel, { report, nnsActor, pipeline, managerId: () => parseNeuronId(managers.value), showReview, fail });
   panel.append(output); root.append(panel);
+  return () => pipeline.clear();
 }

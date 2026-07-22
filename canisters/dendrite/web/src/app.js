@@ -65,6 +65,7 @@ export function createApplication({
   let recoverableAuthenticationError;
   let currentReport;
   let currentNeuronId;
+  let cancelPendingTransaction;
   async function activateAuthenticatedSession(session) {
     // Compatibility for injected read-only test sessions; production auth always
     // returns the private { principal, signingIdentity } object.
@@ -132,6 +133,8 @@ export function createApplication({
     copy.addEventListener("click", () => copyText(principalText));
     const signOut = element("button", "Sign out");
     signOut.addEventListener("click", async () => {
+      cancelPendingTransaction?.();
+      cancelPendingTransaction = undefined;
       authenticatedNnsActor = undefined;
       try {
         await browserAuth.signOut();
@@ -154,7 +157,7 @@ export function createApplication({
     root.append(authenticationPanel());
     if (authenticatedPrincipal && currentReport) {
       renderManagerAuthority(root, currentReport, authenticatedPrincipal);
-      if (authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
+      if (authenticatedSession && authenticatedNnsActor) cancelPendingTransaction = renderControlPanel(root, {
         report: currentReport,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
@@ -210,6 +213,8 @@ export function createApplication({
   }
 
   async function loadNeuron(id) {
+    cancelPendingTransaction?.();
+    cancelPendingTransaction = undefined;
     clear(root);
     root.setAttribute("aria-busy", "true");
     root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status"));

@@ -53,7 +53,15 @@ export function validateGovernanceDelegation(identity, nowNanoseconds = BigInt(D
       throw new Error("Internet Identity delegation is not restricted to NNS Governance.");
     }
   }
-  return Object.freeze({ principal: exactPrincipal(identity), signingIdentity: identity });
+  const principal = exactPrincipal(identity);
+  return Object.freeze({
+    principal,
+    signingIdentity: identity,
+    validate() {
+      validateGovernanceDelegation(identity);
+      return true;
+    },
+  });
 }
 
 export function createBrowserAuthSession(options = {}) {

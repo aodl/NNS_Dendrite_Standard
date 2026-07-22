@@ -273,7 +273,8 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
   const clear = () => { pending = undefined; };
   const liveContext = async (targetId, managerId) => {
     const session = await getSession();
-    if (!session?.principal || !session?.signingIdentity) throw new Error("A current Governance-targeted session is required.");
+    if (!session?.principal || !session?.signingIdentity || typeof session.validate !== "function") throw new Error("A current Governance-targeted session is required.");
+    await session.validate();
     const report = await checkNeuron(targetId);
     if (report?.neuron_id !== targetId) throw new Error("Fresh Dendrite report target does not match the request.");
     return { session, report, manager: foundManager(report, managerId, session.principal) };
@@ -324,7 +325,12 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
             clear(); throw new Error("Manager stake changed; create a new review.");
           }
         }
-        const response = await (await getNnsActor()).manage_neuron(review.request);
+        let response;
+        try {
+          response = await (await getNnsActor()).manage_neuron(review.request);
+        } catch (error) {
+          throw new Error(`Transaction outcome is unknown; do not retry automatically. Use proposal lookup or a live recheck. ${String(error?.message ?? "Network call did not return evidence.").slice(0, 256)}`);
+        }
         const expected = review.kind === "SubmitManageNeuronProposal" ? "MakeProposal" : variant(review.request.command[0]);
         const result = decodeManageNeuronResponse(response, expected);
         clear();

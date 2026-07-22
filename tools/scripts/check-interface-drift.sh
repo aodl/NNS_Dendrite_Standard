@@ -23,6 +23,13 @@ awk '
 ' "$tmp_dir/governance.did" | sort > "$tmp_dir/upstream-commands"
 awk '{ print $1 }' candid/nns-governance/command-capabilities.txt | sort > "$tmp_dir/local-commands"
 cmp "$tmp_dir/upstream-commands" "$tmp_dir/local-commands"
+awk '
+  /^type Command_1 = variant/ { inside = 1; next }
+  inside && /^};/ { exit }
+  inside && /^[[:space:]]*[A-Za-z]/ { line = $0; sub(/^[[:space:]]*/, "", line); sub(/[[:space:]]*:.*/, "", line); print line }
+' "$tmp_dir/governance.did" | sort > "$tmp_dir/upstream-responses"
+sort candid/nns-governance/response-capabilities.txt > "$tmp_dir/local-responses"
+cmp "$tmp_dir/upstream-responses" "$tmp_dir/local-responses"
 
 # The management interface is documented as Candid in the official Rust source.
 # Extract those two authoritative code blocks and compare them structurally.
