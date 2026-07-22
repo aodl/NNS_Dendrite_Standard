@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, prepareManagerHotkey, preparePrimaryFollow, prepareRewardReceiver, prepareTargetVote, validateOpenManagerProposal, verifyRewardReceivers } from "../src/transaction.js";
 import { directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
 import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
@@ -60,8 +60,9 @@ test("ambiguous ingress outcome is never retried or labelled failure", async () 
   const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; throw new Error("timeout"); } };
   const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
   const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} }, operation: "refresh" });
-  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /outcome is unknown; do not retry automatically/);
-  assert.equal(calls, 1); assert.equal(pipeline.pending, review);
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /outcome is unknown and this request cannot be resubmitted/);
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /current explicitly confirmed review/);
+  assert.equal(calls, 1); assert.equal(pipeline.pending, undefined); assert.equal(pipeline.state, "outcome-unknown");
 });
 
 test("strict response decoding bounds errors and rejects wrong or missing variants", () => {
@@ -94,6 +95,105 @@ test("direct controller-only review and high-risk exact target confirmation", as
   await assert.rejects(() => pipeline.submit(review, { confirmed: true, typedTarget: "020" }), /exactly/);
   assert.equal(calls, 0);
   assert.deepEqual(await pipeline.submit(review, { confirmed: true, typedTarget: "20" }), { operation: "Configure" });
+});
+
+test("controller-only authority is rechecked and every failed final preflight clears review", async () => {
+  let current = report(), calls = 0;
+  const actor = { manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+  const review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, command: { Configure: { operation: [{ AddHotKey: { new_hot_key: [Principal.fromText("2vxsx-fae")] } }] } }, controllerOnly: true });
+  current = report({ managers: [manager({ controller: [], hot_keys: [principal] })] });
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /Controller authority changed/);
+  assert.equal(calls, 0); assert.equal(pipeline.pending, undefined); assert.equal(pipeline.state, "none");
+});
+
+test("fresh preparation fingerprints manager quorum and committed-topic evidence", async () => {
+  let current = report({ committed_topics: [{ topic: 4 }], quorum_threshold: [1] }), calls = 0;
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] }; } };
+  const prepare = async ({ report: fresh }) => ({ command: { RefreshVotingPower: {} }, details: [], securityFingerprint: String(fresh.committed_topics.length) });
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+  for (const changed of [
+    report({ managers: [manager(), manager({ neuron_id: 11n })], committed_topics: [{ topic: 4 }], quorum_threshold: [1] }),
+    report({ committed_topics: [{ topic: 4 }], quorum_threshold: [2] }),
+    report({ committed_topics: [], quorum_threshold: [1] }),
+  ]) {
+    current = report({ committed_topics: [{ topic: 4 }], quorum_threshold: [1] });
+    const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare });
+    current = changed;
+    await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /changed/);
+    assert.equal(pipeline.pending, undefined);
+  }
+  assert.equal(calls, 0);
+});
+
+test("unexpected post-call response and transport ambiguity are terminal after one call", async () => {
+  for (const response of [{ command: [] }, { command: [{ Follow: {} }] }]) {
+    let calls = 0;
+    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return response; } };
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+    const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} } });
+    await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /cannot be resubmitted/);
+    await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /current explicitly confirmed/);
+    assert.equal(calls, 1); assert.equal(pipeline.state, "outcome-unknown");
+  }
+});
+
+test("an in-flight update cannot be replaced by another review", async () => {
+  let release;
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => new Promise((resolve) => { release = resolve; }) };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} } });
+  const submitted = pipeline.submit(review, { confirmed: true });
+  while (!release) await Promise.resolve();
+  await assert.rejects(() => pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} } }), /in flight/);
+  await assert.rejects(() => pipeline.reviewDirect({ targetId: 20n, managerId: 10n, command: { RegisterVote: { proposal: [{ id: 1n }], vote: 1 } } }), /in flight/);
+  release({ command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] });
+  await submitted;
+});
+
+test("reviewed Candid bytes detect typed-array mutation and builders clone caller bytes", async () => {
+  let calls = 0; const source = new Uint8Array(32);
+  const command = buildAdvancedCommand("DisburseMaturity", { percentage: 1, accountIdentifier: source });
+  source[0] = 9;
+  assert.equal(command.DisburseMaturity.to_account_identifier[0].hash[0], 0);
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: command });
+  assert.match(review.requestDigest, /^[0-9a-f]{64}$/);
+  review.request.command[0].MakeProposal.action[0].ManageNeuron.command[0].DisburseMaturity.to_account_identifier[0].hash[0] = 7;
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /request bytes changed/);
+  assert.equal(calls, 0); assert.equal(pipeline.pending, undefined);
+});
+
+test("operation preparation revalidates omega readiness and target proposal state", async () => {
+  const readyManagers = [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })];
+  let current = report({ managers: readyManagers, committed_topics: [{ topic: 4 }], quorum_threshold: [2] }), proposalStatus = 1, calls = 0;
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), get_proposal_info: async (id) => [{ id: [{ id }], status: proposalStatus, topic: 4, deadline_timestamp_seconds: [1n], proposal: [{ title: ["Vote"], summary: "summary" }], proposer: [] }], manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+  let review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare: preparePrimaryFollow(4, [10n, 11n, 12n]) });
+  current = report({ managers: [manager({ omega_ready_topics: [] }), readyManagers[1], readyManagers[2]], committed_topics: [{ topic: 4 }], quorum_threshold: [2] });
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /omega-reject/);
+  assert.equal(pipeline.pending, undefined);
+  current = report(); proposalStatus = 1;
+  review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare: prepareTargetVote(9n, 1) });
+  proposalStatus = 2;
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /not Open/);
+  assert.equal(pipeline.pending, undefined); assert.equal(calls, 0);
+});
+
+test("hotkey and receiver facts are re-read immediately before direct submission", async () => {
+  const other = "rrkah-fqaaa-aaaaa-aaaaq-cai"; let current = report(), readable = true, calls = 0;
+  const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: readable ? neuron_ids.map((id) => ({ id: [{ id }], controller: [], cached_neuron_stake_e8s: 1n })) : [] }), manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+  let review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareManagerHotkey(other), controllerOnly: true });
+  current = report({ managers: [manager({ hot_keys: [Principal.fromText(other)] })] });
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /already a manager hotkey/);
+  assert.equal(pipeline.pending, undefined);
+  current = report(); readable = true;
+  review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true });
+  readable = false;
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /not returned as readable/);
+  assert.equal(pipeline.pending, undefined); assert.equal(calls, 0);
 });
 
 test("primary following enforces manager, committed omega, and fixed alpha policies", () => {
@@ -153,6 +253,13 @@ test("control panel renders primary workflows and performs no mutation before ex
     find(root, (node) => node.name === "followees").value = "1,2,3,4,5";
     await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
     assert.match(JSON.stringify(root), /Known 1/);
+    find(root, (node) => node.name === "topic").value = "17";
+    find(root, (node) => node.name === "followees").value = "999";
+    await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
+    assert.match(JSON.stringify(root), /2947465672511369/); assert.doesNotMatch(JSON.stringify(root), /followees[^]*nat:999/);
+    find(root, (node) => node.name === "topic").value = "";
+    await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
+    assert.match(JSON.stringify(root), /explicit recognised topic/);
     find(root, (node) => node.name === "receiver").value = "99";
     await find(root, (node) => node.textContent === "Review controller-only reward receiver setup").dispatch("click");
     assert.ok(find(root, (node) => node.name === "target-confirmation"));
@@ -161,6 +268,7 @@ test("control panel renders primary workflows and performs no mutation before ex
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
     assert.equal(mutations, 0); assert.match(JSON.stringify(root), /current explicitly confirmed review/);
     await find(root, (node) => node.textContent === "Review voting-power refresh").dispatch("click");
+    assert.match(JSON.stringify(root), /not reimbursed/); assert.match(JSON.stringify(root), /Encoded request SHA-256/);
     const checkbox = find(root, (node) => node.name === "confirmation"); checkbox.checked = true;
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
     assert.equal(mutations, 1); assert.equal(refreshed, 1); assert.match(JSON.stringify(root), /Proposal 8 submitted/);
@@ -208,16 +316,23 @@ test("stored management targets accept legacy and modern neuron IDs and fail clo
   assert.deepEqual(filterTargetManageNeuronProposals([wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [] })], 20n).length, 1);
 });
 
-test("hotkey and reward readiness helpers preserve controller-honest boundaries", () => {
+test("hotkey and reward readiness helpers preserve controller-honest boundaries", async () => {
   assert.deepEqual(classifyRewardReceiver(manager({ neuron_management_followees: [] })), { status: "FallbackToKnownNeuron" });
-  assert.deepEqual(classifyRewardReceiver(manager({ neuron_management_followees: [99n] })), { status: "Configured", receiverId: 99n });
+  assert.deepEqual(classifyRewardReceiver(manager({ neuron_management_followees: [99n] })), { status: "ConfiguredUnverified", receiverId: 99n, duplicateConfiguration: false });
+  assert.deepEqual(classifyRewardReceiver(manager({ neuron_management_followees: [99n, 99n] })), { status: "ConfiguredUnverified", receiverId: 99n, duplicateConfiguration: true });
   assert.equal(classifyRewardReceiver(manager({ neuron_management_followees: [1n, 2n] })).status, "Ambiguous");
   assert.equal(classifyRewardReceiver(manager({ evidence_status: { Unavailable: null } })).status, "Indeterminate");
-  assert.ok(buildAddManagerHotkeyCommand(manager(), 20n, "2vxsx-fae").Configure);
-  assert.throws(() => buildAddManagerHotkeyCommand(manager({ neuron_id: 20n }), 20n, "2vxsx-fae"), /target Dendrite/);
-  assert.throws(() => buildAddManagerHotkeyCommand(manager({ hot_keys: [Principal.fromText("2vxsx-fae")] }), 20n, "2vxsx-fae"), /already/);
-  assert.throws(() => buildAddManagerHotkeyCommand(manager({ hot_keys: Array(10).fill(Principal.fromText("aaaaa-aa")) }), 20n, "2vxsx-fae"), /maximum/);
+  const other = "rrkah-fqaaa-aaaaa-aaaaq-cai";
+  assert.ok(buildAddManagerHotkeyCommand(manager(), 20n, other).Configure);
+  assert.throws(() => buildAddManagerHotkeyCommand(manager(), 20n, "2vxsx-fae"), /Anonymous/);
+  assert.throws(() => buildAddManagerHotkeyCommand(manager(), 20n, principal.toText()), /redundant/);
+  assert.throws(() => buildAddManagerHotkeyCommand(manager({ neuron_id: 20n }), 20n, other), /target Dendrite/);
+  assert.throws(() => buildAddManagerHotkeyCommand(manager({ hot_keys: [Principal.fromText(other)] }), 20n, other), /already/);
+  assert.throws(() => buildAddManagerHotkeyCommand(manager({ hot_keys: Array(10).fill(Principal.fromText("aaaaa-aa")) }), 20n, other), /maximum/);
   assert.deepEqual(buildRewardReceiverCommand(99n), { Follow: { topic: 1, followees: [{ id: 99n }] } });
+  const managers = [manager({ neuron_management_followees: [99n] }), manager({ neuron_id: 11n, neuron_management_followees: [100n] })];
+  assert.deepEqual((await verifyRewardReceivers(managers, { list_neurons: async () => ({ full_neurons: [{ id: [{ id: 99n }] }] }) })).map((entry) => entry.status), ["FoundAndReadable", "NotReturnedToCaller"]);
+  assert.deepEqual((await verifyRewardReceivers(managers, { list_neurons: async () => { throw new Error("unavailable"); } })).map((entry) => entry.status), ["UpstreamUnavailable", "UpstreamUnavailable"]);
 });
 
 test("advanced command bounds fail closed", () => {
@@ -263,8 +378,8 @@ test("advanced panel exposes explicit typed forms and unavailable reasons", asyn
     await click("Review ClaimOrRefresh");
     byName("merge-source").value = "99"; await click("Review Merge");
     await click("Review StakeMaturity");
-    byName("maturity-percent").value = "10"; selects[1].value = "legacy"; byName("maturity-bytes").value = "00".repeat(32); await click("Review DisburseMaturity");
-    selects[1].value = "icrc"; byName("maturity-owner").value = "aaaaa-aa"; byName("maturity-bytes").value = ""; await click("Review DisburseMaturity");
+    byName("maturity-percent").value = "10"; byName("maturity-destination").value = "legacy"; byName("maturity-bytes").value = "00".repeat(32); await click("Review DisburseMaturity");
+    byName("maturity-destination").value = "icrc"; byName("maturity-owner").value = "aaaaa-aa"; byName("maturity-bytes").value = ""; await click("Review DisburseMaturity");
     byName("set-topic").value = "4"; byName("set-followees").value = "10,11"; await click("Review SetFollowing");
     assert.equal(reviews.length, 14); assert.match(JSON.stringify(root), /Nested MakeProposal/); assert.equal(reviews.filter((value) => value.highRisk).length >= 8, true);
   } finally { globalThis.document = previous; }

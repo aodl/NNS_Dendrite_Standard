@@ -1,6 +1,7 @@
 import { Principal } from "@icp-sdk/core/principal";
 import { element } from "./dom.js";
-import { parseIcpToE8s, buildAdvancedCommand, buildStandardSetFollowingCommand } from "./transaction.js";
+import { parseIcpToE8s, buildAdvancedCommand, prepareStandardSetFollowing } from "./transaction.js";
+import { TOPIC_LABELS } from "./compliance-view.js";
 
 const field = (name, placeholder = "") => {
   const node = document.createElement("input");
@@ -12,6 +13,7 @@ const choice = (values) => {
   for (const [value, label] of values) { const item = document.createElement("option"); item.value = value; item.textContent = label; node.append(item); }
   return node;
 };
+const topicChoice = () => { const node = choice([...TOPIC_LABELS].map(([code, label]) => [String(code), `${code} — ${label}`])); node.name = "set-topic"; node.value = "1"; return node; };
 const button = (label, listener) => { const node = element("button", label); node.type = "button"; node.addEventListener("click", listener); return node; };
 const box = (title, warning) => { const node = document.createElement("fieldset"); node.append(element("legend", title), element("p", warning)); return node; };
 const optionalNat = (value) => value === "" ? undefined : BigInt(value);
@@ -29,20 +31,21 @@ export function renderAdvancedCommands(root, context) {
   const review = async (command, operation, highRisk = false) => context.showReview(await context.pipeline.reviewProposal({ targetId: context.report.neuron_id, managerId: context.managerId(), innerCommand: command, operation, highRisk }));
   const run = (action) => async () => { try { await action(); } catch (error) { context.fail(error); } };
 
-  const configure = box("Configure", "Adding a target hotkey or starting dissolution directly violates the Dendrite Standard. NNS is expected to reject making a known neuron private.");
+  const configure = box("Configure", "Adding/removing target hotkeys or changing dissolution can change compliance. Join/Leave Community Fund changes financial-governance participation. Auto-stake maturity changes whether rewards are automatically staked. NNS is expected to reject making a known neuron private.");
   const configureKind = choice([["IncreaseDissolveDelay","Increase dissolve delay"],["SetDissolveTimestamp","Set dissolve timestamp"],["StartDissolving","Start dissolving"],["StopDissolving","Stop dissolving"],["AddHotKey","Add target hotkey"],["RemoveHotKey","Remove target hotkey"],["JoinCommunityFund","Join community fund"],["LeaveCommunityFund","Leave community fund"],["ChangeAutoStakeMaturity","Change auto-stake maturity"],["SetVisibility","Set visibility"]]);
   const configureValue = field("configure-value", "Seconds, principal, true/false, or visibility code");
-  configure.append(configureKind, configureValue, button("Review Configure", run(async () => {
+  const visibilityChoice = choice([["1", "Private"], ["2", "Public"]]); visibilityChoice.name = "configure-visibility"; visibilityChoice.value = "2";
+  configure.append(configureKind, configureValue, visibilityChoice, button("Review Configure", run(async () => {
     const kind = configureKind.value; const value = configureValue.value; let fields = { configureKind: kind };
     switch (kind) {
       case "IncreaseDissolveDelay": fields.seconds = Number(value); break;
       case "SetDissolveTimestamp": fields.timestampSeconds = BigInt(value); break;
       case "AddHotKey": case "RemoveHotKey": fields.principal = Principal.fromText(value).toText(); break;
       case "ChangeAutoStakeMaturity": if (value !== "true" && value !== "false") throw new Error("Enter true or false."); fields.enabled = value === "true"; break;
-      case "SetVisibility": fields.visibility = Number(value); break;
+      case "SetVisibility": fields.visibility = Number(visibilityChoice.value); break;
       default: break;
     }
-    await review(buildAdvancedCommand("Configure", fields), `Configure: ${kind}`, ["StartDissolving","AddHotKey","SetVisibility"].includes(kind));
+    await review(buildAdvancedCommand("Configure", fields), `Configure: ${kind}`, ["SetDissolveTimestamp","StartDissolving","AddHotKey","RemoveHotKey","JoinCommunityFund","LeaveCommunityFund","SetVisibility"].includes(kind));
   })));
 
   const spawn = box("Spawn", "May create a new neuron and move maturity.");
@@ -65,7 +68,7 @@ export function renderAdvancedCommands(root, context) {
   stake.append(stakePercent, button("Review StakeMaturity", run(() => review(buildAdvancedCommand("StakeMaturity", { percentage: optionalPercent(stakePercent.value) }), "Stake target maturity"))));
 
   const maturity = box("Disburse maturity", "A destination is mandatory because proposal execution uses the blackholed target-controller context.");
-  const maturityPercent = field("maturity-percent", "Percentage 1–100"), destinationKind = choice([["icrc","ICRC account"],["legacy","Legacy account identifier"]]), owner = field("maturity-owner", "ICRC owner principal"), destinationBytes = field("maturity-bytes", "Optional subaccount or legacy identifier: 64 hex characters");
+  const maturityPercent = field("maturity-percent", "Percentage 1–100"), destinationKind = choice([["icrc","ICRC account"],["legacy","Legacy account identifier"]]), owner = field("maturity-owner", "ICRC owner principal"), destinationBytes = field("maturity-bytes", "Optional subaccount or legacy identifier: 64 hex characters"); destinationKind.name = "maturity-destination"; destinationKind.value = "icrc";
   maturity.append(maturityPercent, destinationKind, owner, destinationBytes, button("Review DisburseMaturity", run(() => {
     const fields = { percentage: Number(maturityPercent.value) };
     if (destinationKind.value === "legacy") fields.accountIdentifier = hex32(destinationBytes.value, "Account identifier");
@@ -75,17 +78,12 @@ export function renderAdvancedCommands(root, context) {
 
   const following = box("Set following", "Each explicit row replaces one recognised topic with zero to fifteen unique followees. Candidate restrictions are the same as the single-topic workflow.");
   const rows = document.createElement("div");
-  const addRow = () => { const row = document.createElement("div"), topic = field("set-topic", "Topic code"), followees = field("set-followees", "Comma-separated followee IDs; empty clears"); row.append(topic, followees); rows.append(row); };
+  const addRow = () => { const row = document.createElement("div"), topic = topicChoice(), followees = field("set-followees", "Complete replacement; empty clears where permitted"), fixed = element("span", ""); const update = () => { const code = Number(topic.value), arbitrary = code === 1 || context.report.committed_topics?.some((entry) => entry.topic === code); followees.disabled = !arbitrary; fixed.textContent = arbitrary ? "" : "Fixed alpha-vote 2947465672511369"; }; topic.addEventListener("change", update); update(); row.append(topic, followees, fixed); rows.append(row); };
   addRow();
   following.append(rows, button("Add topic row", addRow), button("Review SetFollowing", run(async () => {
+    if (Array.from(rows.children).some((row) => row.children[0].value === "")) throw new Error("Select an explicit recognised topic for every row.");
     const values = rows.children.map ? rows.children.map((row) => ({ topic: Number(row.children[0].value), followeeIds: csvIds(row.children[1].value) })) : Array.from(rows.children, (row) => ({ topic: Number(row.children[0].value), followeeIds: csvIds(row.children[1].value) }));
-    const managerIds = values.filter((row) => row.topic === 1).flatMap((row) => row.followeeIds).map(BigInt);
-    let knownCandidates = [];
-    if (managerIds.length) {
-      const response = await context.nnsActor.list_neurons({ neuron_ids: managerIds, include_neurons_readable_by_caller: false, include_empty_neurons_readable_by_caller: [], include_public_neurons_in_full_neurons: [true], page_number: [], page_size: [], neuron_subaccounts: [] });
-      knownCandidates = response.full_neurons.map((neuron) => ({ id: neuron.id?.[0]?.id, known: Boolean(neuron.known_neuron_data?.length) }));
-    }
-    return review(buildStandardSetFollowingCommand(context.report, values, knownCandidates), "Replace multiple topic followee lists", true);
+    return context.showReview(await context.pipeline.reviewProposal({ targetId: context.report.neuron_id, managerId: context.managerId(), prepare: prepareStandardSetFollowing(values), operation: "Replace multiple topic followee lists", highRisk: true }));
   })));
 
   const unavailable = box("Recognised but unavailable", "Nested MakeProposal is rejected through a Neuron Management proposal; MergeMaturity was removed upstream; Disburse and DisburseToNeuron are rejected for a compliant not-for-profit=false target.");
