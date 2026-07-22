@@ -6,6 +6,7 @@ import { checkLive } from "./live-check.js";
 import { createBrowserAuthSession } from "./auth.js";
 import { renderManagerAuthority } from "./authority.js";
 import { createAuthenticatedNnsActor } from "./nns-actor.js";
+import { renderControlPanel } from "./control-panel.js";
 
 function resources() {
   const node = document.createElement("p");
@@ -56,6 +57,7 @@ export function createApplication({
   }
   let actorPromise;
   let authenticatedPrincipal;
+  let authenticatedSession;
   let authenticatedNnsActor;
   const permanentAuthenticationError = browserAuth.originError
     ? boundedAuthenticationError(browserAuth.originError, "Internet Identity origin configuration is invalid.")
@@ -72,6 +74,7 @@ export function createApplication({
       ? await nnsActorFactory(session.signingIdentity)
       : undefined;
     authenticatedPrincipal = principal;
+    authenticatedSession = session?.signingIdentity ? session : undefined;
     authenticatedNnsActor = nextActor;
   }
   const actor = () => {
@@ -133,6 +136,7 @@ export function createApplication({
       try {
         await browserAuth.signOut();
         authenticatedPrincipal = undefined;
+        authenticatedSession = undefined;
         recoverableAuthenticationError = undefined;
       } catch (error) {
         recoverableAuthenticationError = boundedAuthenticationError(
@@ -150,6 +154,13 @@ export function createApplication({
     root.append(authenticationPanel());
     if (authenticatedPrincipal && currentReport) {
       renderManagerAuthority(root, currentReport, authenticatedPrincipal);
+      if (authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
+        report: currentReport,
+        session: authenticatedSession,
+        nnsActor: authenticatedNnsActor,
+        checkNeuron: async (targetId) => checkLive(await actor(), targetId.toString()),
+        onSuccess: async () => loadNeuron(id),
+      });
     }
     const again = element("button", "Check again");
     again.addEventListener("click", () => loadNeuron(id));

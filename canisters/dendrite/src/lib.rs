@@ -171,10 +171,12 @@ fn normalize_neuron(
         Some(DissolveState::WhenDissolvedTimestampSeconds(_)) => (None, Some(true)),
         None => (None, None),
     };
-    let effective_stake_e8s = neuron
+    let minted_stake_e8s = neuron
         .cached_neuron_stake_e8s
         .checked_sub(neuron.neuron_fees_e8s)
-        .and_then(|v| v.checked_add(neuron.staked_maturity_e8s_equivalent.unwrap_or(0)))
+        .ok_or("neuron stake arithmetic is contradictory")?;
+    let effective_stake_e8s = minted_stake_e8s
+        .checked_add(neuron.staked_maturity_e8s_equivalent.unwrap_or(0))
         .ok_or("neuron stake arithmetic is contradictory")?;
     Ok((
         NeuronEvidence {
@@ -186,6 +188,7 @@ fn normalize_neuron(
             dissolve_delay_seconds,
             dissolving,
             effective_stake_e8s: Some(effective_stake_e8s),
+            minted_stake_e8s: Some(minted_stake_e8s),
             voting_power_refreshed_timestamp_seconds: neuron
                 .voting_power_refreshed_timestamp_seconds,
             potential_voting_power: neuron.potential_voting_power,

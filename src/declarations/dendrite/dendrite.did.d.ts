@@ -16,6 +16,9 @@ export interface ComplianceReport {
   'non_committed_topics' : Array<NonCommittedTopicCheck>,
   'standard_version' : string,
   'neuron_id' : bigint,
+  'minted_stake_e8s' : [] | [bigint],
+  'neuron_management_followees' : BigUint64Array | bigint[],
+  'omega_ready_topics' : Int32Array | number[],
 }
 export type ComplianceStatus = { 'Indeterminate' : null } |
   { 'NonCompliant' : null } |

@@ -584,6 +584,21 @@ fn finish(
                 known_neuron: found.and_then(|neuron| neuron.known_data.clone()),
                 controller: found.and_then(|neuron| neuron.controller),
                 hot_keys: found.map_or_else(Vec::new, |neuron| neuron.hot_keys.clone()),
+                minted_stake_e8s: found.and_then(|neuron| neuron.minted_stake_e8s),
+                neuron_management_followees: found
+                    .and_then(|neuron| neuron.followees.get(&1))
+                    .cloned()
+                    .unwrap_or_default(),
+                omega_ready_topics: found.map_or_else(Vec::new, |neuron| {
+                    RECOGNISED_TOPICS
+                        .into_iter()
+                        .filter(|topic| {
+                            neuron.followees.get(topic).is_some_and(|followees| {
+                                followees.as_slice() == [OMEGA_REJECT_NEURON_ID]
+                            })
+                        })
+                        .collect()
+                }),
             }
         })
         .collect();
@@ -666,6 +681,7 @@ mod tests {
             dissolve_delay_seconds: Some(MAX_DISSOLVE_DELAY_SECONDS),
             dissolving: Some(false),
             effective_stake_e8s: Some(100_000_000),
+            minted_stake_e8s: Some(100_000_000),
             voting_power_refreshed_timestamp_seconds: Some(999_999),
             potential_voting_power: Some(10),
             deciding_voting_power: Some(10),
@@ -697,6 +713,7 @@ mod tests {
                     dissolve_delay_seconds: Some(MAX_DISSOLVE_DELAY_SECONDS),
                     dissolving: Some(false),
                     effective_stake_e8s: Some(1),
+                    minted_stake_e8s: Some(1),
                     voting_power_refreshed_timestamp_seconds: Some(999_999),
                     potential_voting_power: Some(1),
                     deciding_voting_power: Some(1),
@@ -823,6 +840,9 @@ mod tests {
         );
         assert_eq!(report.managers[0].controller, Some(authority));
         assert_eq!(report.managers[0].hot_keys, vec![authority]);
+        assert_eq!(report.managers[0].minted_stake_e8s, Some(1));
+        assert!(report.managers[0].neuron_management_followees.is_empty());
+        assert_eq!(report.managers[0].omega_ready_topics, vec![4]);
         assert_eq!(
             report.managers[1].evidence_status,
             ManagerEvidenceStatus::Found

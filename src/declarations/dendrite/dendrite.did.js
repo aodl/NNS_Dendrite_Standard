@@ -22,6 +22,9 @@ export const idlFactory = ({ IDL }) => {
     'hot_keys' : IDL.Vec(IDL.Principal),
     'known_neuron' : IDL.Opt(KnownNeuron),
     'neuron_id' : IDL.Nat64,
+    'minted_stake_e8s' : IDL.Opt(IDL.Nat64),
+    'neuron_management_followees' : IDL.Vec(IDL.Nat64),
+    'omega_ready_topics' : IDL.Vec(IDL.Int32),
   });
   const TopicSummary = IDL.Record({
     'topic' : IDL.Int32,

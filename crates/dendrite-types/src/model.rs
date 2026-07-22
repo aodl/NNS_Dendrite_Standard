@@ -66,6 +66,7 @@ pub struct NeuronEvidence {
     pub dissolve_delay_seconds: Option<u64>,
     pub dissolving: Option<bool>,
     pub effective_stake_e8s: Option<u64>,
+    pub minted_stake_e8s: Option<u64>,
     pub voting_power_refreshed_timestamp_seconds: Option<u64>,
     pub potential_voting_power: Option<u64>,
     pub deciding_voting_power: Option<u64>,
@@ -142,6 +143,9 @@ pub struct ManagerSummary {
     pub known_neuron: Option<KnownNeuron>,
     pub controller: Option<Principal>,
     pub hot_keys: Vec<Principal>,
+    pub minted_stake_e8s: Option<u64>,
+    pub neuron_management_followees: Vec<u64>,
+    pub omega_ready_topics: Vec<i32>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, CandidType, Deserialize, Serialize)]

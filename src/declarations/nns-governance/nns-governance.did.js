@@ -77,6 +77,12 @@ export const idlFactory = ({ IDL }) => {
     page_number: IDL.Opt(IDL.Nat64), page_size: IDL.Opt(IDL.Nat64),
     neuron_subaccounts: IDL.Opt(IDL.Vec(IDL.Record({ subaccount: IDL.Vec(IDL.Nat8) }))),
   });
+  const KnownNeuronData = IDL.Record({ name: IDL.Text, description: IDL.Opt(IDL.Text), links: IDL.Opt(IDL.Vec(IDL.Text)), committed_topics: IDL.Reserved });
+  const FullNeuron = IDL.Record({
+    id: IDL.Opt(NeuronId), controller: IDL.Opt(IDL.Principal), hot_keys: IDL.Vec(IDL.Principal),
+    cached_neuron_stake_e8s: IDL.Nat64, neuron_fees_e8s: IDL.Nat64,
+    known_neuron_data: IDL.Opt(KnownNeuronData), followees: IDL.Reserved,
+  });
   const responseCommand = IDL.Variant({
     Error: GovernanceError, Spawn: IDL.Reserved, Split: IDL.Reserved, Follow: empty(),
     ClaimOrRefresh: IDL.Reserved, Configure: empty(), RegisterVote: empty(), Merge: IDL.Reserved,
@@ -90,7 +96,7 @@ export const idlFactory = ({ IDL }) => {
     include_status: IDL.Vec(IDL.Int32), return_self_describing_action: IDL.Opt(IDL.Bool),
   });
   return IDL.Service({
-    list_neurons: IDL.Func([ListNeurons], [IDL.Reserved], []),
+    list_neurons: IDL.Func([ListNeurons], [IDL.Record({ full_neurons: IDL.Vec(FullNeuron), neuron_infos: IDL.Reserved, total_pages_available: IDL.Opt(IDL.Nat64) })], []),
     get_network_economics_parameters: IDL.Func([], [IDL.Record({ neuron_management_fee_per_proposal_e8s: IDL.Nat64 })], []),
     get_proposal_info: IDL.Func([IDL.Nat64], [IDL.Opt(ProposalInfo)], []),
     list_proposals: IDL.Func([ListProposalInfoRequest], [IDL.Record({ proposal_info: IDL.Vec(ProposalInfo) })], []),

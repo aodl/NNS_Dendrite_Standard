@@ -12,11 +12,11 @@ to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source rem
   drift fixture; create one fixed-destination authenticated actor whose certified reads
   are represented as updates; request, inspect, restore, and reject delegation chains
   fail-closed; prove the anonymous Dendrite actor and public Candid remain unchanged.
-- [ ] Phase B: add one deeply immutable review/confirmation/submission pipeline for
+- [x] Phase B: add one deeply immutable review/confirmation/submission pipeline for
   outer Neuron Management proposals and direct manager operations, with fresh authority,
   manager, fee, and request revalidation; strict response decoding; one in-flight call;
   no retry, persistence, hidden mutation, or unsupported simulation claim.
-- [ ] Phase C: prominently expose validated single-topic `Follow`,
+- [x] Phase C: prominently expose validated single-topic `Follow`,
   `RefreshVotingPower`, and target `RegisterVote` proposal workflows, preserving raw ID
   order and the standard's manager, omega-reject, alpha-vote, and topic restrictions.
 - [ ] Phase D: fetch a bounded live set of open restricted proposals, filter exact
