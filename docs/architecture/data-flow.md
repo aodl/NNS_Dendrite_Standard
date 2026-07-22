@@ -23,5 +23,10 @@ or proposal record from a caller. No catalogue, economics, mutation, cache, time
 history, or background call exists.
 The local canister clock appears only in step 1's operational guard and is never used as
 the NNS evidence timestamp.
-No authenticated NNS actor or transaction exists. Hotkey help is instruction-only and
-must be confirmed through another anonymous live check after any external change.
+The authenticated NNS actor exists only in the browser. Controller-authorized changes
+use the reviewed direct-operation branch and are confirmed by a new live check.
+
+Browser management requests only Governance as a delegation target. It performs fresh
+anonymous and replicated-NNS preflight, freezes the exact reviewed request, requires
+confirmation, revalidates security-sensitive values, submits once, strictly decodes the
+response, and refreshes the anonymous report. Review and proposal values stay in memory.

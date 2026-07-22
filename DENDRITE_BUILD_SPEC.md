@@ -1,6 +1,6 @@
 # Dendrite build specification
 
-**Status:** normative browser-only identity and read-only manager-recognition tranche
+**Status:** normative browser-to-NNS management tranche
 
 **Standard identifier:** `nns-dendrite/1.0-draft`
 
@@ -20,12 +20,11 @@ Dendrite does exactly seven things:
 7. compares that browser principal locally with manager authority evidence in the live
    report.
 
-Proposal construction, simulation, submission, voting, rewards assistance,
-open-proposal views, universal command forms, and every NNS mutation are excluded.
-Internet Identity exists only in the browser. Dendrite must never receive or reconstruct
-a user delegation or principal. The next tranche may add one audited direct
-browser-to-NNS transaction pipeline. Proposal history, timers, indexers, analytics, and
-background work remain out of scope.
+Typed proposal construction, review, submission, manager voting, and readiness
+assistance run only in the browser through one fixed NNS Governance actor. Internet
+Identity is targeted exactly to Governance; Dendrite never receives or reconstructs a
+delegation or authenticated principal. Proposal history, reward calculation or
+distribution, timers, indexers, analytics, and background work remain out of scope.
 
 ## 2. Fixed standard constants
 
@@ -312,9 +311,9 @@ requests identity attributes and never sends identity material to Dendrite. Cano
 pages authenticate normally; approved alternatives supply the canonical derivation
 origin; unexpected origins cannot sign in. The exact principal is displayed and
 copyable. Local comparison against every raw manager entry reports controller, hotkey,
-both, no authority, unavailable evidence, or missing manager. Hotkey onboarding is
-instruction-only, controller-only, and confirmed only by a later live report. No
-authenticated NNS actor exists.
+both, no authority, unavailable evidence, or missing manager. Controller-only onboarding
+uses the single reviewed direct-operation pipeline and is confirmed by a later live
+report. The authenticated NNS actor exists only in the browser and targets Governance.
 
 The selected SDK wrapper exposes no PIN-policy option, so Dendrite makes no separate
 PIN-authentication claim. Restoration completes before the initial route is rendered.
@@ -377,8 +376,7 @@ successfully. Do not lower coverage or security thresholds.
 Update the existing README, standard, architecture, threat model, testing,
 reproducible-build, deployment, upgrade, and operator documents; do not add documents.
 They must state that every check is a live update, no result/history/timer exists, no
-delegation reaches the canister, browser authority recognition is read-only, and all
-governance mutation remains deferred.
+delegation reaches the canister, and privileged calls go browser-to-NNS Governance.
 
 Completion requires one canister, one live verification update method, no cache/stable
 application state/digest/catalogue/economics call, batches of at most 50, correct
@@ -389,8 +387,8 @@ byte-identical clean builds.
 The final report records commits; line/file deltas; Candid API; exact outbound methods,
 destinations, and source revision; command results and coverage; PocketIC and dependency
 reachability; scan exceptions; Wasm/frontend/SBOM/reproducible hashes; byte identity;
-limitations; and explicit deferral of the direct browser-to-NNS transaction pipeline.
+limitations; operator gates; and the exact browser-to-NNS capability policy.
 
-The anonymous-verifier tranche remains complete. This tranche is complete once these
-requirements pass, but the product as a whole remains incomplete against the original
-brief: the next tranche is one audited direct browser-to-NNS transaction pipeline.
+The anonymous-verifier tranche remains complete. The browser management tranche is
+complete only after all automated and reproducibility gates pass; popup and controlled
+transaction smoke tests remain explicit operator gates unless actually recorded.

@@ -43,3 +43,8 @@ test hook.
 Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine
 retains its 95% line/branch target. Coverage exclusions must be justified; modules are
 not split merely to alter percentages.
+
+Transaction tests cover exact delegation targets, legacy-session rejection, the fixed
+Governance actor, recursive proposal nesting, immutable request identity, fee/stake and
+authority changes, confirmation, response tags, every pinned command capability,
+primary workflows, manager voting, hotkey/reward readiness, nat64, and exact e8s.

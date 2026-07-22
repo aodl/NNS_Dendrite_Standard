@@ -35,8 +35,15 @@ before hotkey onboarding, and every alternative must remain operator-controlled.
 Unexpected origins cannot authenticate. Delegations, public keys, identities, and
 principals are never sent to Dendrite, and unavailable manager evidence never confers
 authority. The popup uses certified `same-origin-allow-popups`; no remote script or
-style is loaded. No NNS mutation or authenticated NNS actor exists in this tranche.
+style is loaded. The authenticated NNS actor remains private to the browser and has a
+fixed Governance destination.
 Session, popup, and browser-storage failures are bounded and retryable without treating
 them as permanent origin approval. A failed sign-out retains the displayed principal;
 only successful SDK sign-out clears it. Identity restoration precedes initial routing,
 preventing a signed-out report render from racing a restored session.
+
+The authenticated actor has one compile-time destination and typed methods only. Every
+mutation requires a current Governance-only delegation, fresh manager authority and
+target evidence, immutable review, explicit confirmation, strict response tags, and no
+automatic retry. The signing identity is never rendered, logged, serialized by
+Dendrite, or sent to the Dendrite canister. NNS errors are bounded text.

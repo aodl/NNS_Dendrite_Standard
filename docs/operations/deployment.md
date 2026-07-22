@@ -35,9 +35,9 @@ alternative origins, and CSP gateway origins. Changing the canonical origin chan
 users' Dendrite principals; finalize it before any external hotkey onboarding. There is
 no mutable deployment configuration or stable application state to migrate.
 
-The anonymous verifier remains complete. Browser identity and manager recognition are
-read-only; no NNS mutation exists, and the product is not complete against the original
-brief.
+The anonymous verifier remains complete. Browser mutations go directly to fixed NNS
+Governance; no authenticated identity reaches Dendrite. Mainnet mutation is not part of
+this deployment procedure.
 
 ## Manual local Internet Identity popup smoke test
 
@@ -55,3 +55,10 @@ this procedure as automated popup E2E.
 This is an outstanding operator release gate until it is run against the finalized
 canonical origin (or an explicitly labelled local test origin). No manager should add a
 Dendrite principal as a hotkey before the gate passes on the final canonical origin.
+
+## Manual controlled transaction smoke test
+
+Using a controlled test neuron or local fixed-principal fixture, verify manager
+recognition, review with no pre-confirmation mutation, fee display, proposal ID return,
+a manager Yes vote, and a fresh post-operation report. This is an outstanding operator
+gate unless its environment and result are recorded; it authorizes no mainnet mutation.

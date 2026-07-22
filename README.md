@@ -2,12 +2,12 @@
 
 Dendrite is a single-canister, anonymous verifier for the NNS Dendrite Standard. Every check is a live consensus-backed update call. The canister reads bounded public evidence from NNS Governance and the IC management canister, evaluates deterministic rules, returns the complete report directly, stores no application data, and serves its certified vanilla-JavaScript frontend from the same Rust Wasm.
 
-The anonymous verifier remains complete. The browser-only identity and read-only
-manager-recognition tranche adds Internet Identity login without authenticating to
-Dendrite: the delegation and exact principal remain in the browser, and authority is
-compared locally against each current live manager record. No NNS mutation exists. The
-product as a whole is not complete against the original brief; the next tranche is one
-audited direct browser-to-NNS transaction pipeline.
+The anonymous verifier remains complete. Internet Identity delegations are restricted
+exactly to NNS Governance and stay in the browser. One fixed Governance actor performs
+live replicated reads and explicitly confirmed mutations through one immutable review
+pipeline; the Dendrite actor remains anonymous. The pinned NNS cannot simulate these
+proposal commands, so Dendrite performs fresh local preflight and exact review and
+leaves final validation to Governance. No proposal or transaction history is stored.
 
 The fixed identities are alpha-vote `2947465672511369` and omega-reject `18422777432977120264`. Omega-reject is not omega-vote. A compliant target has no hotkeys and has `not_for_profit = false`.
 
@@ -39,7 +39,8 @@ See [architecture](docs/architecture/overview.md), [testing](docs/development/te
 
 The canonical derivation origin is security-critical: changing it changes every user's
 Dendrite principal, so it must be finalized before external hotkey onboarding. Every
-alternative origin must be operator-controlled. Onboarding is instruction-only and can
-be confirmed only by another live report. Proposal operations, voting, following
-changes, rewards, authenticated NNS actors, and every NNS mutation remain deferred.
-Dendrite never receives a user delegation.
+alternative origin must be operator-controlled. A manager proposer automatically votes
+Yes, every distinct target manager has one vote, and the live management proposal fee
+is charged and not refunded. Open proposals are fetched live and never retained.
+Reward calculation/distribution and proposal history remain out of scope. Dendrite
+never receives a user delegation.

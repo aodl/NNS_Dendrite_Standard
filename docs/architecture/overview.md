@@ -24,9 +24,16 @@ authenticated control panel. Future privileged operations are browser-to-NNS.
 The anonymous-verifier architecture remains complete. Internet Identity now runs only
 in the browser: its delegation never crosses the canister boundary, and the frontend
 compares the exact principal locally with controller and hotkey evidence in the current
-live report. This recognition is read-only. No authenticated NNS actor or mutation
-exists; one audited direct browser-to-NNS transaction pipeline is the next tranche, so
-the broader product remains incomplete against the original brief.
+live report. Privileged operations use one audited browser-to-NNS transaction pipeline;
+the canister remains anonymous and unchanged.
 
 The interface baseline is `dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`;
 see `docs/standard/SOURCE_BASELINE.md`.
+
+## Browser-to-NNS management
+
+The browser holds an inspectable unexpired delegation targeted only to NNS Governance
+and creates one fixed actor. Mutations freeze one reviewed request, require explicit
+confirmation and fresh authority/fee/target checks, submit once without retry, strictly
+decode the response tag, and refresh the anonymous report. No authenticated call crosses
+the Dendrite boundary and no proposal or transaction history is retained.

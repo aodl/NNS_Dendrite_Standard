@@ -15,3 +15,6 @@
   directly to Governance; no such call exists now.
 - Reproducible hashes and HTTP certification connect reviewed source, Wasm, and assets
   without a hosted backend or dynamic compliance-proof tree.
+- Privileged calls use one browser path signed by a Governance-only delegation and sent
+  directly to the compile-time Governance principal. Fresh anonymous evidence and
+  replicated NNS reads guard the exact immutable reviewed request.

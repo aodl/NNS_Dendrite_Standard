@@ -20,3 +20,8 @@ Confirmed defects are `NON_COMPLIANT`; unavailable evidence is `INDETERMINATE`; 
 snapshot as `checked_at_timestamp_seconds`. A refresh after the snapshot is a
 contradictory response and therefore indeterminate, not a factual neuron failure.
 Dendrite local time is used only by the heap-only abuse guard.
+
+Browser management does not change these rules or the canister API. Manager minted
+stake excludes fees and staked maturity, raw Neuron Management followees preserve order,
+and `omega_ready_topics` identifies exact singleton omega-reject following. These added
+report fields support browser preflight; a new live `check_neuron` remains authoritative.

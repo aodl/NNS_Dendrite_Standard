@@ -12,3 +12,7 @@ controlled by the same operator. Unexpected origins cannot authenticate. Product
 Internet Identity is fixed to `https://id.ai/authorize`; exact `localhost`,
 `127.0.0.1`, and `.localhost` providers are accepted only in local mode. None is mutable
 canister configuration.
+
+The transaction delegation target is exactly NNS Governance
+`rrkah-fqaaa-aaaaa-aaaaq-cai`. Unrestricted, expired, uninspectable, or wrong-target
+sessions are signed out. Dendrite is never a delegation target.
