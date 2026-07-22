@@ -340,7 +340,10 @@ fn get_proposal_info(id: u64) -> Option<ProposalInfo> {
     (777..=782).contains(&id).then(|| proposal_with_target(id))
 }
 
-#[ic_cdk::query]
+// Production deliberately invokes this replicated read as an update so its
+// caller-sensitive restricted-proposal filtering is consensus backed. Keeping
+// the fixture method replicated also makes its request recording durable.
+#[ic_cdk::update]
 fn list_proposals(request: ListProposalInfoRequest) -> ListProposalInfoResponse {
     LIST_PROPOSAL_REQUESTS.with(|requests| requests.borrow_mut().push(request.clone()));
     let include_open = request.include_status.is_empty() || request.include_status.contains(&1);

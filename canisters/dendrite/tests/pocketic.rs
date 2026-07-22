@@ -385,7 +385,7 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
         include_status: vec![1],
         return_self_describing_action: Some(false),
     };
-    pic.query_call(
+    pic.update_call(
         governance,
         Principal::anonymous(),
         "list_proposals",
