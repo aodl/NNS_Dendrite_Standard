@@ -1,5 +1,48 @@
 # Aggressive simplification implementation plan
 
+## Browser-to-NNS management tranche
+
+Starting boundary: `ce4687da946e0e70b22c30aadcf75a17f9ea0d8f`. Preserve the
+anonymous, stateless, two-method Dendrite canister and add privileged behaviour only in
+the browser, signed by an inspectable Internet Identity delegation restricted exactly
+to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source remains
+`dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
+
+- [ ] Phase A: add the minimal reviewed Governance transaction Candid/IDL and semantic
+  drift fixture; create one fixed-destination authenticated actor whose certified reads
+  are represented as updates; request, inspect, restore, and reject delegation chains
+  fail-closed; prove the anonymous Dendrite actor and public Candid remain unchanged.
+- [ ] Phase B: add one deeply immutable review/confirmation/submission pipeline for
+  outer Neuron Management proposals and direct manager operations, with fresh authority,
+  manager, fee, and request revalidation; strict response decoding; one in-flight call;
+  no retry, persistence, hidden mutation, or unsupported simulation claim.
+- [ ] Phase C: prominently expose validated single-topic `Follow`,
+  `RefreshVotingPower`, and target `RegisterVote` proposal workflows, preserving raw ID
+  order and the standard's manager, omega-reject, alpha-vote, and topic restrictions.
+- [ ] Phase D: fetch a bounded live set of open restricted proposals, filter exact
+  stored `ManageNeuron` actions for the viewed target, and submit direct manager Yes/No
+  votes through the same pipeline with proposal-ID lookup fallback and no history.
+- [ ] Phase E: make hotkey assistance controller-honest and add controller-only direct
+  hotkey setup for a different Dendrite principal; classify raw manager reward-receiver
+  readiness and support one warned controller-only singleton receiver `Follow` setup.
+- [ ] Phase F: give every pinned current `ManageNeuronCommandRequest` variant an
+  explicit reviewed capability policy; implement typed bounded forms for enabled
+  commands and explicit reasons for nested `MakeProposal`, removed `MergeMaturity`, and
+  target-incompatible `Disburse`/`DisburseToNeuron`; fail drift and unknown variants
+  closed without schema-generated runtime forms.
+- [ ] Phase G: extend Rust, fake-DOM, fake-actor, interface, and PocketIC coverage;
+  update existing architecture/security/operations/standard documents; record Candid,
+  declaration, capability, Wasm, frontend, manifest, configuration, and SBOM evidence;
+  run every required gate and prove two clean builds byte-identical.
+
+Each phase is a hard gate: its focused tests must pass before production work begins on
+the next phase. `simulate_manage_neuron` is excluded because the pinned implementation
+does not support these outer proposal commands. The sole mutation sequence is fresh
+preflight, exact construction, human review, explicit confirmation, fresh revalidation,
+submission of the exact reviewed object, strict decoding, and a live anonymous recheck.
+The popup and controlled transaction smoke procedures remain explicit operator gates
+unless an operator actually runs them; no mainnet mutation is performed here.
+
 The anonymous-verifier tranche is complete after the NNS snapshot-clock correction and
 its final verification. This does not complete the original product brief; Internet
 Identity and authenticated governance functionality remain the next tranche.
