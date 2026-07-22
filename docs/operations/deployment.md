@@ -62,3 +62,7 @@ Using a controlled test neuron or local fixed-principal fixture, verify manager
 recognition, review with no pre-confirmation mutation, fee display, proposal ID return,
 a manager Yes vote, and a fresh post-operation report. This is an outstanding operator
 gate unless its environment and result are recorded; it authorizes no mainnet mutation.
+Also verify that open management-proposal enumeration retains Governance caller
+visibility, the selected manager has a visible Unspecified ballot, final-preflight drift
+discards the review, and an intentionally ambiguous transport result cannot submit the
+same review twice.

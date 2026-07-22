@@ -453,3 +453,47 @@ The real Internet Identity popup/restoration/origin/targeted-delegation/live-man
 gate and the controlled transaction smoke procedure were not run in this noninteractive
 environment. They remain explicit operator deployment gates in `deployment.md`. No
 mainnet mutation, proposal, manager vote, or deployment is claimed.
+
+## Transaction release-candidate hardening evidence — 2026-07-22
+
+Starting from `e5276fef980bd4ef9594855e65fde42bc8fb1d1e`, this pass retained
+the two-method anonymous canister and existing command policy while correcting
+caller-sensitive proposal visibility, NNS-state voting gates, visible ballots,
+legacy/modern stored targets, fresh preparation, controller-only final authority,
+non-repeatable ambiguous outcomes, exact request-byte integrity, following forms,
+receiver readiness, and transaction-IDL derivation.
+
+`npm ci`, `npm test`, `npm run test:coverage`, production asset byte identity, `cargo
+fmt --all -- --check`, warnings-denied workspace/all-target/all-feature Clippy, `cargo
+xtask check`, configured `cargo xtask test`, `cargo xtask coverage`, all three PocketIC
+scenarios, semantic anonymous and transaction interface drift, generated transaction-IDL
+equality, production dependency reachability, `cargo xtask security-scan`, `cargo xtask
+sbom`, configured `cargo xtask build`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible` exited successfully. Frontend coverage was
+99.04% lines, 85.32% branches, and 92.31% functions; workspace Rust line coverage was
+90.68%. The two clean builds were byte-identical.
+
+Release-interface and capability hashes:
+
+- Governance transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated Governance declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command capability policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response capability policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Fixed Governance principal and sole delegation target: `rrkah-fqaaa-aaaaa-aaaaq-cai`.
+
+Production reproducibility-fixture hashes:
+
+- Wasm, both clean builds: `987528203f88ee7eedfb3f0391dc959607e408861c147013b133a565d468e9e9`.
+- Frontend tree, both clean builds: `65b8ec5ed7421b58ad615bfee5f3b8819a15425d7f39cf7622bed7692c687d09`.
+- Asset manifest: `c29a9bad50050f7968e6911c0d5e67c7a7da1c512ef04044165743ea3f876dfc`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite Rust SBOM: `9f605655fb907fc6174ca6729bc874b7bc1fabb5daec1ff5590379ae7f9f25ce`.
+- Governance fixture Rust SBOM: `43a183527f7bac126278c3fd998882582c218b2d1feaf7bfd9e53dca8f427aff`.
+- Types Rust SBOM: `f8a104aab632c85034a0052c1a896d569ca3d415c4dfb3dd58d04fd83a246bff`.
+- IC clients Rust SBOM: `233e2118b348dba525ad7d8db6957bff7dadb5310cf4a2d9dade2cbf45f2972e`.
+- npm SBOM: `f0fcad7e468c5480d01269d88fee44c10f140bc51a1d483a9284c83c1680ab4b`.
+- xtask Rust SBOM: `dec97cb4f0a81ccd4a8a4c01a060fd7bc1780c26ad6d659e71b72c489a649b9b`.
+
+The real Internet Identity canonical/alternative-origin popup gate and controlled
+transaction smoke gate were not run. They remain mandatory operator gates. No mainnet
+mutation, deployment, proposal, or manager vote is claimed.

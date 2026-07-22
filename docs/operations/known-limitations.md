@@ -17,3 +17,9 @@ The pinned NNS simulates only direct Merge, not the outer Neuron Management prop
 commands used here. Dendrite performs local preflight and exact review, not NNS
 simulation. Governance remains the final validator. Reward calculation/distribution,
 automatic polling, and automatic transaction retry remain absent.
+
+Open management-proposal enumeration is bounded, live, and caller-sensitive in
+Governance; Dendrite neither requests unrestricted enumeration nor reconstructs its
+visibility rules. NNS deadlines are informational in the browser. A configured reward
+receiver ID is likewise only configuration until the bounded authenticated readiness
+read can return it to that caller.

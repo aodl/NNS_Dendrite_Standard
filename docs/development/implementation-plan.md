@@ -29,7 +29,7 @@ payload, form, and interface-maintenance defects.
 - [x] Derive the production transaction IDL deterministically from the reviewed Candid
   with one explicit replicated-read annotation transformation and byte-equality drift
   gate.
-- [ ] Extend focused frontend and PocketIC coverage, regenerate certified assets,
+- [x] Extend focused frontend and PocketIC coverage, regenerate certified assets,
   update existing security/testing/deployment/evidence documentation, run every release
   gate, and prove two clean builds byte-identical.
 
