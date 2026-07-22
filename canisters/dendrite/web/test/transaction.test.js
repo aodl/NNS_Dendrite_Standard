@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
 import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
-import { renderControlPanel } from "../src/control-panel.js";
+import { directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
 import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
 const principal = Principal.fromText("aaaaa-aa");
@@ -144,11 +144,18 @@ test("control panel renders primary workflows and performs no mutation before ex
   try {
     const root = new FakeNode("main"), current = report({ checked_at_timestamp_seconds: 50n, target: [{ voting_power_refreshed_timestamp_seconds: [40n] }], committed_topics: [] });
     let mutations = 0, refreshed = 0;
-    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { mutations++; return { command: [{ MakeProposal: { proposal_id: [{ id: 8n }], message: [] } }] }; } };
+    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }), manage_neuron: async () => { mutations++; return { command: [{ MakeProposal: { proposal_id: [{ id: 8n }], message: [] } }] }; } };
     const cleanup = renderControlPanel(root, { report: current, session: targetedSession(), nnsActor: actor, checkNeuron: async () => current, onSuccess: async () => { refreshed++; } });
     const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root); selects[0].value = "10";
     await find(root, (node) => node.textContent === "Review voting-power refresh").dispatch("click");
     assert.equal(mutations, 0); assert.match(JSON.stringify(root), /No NNS simulation was performed/);
+    find(root, (node) => node.name === "topic").value = "1";
+    find(root, (node) => node.name === "followees").value = "1,2,3,4,5";
+    await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
+    assert.match(JSON.stringify(root), /Known 1/);
+    find(root, (node) => node.name === "receiver").value = "99";
+    await find(root, (node) => node.textContent === "Review controller-only reward receiver setup").dispatch("click");
+    assert.ok(find(root, (node) => node.name === "target-confirmation"));
     cleanup();
     const staleCheckbox = find(root, (node) => node.name === "confirmation"); staleCheckbox.checked = true;
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
@@ -157,6 +164,15 @@ test("control panel renders primary workflows and performs no mutation before ex
     const checkbox = find(root, (node) => node.name === "confirmation"); checkbox.checked = true;
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
     assert.equal(mutations, 1); assert.equal(refreshed, 1); assert.match(JSON.stringify(root), /Proposal 8 submitted/);
+  } finally { globalThis.document = previous; }
+});
+
+test("control panel disables transactions when no Found manager grants authority", () => {
+  const previous = globalThis.document; globalThis.document = { createElement: (tag) => new FakeNode(tag), createTextNode: (text) => ({ textContent: text }) };
+  try {
+    const root = new FakeNode("main");
+    assert.equal(renderControlPanel(root, { report: report({ managers: [] }), session: targetedSession(), nnsActor: {}, checkNeuron: async () => report(), onSuccess: async () => {} }), undefined);
+    assert.match(JSON.stringify(root), /no authority over a Found target manager/);
   } finally { globalThis.document = previous; }
 });
 
@@ -233,4 +249,24 @@ test("advanced panel exposes explicit typed forms and unavailable reasons", asyn
     byName("set-topic").value = "4"; byName("set-followees").value = "10,11"; await click("Review SetFollowing");
     assert.equal(reviews.length, 14); assert.match(JSON.stringify(root), /Nested MakeProposal/); assert.equal(reviews.filter((value) => value.highRisk).length >= 8, true);
   } finally { globalThis.document = previous; }
+});
+
+test("exact request reviews render every typed value and direct standard impact safely", () => {
+  assert.equal(exactValue(7n), '"nat:7"');
+  assert.equal(exactValue("text"), '"text"');
+  assert.equal(exactValue(2), "2");
+  assert.equal(exactValue(false), "false");
+  assert.equal(exactValue(null), "null");
+  assert.equal(exactValue(undefined), undefined);
+  assert.equal(exactValue(new Uint8Array([0, 255])), '"bytes:0x00ff"');
+  assert.match(exactValue([1n, "x"]), /nat:1/);
+  assert.equal(exactValue({ toText: () => "aaaaa-aa" }), '"principal:aaaaa-aa"');
+  assert.match(exactValue({ z: true, a: 1n }), /nat:1/);
+  assert.match(directImpact("AddHotKey"), /no-hotkey/);
+  assert.match(directImpact("StartDissolving"), /locked-neuron/);
+  assert.match(directImpact("RemoveHotKey"), /restore/);
+  assert.match(directImpact("Refresh target voting power"), /freshness/);
+  assert.match(directImpact("Follow replacement"), /following/);
+  assert.match(directImpact("following replacement"), /following/);
+  assert.equal(directImpact("Split"), undefined);
 });

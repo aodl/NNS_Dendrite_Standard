@@ -282,7 +282,7 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
   return Object.freeze({
     clear,
     get pending() { return pending; },
-    async reviewProposal({ targetId, managerId, innerCommand, operation, note = "", highRisk = false }) {
+    async reviewProposal({ targetId, managerId, innerCommand, operation, note = "", highRisk = false, details = [] }) {
       clear();
       const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
       const context = await liveContext(target, manager);
@@ -293,19 +293,25 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
       if (stake < fee) throw new Error("Selected manager minted stake does not cover the proposal fee.");
       const request = buildManageNeuronProposal(manager, target, innerCommand, note);
       pending = deepFreeze({ kind: "SubmitManageNeuronProposal", targetId: target, managerId: manager,
-        operation, highRisk, request, reviewedFeeE8s: fee, mintedStakeE8s: stake,
+        operation, details: [...details], highRisk, request, reviewedFeeE8s: fee, mintedStakeE8s: stake,
+        principal: context.session.principal.toText(),
+        managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
+        targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown",
         managerCount: new Set(context.report.managers.map((entry) => entry.neuron_id.toString())).size,
         quorum: context.report.quorum_threshold?.[0] });
       return pending;
     },
-    async reviewDirect({ targetId, managerId, command, operation, highRisk = false, controllerOnly = false, revalidate }) {
+    async reviewDirect({ targetId, managerId, command, operation, highRisk = false, controllerOnly = false, revalidate, details = [] }) {
       clear();
       const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
       const context = await liveContext(target, manager);
       const authority = classifyManagerAuthority(context.manager, context.session.principal);
       if (controllerOnly && !authority.isController) throw new Error("This operation requires the manager controller.");
       pending = deepFreeze({ kind: "DirectManagerOperation", targetId: target, managerId: manager,
-        operation, highRisk, request: buildDirectManagerOperation(manager, command), revalidate });
+        operation, details: [...details], highRisk, request: buildDirectManagerOperation(manager, command), revalidate,
+        principal: context.session.principal.toText(),
+        managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
+        targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown" });
       return pending;
     },
     async submit(review, { confirmed = false, typedTarget = "" } = {}) {
