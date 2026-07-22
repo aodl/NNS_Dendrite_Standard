@@ -501,6 +501,30 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
         Some(TxResponseCommand::RegisterVote(_))
     ));
 
+    let rejected = TxManageNeuronRequest {
+        id: None,
+        neuron_id_or_subaccount: Some(TxNeuronIdOrSubaccount::NeuronId(TxNeuronId { id: 100 })),
+        command: Some(TxCommand::Follow(TxFollow {
+            topic: 1,
+            followees: vec![TxNeuronId { id: 42 }],
+        })),
+    };
+    let response = pic
+        .update_call(
+            governance,
+            Principal::anonymous(),
+            "manage_neuron",
+            Encode!(&rejected).unwrap(),
+        )
+        .unwrap();
+    assert!(matches!(
+        Decode!(&response, TxManageNeuronResponse).unwrap().command,
+        Some(TxResponseCommand::Error(TxGovernanceError {
+            error_type: 3,
+            ..
+        }))
+    ));
+
     let recorded = pic
         .query_call(
             governance,
@@ -511,7 +535,7 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
         .unwrap();
     assert_eq!(
         Decode!(&recorded, Vec<TxManageNeuronRequest>).unwrap(),
-        vec![outer.clone(), direct.clone()]
+        vec![outer.clone(), direct.clone(), rejected.clone()]
     );
     let recorded_bytes = pic
         .query_call(
@@ -524,6 +548,10 @@ fn governance_fixture_decodes_exact_proposal_nesting_and_direct_manager_vote() {
     let exact_bytes = Decode!(&recorded_bytes, Vec<Vec<u8>>).unwrap();
     assert_eq!(
         exact_bytes,
-        vec![Encode!(&outer).unwrap(), Encode!(&direct).unwrap()]
+        vec![
+            Encode!(&outer).unwrap(),
+            Encode!(&direct).unwrap(),
+            Encode!(&rejected).unwrap()
+        ]
     );
 }

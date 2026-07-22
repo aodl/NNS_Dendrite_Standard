@@ -138,6 +138,16 @@ test("unexpected post-call response and transport ambiguity are terminal after o
   }
 });
 
+test("explicit Governance rejection is known, clears review, and permits a new review", async () => {
+  let calls = 0;
+  const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return { command: [{ Error: { error_type: 3, error_message: "rejected" } }] }; } };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} } });
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /Governance error 3/);
+  assert.equal(pipeline.state, "none"); assert.equal(pipeline.pending, undefined); assert.equal(calls, 1);
+  assert.ok(await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, innerCommand: { RefreshVotingPower: {} } }));
+});
+
 test("an in-flight update cannot be replaced by another review", async () => {
   let release;
   const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => new Promise((resolve) => { release = resolve; }) };
@@ -333,6 +343,7 @@ test("hotkey and reward readiness helpers preserve controller-honest boundaries"
   const managers = [manager({ neuron_management_followees: [99n] }), manager({ neuron_id: 11n, neuron_management_followees: [100n] })];
   assert.deepEqual((await verifyRewardReceivers(managers, { list_neurons: async () => ({ full_neurons: [{ id: [{ id: 99n }] }] }) })).map((entry) => entry.status), ["FoundAndReadable", "NotReturnedToCaller"]);
   assert.deepEqual((await verifyRewardReceivers(managers, { list_neurons: async () => { throw new Error("unavailable"); } })).map((entry) => entry.status), ["UpstreamUnavailable", "UpstreamUnavailable"]);
+  await assert.rejects(() => verifyRewardReceivers(Array.from({ length: 16 }, (_, index) => manager({ neuron_id: BigInt(index + 1), neuron_management_followees: [BigInt(index + 100)] })), { list_neurons: async () => ({ full_neurons: [] }) }), /bounded to 15/);
 });
 
 test("advanced command bounds fail closed", () => {
@@ -372,7 +383,7 @@ test("advanced panel exposes explicit typed forms and unavailable reasons", asyn
     const click = async (label) => find(root, (node) => node.textContent === label).dispatch("click");
     const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root);
     selects[0].value = "StartDissolving"; await click("Review Configure");
-    for (const [kind, value] of [["IncreaseDissolveDelay","1"],["SetDissolveTimestamp","2"],["AddHotKey","aaaaa-aa"],["ChangeAutoStakeMaturity","true"],["SetVisibility","2"]]) { selects[0].value = kind; byName("configure-value").value = value; await click("Review Configure"); }
+    for (const [kind, value] of [["IncreaseDissolveDelay","1"],["SetDissolveTimestamp","2"],["AddHotKey","aaaaa-aa"],["RemoveHotKey","aaaaa-aa"],["JoinCommunityFund",""],["LeaveCommunityFund",""],["ChangeAutoStakeMaturity","true"],["SetVisibility","2"]]) { selects[0].value = kind; byName("configure-value").value = value; await click("Review Configure"); }
     byName("spawn-percent").value = "50"; byName("spawn-controller").value = "aaaaa-aa"; byName("spawn-nonce").value = "1"; await click("Review Spawn");
     byName("split-amount").value = "1.25"; await click("Review Split");
     await click("Review ClaimOrRefresh");
@@ -381,7 +392,8 @@ test("advanced panel exposes explicit typed forms and unavailable reasons", asyn
     byName("maturity-percent").value = "10"; byName("maturity-destination").value = "legacy"; byName("maturity-bytes").value = "00".repeat(32); await click("Review DisburseMaturity");
     byName("maturity-destination").value = "icrc"; byName("maturity-owner").value = "aaaaa-aa"; byName("maturity-bytes").value = ""; await click("Review DisburseMaturity");
     byName("set-topic").value = "4"; byName("set-followees").value = "10,11"; await click("Review SetFollowing");
-    assert.equal(reviews.length, 14); assert.match(JSON.stringify(root), /Nested MakeProposal/); assert.equal(reviews.filter((value) => value.highRisk).length >= 8, true);
+    assert.equal(reviews.length, 17); assert.match(JSON.stringify(root), /Nested MakeProposal/); assert.equal(reviews.filter((value) => value.highRisk).length >= 11, true);
+    for (const operation of ["Configure: SetDissolveTimestamp", "Configure: StartDissolving", "Configure: AddHotKey", "Configure: RemoveHotKey", "Configure: JoinCommunityFund", "Configure: LeaveCommunityFund", "Configure: SetVisibility", "Spawn from target maturity", "Split target stake", "Merge source neuron into target", "Disburse target maturity", "Replace multiple topic followee lists"]) assert.equal(reviews.find((value) => value.operation === operation)?.highRisk, true, operation);
   } finally { globalThis.document = previous; }
 });
 
