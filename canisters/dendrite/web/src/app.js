@@ -5,6 +5,7 @@ import { errorMessage, renderReport } from "./compliance-view.js";
 import { checkLive } from "./live-check.js";
 import { createBrowserAuthSession } from "./auth.js";
 import { renderManagerAuthority } from "./authority.js";
+import { createAuthenticatedNnsActor } from "./nns-actor.js";
 
 function resources() {
   const node = document.createElement("p");
@@ -39,6 +40,7 @@ export function createApplication({
   location,
   onHashChange,
   actorFactory = createAnonymousActor,
+  nnsActorFactory = createAuthenticatedNnsActor,
   authSession,
   copyText = (value) => globalThis.navigator.clipboard.writeText(value),
 }) {
@@ -54,12 +56,24 @@ export function createApplication({
   }
   let actorPromise;
   let authenticatedPrincipal;
+  let authenticatedNnsActor;
   const permanentAuthenticationError = browserAuth.originError
     ? boundedAuthenticationError(browserAuth.originError, "Internet Identity origin configuration is invalid.")
     : undefined;
   let recoverableAuthenticationError;
   let currentReport;
   let currentNeuronId;
+  async function activateAuthenticatedSession(session) {
+    // Compatibility for injected read-only test sessions; production auth always
+    // returns the private { principal, signingIdentity } object.
+    const principal = session?.principal ?? session;
+    if (!principal?.toText) throw new Error("Internet Identity returned a malformed session.");
+    const nextActor = session?.signingIdentity
+      ? await nnsActorFactory(session.signingIdentity)
+      : undefined;
+    authenticatedPrincipal = principal;
+    authenticatedNnsActor = nextActor;
+  }
   const actor = () => {
     if (actorPromise) return actorPromise;
     let pending;
@@ -96,7 +110,7 @@ export function createApplication({
       );
       signIn.addEventListener("click", async () => {
         try {
-          authenticatedPrincipal = await browserAuth.signIn();
+          await activateAuthenticatedSession(await browserAuth.signIn());
           recoverableAuthenticationError = undefined;
         } catch (error) {
           recoverableAuthenticationError = boundedAuthenticationError(
@@ -115,6 +129,7 @@ export function createApplication({
     copy.addEventListener("click", () => copyText(principalText));
     const signOut = element("button", "Sign out");
     signOut.addEventListener("click", async () => {
+      authenticatedNnsActor = undefined;
       try {
         await browserAuth.signOut();
         authenticatedPrincipal = undefined;
@@ -222,7 +237,8 @@ export function createApplication({
       onHashChange("hashchange", route);
       if (!permanentAuthenticationError) {
         try {
-          authenticatedPrincipal = await browserAuth.restore();
+          const restored = await browserAuth.restore();
+          if (restored) await activateAuthenticatedSession(restored);
           recoverableAuthenticationError = undefined;
         } catch (error) {
           recoverableAuthenticationError = boundedAuthenticationError(

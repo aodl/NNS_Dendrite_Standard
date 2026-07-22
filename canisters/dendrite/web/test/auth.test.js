@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { AUTHENTICATION_DELEGATION_TTL_NS, authenticationOrigin, createBrowserAuthSession, identityConfiguration } from "../src/auth.js";
+import { AUTHENTICATION_DELEGATION_TTL_NS, NNS_GOVERNANCE_CANISTER_ID, authenticationOrigin, createBrowserAuthSession, identityConfiguration, validateGovernanceDelegation } from "../src/auth.js";
 import { classifyManagerAuthority, renderManagerAuthority } from "../src/authority.js";
 
 const canonical = "https://dendrite.example";
@@ -13,7 +13,11 @@ const configuration = {
 };
 const user = Principal.fromText("aaaaa-aa");
 const other = Principal.fromText("2vxsx-fae");
-const identity = (principal = user) => ({ getPrincipal: () => principal });
+const governance = Principal.fromText(NNS_GOVERNANCE_CANISTER_ID);
+const delegation = (targets = [governance], expiration = BigInt(Date.now() + 60_000) * 1_000_000n) => ({
+  delegations: [{ delegation: { expiration, targets } }],
+});
+const identity = (principal = user, chain = delegation()) => ({ getPrincipal: () => principal, getDelegation: () => chain });
 
 class FakeAuthClient {
   static instances = [];
@@ -51,12 +55,31 @@ test("one client restores signs in for at most eight hours and signs out", async
   const client = FakeAuthClient.instances[0];
   client.identity = identity();
   client.authenticated = true;
-  assert.equal((await auth.restore()).toText(), user.toText());
-  assert.equal((await auth.signIn()).toText(), user.toText());
+  assert.equal((await auth.restore()).principal.toText(), user.toText());
+  assert.equal((await auth.signIn()).principal.toText(), user.toText());
   assert.equal(client.signInOptions.maxTimeToLive, AUTHENTICATION_DELEGATION_TTL_NS);
+  assert.deepEqual(client.signInOptions.targets.map((target) => target.toText()), [NNS_GOVERNANCE_CANISTER_ID]);
   await auth.signOut();
   assert.equal(client.signedOut, true);
   assert.equal(FakeAuthClient.instances.length, 1);
+});
+
+test("delegations must be live and restricted only to NNS Governance", () => {
+  assert.equal(validateGovernanceDelegation(identity()).principal.toText(), user.toText());
+  assert.throws(() => validateGovernanceDelegation(identity(user, delegation(null))), /Unrestricted/);
+  assert.throws(() => validateGovernanceDelegation(identity(user, delegation([other]))), /not restricted/);
+  assert.throws(() => validateGovernanceDelegation(identity(user, delegation([governance], 1n))), /expired/);
+  assert.throws(() => validateGovernanceDelegation({ getPrincipal: () => user }), /inspected safely/);
+});
+
+test("invalid restored legacy sessions are cleared", async () => {
+  const auth = session();
+  await auth.restore();
+  const client = FakeAuthClient.instances.at(-1);
+  client.authenticated = true;
+  client.identity = identity(user, delegation(null));
+  await assert.rejects(() => auth.restore(), /Unrestricted/);
+  assert.equal(client.signedOut, true);
 });
 
 test("cancel failure expiry malformed identity and storage errors fail closed", async () => {
@@ -74,7 +97,7 @@ test("cancel failure expiry malformed identity and storage errors fail closed", 
   client = FakeAuthClient.instances.at(-1);
   client.authenticated = true;
   client.identity = {};
-  await assert.rejects(() => auth.restore(), /malformed/);
+  await assert.rejects(() => auth.restore(), /inspected safely/);
   client.restoreError = new Error("storage unavailable");
   await assert.rejects(() => auth.restore(), /storage unavailable/);
 

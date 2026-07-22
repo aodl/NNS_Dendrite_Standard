@@ -14,6 +14,7 @@ curl --fail --silent --show-error \
 # Candid service subtyping structurally proves every method-specific request and
 # response in our consumer subset remains wire-compatible with the official API.
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance.subset.did
+didc check "$tmp_dir/governance.did" candid/nns-governance/governance-transaction.subset.did
 
 # The management interface is documented as Candid in the official Rust source.
 # Extract those two authoritative code blocks and compare them structurally.
@@ -44,6 +45,10 @@ didc check --strict "$tmp_dir/management.did" candid/management/canister-info.su
 # accepts either fixture is not a semantic drift checker.
 if didc check "$tmp_dir/governance.did" tools/interface-fixtures/governance-incompatible.did >/dev/null 2>&1; then
   echo 'incompatible Governance fixture unexpectedly passed' >&2
+  exit 1
+fi
+if didc check "$tmp_dir/governance.did" tools/interface-fixtures/governance-transaction-incompatible.did >/dev/null 2>&1; then
+  echo 'incompatible Governance transaction fixture unexpectedly passed' >&2
   exit 1
 fi
 if didc check --strict "$tmp_dir/management.did" tools/interface-fixtures/management-incompatible.did >/dev/null 2>&1; then

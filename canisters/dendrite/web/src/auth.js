@@ -2,6 +2,8 @@ import { AuthClient } from "@icp-sdk/auth/client";
 import { Principal } from "@icp-sdk/core/principal";
 
 export const AUTHENTICATION_DELEGATION_TTL_NS = 28_800_000_000_000n;
+export const NNS_GOVERNANCE_CANISTER_ID = "rrkah-fqaaa-aaaaa-aaaaq-cai";
+const NNS_GOVERNANCE_PRINCIPAL = Principal.fromText(NNS_GOVERNANCE_CANISTER_ID);
 
 const configured = (name, fallback) => typeof fallback !== "undefined" ? fallback : globalThis[name];
 
@@ -32,6 +34,28 @@ function exactPrincipal(identity) {
   return principal;
 }
 
+const samePrincipal = (left, right) => left.compareTo(right) === "eq";
+
+export function validateGovernanceDelegation(identity, nowNanoseconds = BigInt(Date.now()) * 1_000_000n) {
+  const chain = identity?.getDelegation?.();
+  if (!chain || !Array.isArray(chain.delegations) || chain.delegations.length === 0) {
+    throw new Error("Internet Identity delegation chain cannot be inspected safely.");
+  }
+  for (const signedDelegation of chain.delegations) {
+    const delegation = signedDelegation?.delegation;
+    if (typeof delegation?.expiration !== "bigint" || delegation.expiration <= nowNanoseconds) {
+      throw new Error("Internet Identity delegation is expired or malformed.");
+    }
+    if (!Array.isArray(delegation.targets) || delegation.targets.length === 0) {
+      throw new Error("Unrestricted Internet Identity sessions cannot authorize NNS transactions.");
+    }
+    if (delegation.targets.some((target) => !samePrincipal(target, NNS_GOVERNANCE_PRINCIPAL))) {
+      throw new Error("Internet Identity delegation is not restricted to NNS Governance.");
+    }
+  }
+  return Object.freeze({ principal: exactPrincipal(identity), signingIdentity: identity });
+}
+
 export function createBrowserAuthSession(options = {}) {
   const configuration = identityConfiguration(options);
   const currentOrigin = options.currentOrigin ?? globalThis.location?.origin;
@@ -54,10 +78,24 @@ export function createBrowserAuthSession(options = {}) {
     async restore() {
       const authClient = getClient();
       if (!authClient.isAuthenticated()) return null;
-      return exactPrincipal(await authClient.getIdentity());
+      try {
+        return validateGovernanceDelegation(await authClient.getIdentity());
+      } catch (error) {
+        await authClient.signOut();
+        throw error;
+      }
     },
     async signIn() {
-      return exactPrincipal(await getClient().signIn({ maxTimeToLive: AUTHENTICATION_DELEGATION_TTL_NS }));
+      const authClient = getClient();
+      try {
+        return validateGovernanceDelegation(await authClient.signIn({
+          maxTimeToLive: AUTHENTICATION_DELEGATION_TTL_NS,
+          targets: [NNS_GOVERNANCE_PRINCIPAL],
+        }));
+      } catch (error) {
+        await authClient.signOut();
+        throw error;
+      }
     },
     async signOut() {
       if (client) await client.signOut();

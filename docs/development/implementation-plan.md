@@ -8,7 +8,7 @@ the browser, signed by an inspectable Internet Identity delegation restricted ex
 to NNS Governance `rrkah-fqaaa-aaaaa-aaaaq-cai`. The pinned interface source remains
 `dfinity/ic@d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
 
-- [ ] Phase A: add the minimal reviewed Governance transaction Candid/IDL and semantic
+- [x] Phase A: add the minimal reviewed Governance transaction Candid/IDL and semantic
   drift fixture; create one fixed-destination authenticated actor whose certified reads
   are represented as updates; request, inspect, restore, and reject delegation chains
   fail-closed; prove the anonymous Dendrite actor and public Candid remain unchanged.
