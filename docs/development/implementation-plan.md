@@ -1,5 +1,27 @@
 # Aggressive simplification implementation plan
 
+## Final transaction coordination and review-correctness pass
+
+Starting boundary: `4b0d318d28d60dc0c4d217df9a1a25ade01a2d40`. Preserve the
+stateless two-method canister, fixed browser-to-Governance actor, existing command
+policy, and all completed transaction hardening while making only these corrections:
+
+- [ ] Select matching caller-visible Neuron Management proposals without allowing
+  ordinary or malformed unrelated Open proposals to abort the bounded list.
+- [ ] Own exactly one transaction coordinator at application scope; preserve its
+  in-flight lock across panel cleanup, report refresh, route changes, and sign-out.
+- [ ] Distinguish Dendrite context, proposal managed target, proposer manager, direct
+  mutation target, and high-risk confirmation target in review state and rendering.
+- [ ] Require Spawn to name exactly one valid self-authenticating controller.
+- [ ] Preserve duplicate raw manager evidence while deduplicating actionable manager
+  options in first-occurrence order and preferring eligible Found evidence.
+- [ ] Correct authority copy, add focused application-entry regression tests, update
+  existing evidence, and rerun every release and two-clean-build gate.
+
+The real Internet Identity popup/origin test and controlled transaction smoke test stay
+unrun and remain mandatory operator gates after this pass. No mainnet mutation is
+authorized or performed.
+
 ## Transaction release-candidate hardening pass
 
 Starting boundary: `e5276fef980bd4ef9594855e65fde42bc8fb1d1e`. Preserve the
