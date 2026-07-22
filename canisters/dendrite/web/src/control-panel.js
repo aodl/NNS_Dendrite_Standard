@@ -109,7 +109,7 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   const vote = document.createElement("fieldset"); vote.append(element("legend", "3. Register a target vote"));
   const proposal = input("proposal", "Proposal ID"), choice = document.createElement("select"); choice.append(option("1", "Yes"), option("2", "No"));
   const voteReview = element("button", "Review target vote"); voteReview.type = "button";
-  voteReview.addEventListener("click", async () => { try { const proposalId = parseNeuronId(proposal.value); const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; const command = buildRegisterVoteCommand(info, Number(choice.value), BigInt(Math.floor(Date.now() / 1000))); showReview(await pipeline.reviewProposal({ targetId: report.neuron_id, managerId: parseNeuronId(managers.value), innerCommand: command, operation: `Vote ${choice.value === "1" ? "Yes" : "No"} on proposal ${proposalId}`,
+  voteReview.addEventListener("click", async () => { try { const proposalId = parseNeuronId(proposal.value); const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; const command = buildRegisterVoteCommand(info, Number(choice.value)); showReview(await pipeline.reviewProposal({ targetId: report.neuron_id, managerId: parseNeuronId(managers.value), innerCommand: command, operation: `Vote ${choice.value === "1" ? "Yes" : "No"} on proposal ${proposalId}`,
     details: [`Proposal details from fresh replicated read: ${exactValue(info)}`] })); } catch (error) { fail(error); } });
   vote.append(proposal, choice, voteReview);
 
@@ -119,7 +119,7 @@ export function renderControlPanel(root, { report, session, nnsActor, checkNeuro
   loadOpen.addEventListener("click", async () => { try { const response = await nnsActor.list_proposals(openManageNeuronProposalRequest()); const matching = filterTargetManageNeuronProposals(response.proposal_info, report.neuron_id); const result = document.createElement("section"); result.append(element("p", matching.length ? "Bounded live open target proposals (not stored):" : "No matching proposal in the bounded live result; use proposal-ID lookup.")); for (const entry of matching) result.append(element("h4", `Proposal ${entry.id?.[0]?.id ?? "unknown"}`), element("pre", exactValue(entry))); output.replaceChildren(result); } catch (error) { fail(error); } });
   managerVoteReview.addEventListener("click", async () => { try {
     const proposalId = parseNeuronId(managementProposal.value), managerId = parseNeuronId(managers.value), selectedVote = Number(managerChoice.value);
-    const loadAndValidate = async () => { const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; return validateOpenManagerProposal(info, report.neuron_id, managerId, selectedVote, BigInt(Math.floor(Date.now() / 1000))); };
+    const loadAndValidate = async () => { const info = (await nnsActor.get_proposal_info(proposalId))?.[0]; return validateOpenManagerProposal(info, report.neuron_id, managerId, selectedVote); };
     const command = await loadAndValidate();
     showReview(await pipeline.reviewDirect({ targetId: report.neuron_id, managerId, command, operation: `Manager vote ${selectedVote === 1 ? "Yes" : "No"} on proposal ${proposalId}`, revalidate: loadAndValidate,
       details: ["The proposal was freshly verified Open, targeted to this Dendrite neuron, and without a conclusive prior vote by the selected manager."] }));

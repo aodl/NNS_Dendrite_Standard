@@ -118,11 +118,10 @@ export function buildStandardSetFollowingCommand(report, rows, knownCandidates =
   return deepFreeze({ SetFollowing: { topic_following: [topicFollowing] } });
 }
 
-export function buildRegisterVoteCommand(proposalInfo, vote, nowSeconds) {
+export function buildRegisterVoteCommand(proposalInfo, vote) {
   const id = proposalInfo?.id?.[0]?.id;
   if (typeof id !== "bigint") throw new Error("Proposal does not exist.");
   if (proposalInfo.status !== 1) throw new Error("Proposal is not Open.");
-  if (proposalInfo.deadline_timestamp_seconds?.[0] <= nowSeconds) throw new Error("Proposal deadline has passed.");
   if (proposalInfo.topic === 1) throw new Error("Use manager voting for Neuron Management proposals.");
   if (vote !== 1 && vote !== 2) throw new Error("Vote must be explicitly Yes or No.");
   return deepFreeze({ RegisterVote: { proposal: [{ id }], vote } });
@@ -171,7 +170,7 @@ export function buildAdvancedCommand(kind, fields = {}) {
     case "Split": return deepFreeze({ Split: { amount_e8s: nat64(fields.amountE8s, "Amount"), memo: optional(fields.memo === undefined ? undefined : nat64(fields.memo, "Memo")) } });
     case "Follow": return buildFollowCommand(fields.topic, fields.followeeIds);
     case "ClaimOrRefresh": return deepFreeze({ ClaimOrRefresh: { by: [{ NeuronIdOrSubaccount: {} }] } });
-    case "RegisterVote": return buildRegisterVoteCommand(fields.proposalInfo, fields.vote, fields.nowSeconds);
+    case "RegisterVote": return buildRegisterVoteCommand(fields.proposalInfo, fields.vote);
     case "Merge": return deepFreeze({ Merge: { source_neuron_id: [{ id: parseNeuronId(String(fields.sourceNeuronId)) }] } });
     case "StakeMaturity": return deepFreeze({ StakeMaturity: { percentage_to_stake: optional(fields.percentage === undefined ? undefined : percentage(fields.percentage)) } });
     case "RefreshVotingPower": return buildRefreshVotingPowerCommand();
@@ -198,21 +197,39 @@ export function buildAdvancedCommand(kind, fields = {}) {
 export function openManageNeuronProposalRequest(limit = 50) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new RangeError("Proposal limit must be 1–100.");
   return deepFreeze({ include_reward_status: [], omit_large_fields: [true], before_proposal: [], limit,
-    exclude_topic: [], include_all_manage_neuron_proposals: [true], include_status: [1], return_self_describing_action: [false] });
+    exclude_topic: [], include_all_manage_neuron_proposals: [], include_status: [1], return_self_describing_action: [false] });
 }
 
 const storedManageNeuron = (info) => info?.proposal?.[0]?.action?.[0]?.ManageNeuron;
+export function managedNeuronId(info) {
+  const managed = storedManageNeuron(info);
+  if (!managed) throw new Error("Proposal is not a stored Neuron Management action.");
+  const legacy = managed.id?.[0]?.id;
+  const modern = managed.neuron_id_or_subaccount?.[0];
+  if (modern?.Subaccount !== undefined) throw new Error("Subaccount-targeted management proposals are unsupported on a neuron-ID page.");
+  const modernId = modern?.NeuronId?.id;
+  if (modernId !== undefined && typeof modernId !== "bigint") throw new Error("Stored modern proposal target is malformed.");
+  if (legacy !== undefined && typeof legacy !== "bigint") throw new Error("Stored legacy proposal target is malformed.");
+  if (modernId !== undefined && legacy !== undefined && modernId !== legacy) throw new Error("Stored proposal target fields conflict.");
+  const id = modernId ?? legacy;
+  if (typeof id !== "bigint") throw new Error("Stored proposal target is missing.");
+  return id;
+}
 export function filterTargetManageNeuronProposals(proposals, targetId) {
   const target = parseNeuronId(String(targetId));
-  return proposals.filter((info) => storedManageNeuron(info)?.neuron_id_or_subaccount?.[0]?.NeuronId?.id === target);
+  return proposals.filter((info) => managedNeuronId(info) === target);
 }
 
-export function validateOpenManagerProposal(info, targetId, managerId, vote, nowSeconds) {
+export function validateOpenManagerProposal(info, targetId, managerId, vote) {
   const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
-  if (info?.status !== 1 || info?.deadline_timestamp_seconds?.[0] <= nowSeconds) throw new Error("Neuron Management proposal is no longer Open.");
-  if (storedManageNeuron(info)?.neuron_id_or_subaccount?.[0]?.NeuronId?.id !== target) throw new Error("Stored proposal target does not match the current Dendrite neuron.");
+  if (info?.status !== 1) throw new Error("Neuron Management proposal is no longer Open.");
+  if (info.topic !== 1) throw new Error("Proposal topic is not Neuron Management.");
+  if (managedNeuronId(info) !== target) throw new Error("Stored proposal target does not match the current Dendrite neuron.");
   const ballot = info.ballots?.find(([id]) => id === manager)?.[1];
-  if (ballot && ballot.vote !== 0) throw new Error("Selected manager has already voted conclusively.");
+  if (!ballot) throw new Error("Selected manager has no visible ballot in this proposal's fixed electoral roll.");
+  if (ballot.vote === 1) throw new Error("Selected manager ballot is already Yes.");
+  if (ballot.vote === 2) throw new Error("Selected manager ballot is already No.");
+  if (ballot.vote !== 0) throw new Error("Selected manager ballot has an unknown vote code; interface update required.");
   if (vote !== 1 && vote !== 2) throw new Error("Manager vote must be explicitly Yes or No.");
   const proposalId = info.id?.[0]?.id;
   if (typeof proposalId !== "bigint") throw new Error("Proposal ID is unavailable.");

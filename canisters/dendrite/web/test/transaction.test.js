@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Principal } from "@icp-sdk/core/principal";
-import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
+import { COMMAND_CAPABILITIES, buildAddManagerHotkeyCommand, buildAdvancedCommand, buildConfigureOperation, buildDirectManagerOperation, buildManageNeuronProposal, buildPrimaryFollowCommand, buildRefreshVotingPowerCommand, buildRegisterVoteCommand, buildRewardReceiverCommand, buildStandardSetFollowingCommand, classifyRewardReceiver, createTransactionPipeline, decodeManageNeuronResponse, filterTargetManageNeuronProposals, formatE8s, managedNeuronId, openManageNeuronProposalRequest, parseIcpToE8s, validateOpenManagerProposal } from "../src/transaction.js";
 import { directImpact, exactValue, renderControlPanel } from "../src/control-panel.js";
 import { renderAdvancedCommands } from "../src/advanced-panel.js";
 
@@ -110,15 +110,15 @@ test("primary following enforces manager, committed omega, and fixed alpha polic
   assert.throws(() => buildPrimaryFollowCommand(notReady, 4, [10n, 11n, 12n]), /omega-reject/);
 });
 
-test("refresh and target vote builders reject missing closed expired and management proposals", () => {
+test("refresh and target vote builders use replicated Open state, never browser time", () => {
   assert.deepEqual(buildRefreshVotingPowerCommand(), { RefreshVotingPower: {} });
   const open = { id: [{ id: 9n }], status: 1, topic: 4, deadline_timestamp_seconds: [100n] };
-  assert.deepEqual(buildRegisterVoteCommand(open, 1, 50n), { RegisterVote: { proposal: [{ id: 9n }], vote: 1 } });
-  assert.deepEqual(buildRegisterVoteCommand(open, 2, 50n).RegisterVote.vote, 2);
-  assert.throws(() => buildRegisterVoteCommand({}, 1, 0n), /does not exist/);
-  assert.throws(() => buildRegisterVoteCommand({ ...open, status: 2 }, 1, 0n), /not Open/);
-  assert.throws(() => buildRegisterVoteCommand({ ...open, deadline_timestamp_seconds: [1n] }, 1, 1n), /passed/);
-  assert.throws(() => buildRegisterVoteCommand({ ...open, topic: 1 }, 1, 0n), /manager voting/);
+  assert.deepEqual(buildRegisterVoteCommand(open, 1), { RegisterVote: { proposal: [{ id: 9n }], vote: 1 } });
+  assert.deepEqual(buildRegisterVoteCommand({ ...open, deadline_timestamp_seconds: [1n] }, 2).RegisterVote.vote, 2);
+  assert.deepEqual(buildRegisterVoteCommand({ ...open, deadline_timestamp_seconds: [9_999_999_999_999n] }, 1).RegisterVote.vote, 1);
+  assert.throws(() => buildRegisterVoteCommand({}, 1), /does not exist/);
+  assert.throws(() => buildRegisterVoteCommand({ ...open, status: 2 }, 1), /not Open/);
+  assert.throws(() => buildRegisterVoteCommand({ ...open, topic: 1 }, 1), /manager voting/);
 });
 
 test("every pinned command has an explicit policy and every enabled advanced builder is typed", () => {
@@ -129,7 +129,7 @@ test("every pinned command has an explicit policy and every enabled advanced bui
   assert.ok(buildAdvancedCommand("Follow", { topic: 4, followeeIds: [1n] }).Follow);
   assert.ok(buildAdvancedCommand("ClaimOrRefresh").ClaimOrRefresh);
   assert.ok(buildAdvancedCommand("Configure", { configureKind: "StartDissolving" }).Configure);
-  assert.ok(buildAdvancedCommand("RegisterVote", { proposalInfo: { id: [{ id: 1n }], status: 1, topic: 4, deadline_timestamp_seconds: [2n] }, vote: 1, nowSeconds: 1n }).RegisterVote);
+  assert.ok(buildAdvancedCommand("RegisterVote", { proposalInfo: { id: [{ id: 1n }], status: 1, topic: 4, deadline_timestamp_seconds: [2n] }, vote: 1 }).RegisterVote);
   assert.ok(buildAdvancedCommand("Merge", { sourceNeuronId: 1n }).Merge);
   assert.ok(buildAdvancedCommand("StakeMaturity", {}).StakeMaturity);
   assert.ok(buildAdvancedCommand("RefreshVotingPower").RefreshVotingPower);
@@ -177,16 +177,35 @@ test("control panel disables transactions when no Found manager grants authority
 });
 
 test("open manager proposal helpers are bounded target-specific and vote-aware", () => {
-  assert.deepEqual(openManageNeuronProposalRequest(25).include_status, [1]);
+  const request = openManageNeuronProposalRequest(25);
+  assert.deepEqual(request.include_status, [1]);
+  assert.notDeepEqual(request.include_all_manage_neuron_proposals, [true]);
+  assert.deepEqual(request.include_all_manage_neuron_proposals, []);
   assert.throws(() => openManageNeuronProposalRequest(101), /1–100/);
-  const info = { id: [{ id: 7n }], status: 1, deadline_timestamp_seconds: [100n], ballots: [[10n, { vote: 0, voting_power: 1n }]], proposal: [{ action: [{ ManageNeuron: { neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }], command: [{ RefreshVotingPower: {} }] } }] }] };
+  const info = { id: [{ id: 7n }], status: 1, topic: 1, deadline_timestamp_seconds: [100n], ballots: [[10n, { vote: 0, voting_power: 1n }]], proposal: [{ action: [{ ManageNeuron: { id: [], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }], command: [{ RefreshVotingPower: {} }] } }] }] };
   assert.deepEqual(filterTargetManageNeuronProposals([info], 20n), [info]);
-  assert.deepEqual(validateOpenManagerProposal(info, 20n, 10n, 2, 50n), { RegisterVote: { proposal: [{ id: 7n }], vote: 2 } });
-  assert.throws(() => validateOpenManagerProposal({ ...info, status: 2 }, 20n, 10n, 1, 0n), /no longer Open/);
-  assert.throws(() => validateOpenManagerProposal(info, 21n, 10n, 1, 0n), /does not match/);
-  assert.throws(() => validateOpenManagerProposal({ ...info, ballots: [[10n, { vote: 1 }]] }, 20n, 10n, 1, 0n), /already voted/);
-  assert.throws(() => validateOpenManagerProposal(info, 20n, 10n, 0, 0n), /explicitly/);
-  assert.throws(() => validateOpenManagerProposal({ ...info, id: [] }, 20n, 10n, 1, 0n), /unavailable/);
+  assert.deepEqual(validateOpenManagerProposal({ ...info, deadline_timestamp_seconds: [1n] }, 20n, 10n, 2), { RegisterVote: { proposal: [{ id: 7n }], vote: 2 } });
+  assert.deepEqual(validateOpenManagerProposal({ ...info, deadline_timestamp_seconds: [9_999_999_999_999n] }, 20n, 10n, 1).RegisterVote.vote, 1);
+  assert.throws(() => validateOpenManagerProposal({ ...info, status: 2 }, 20n, 10n, 1), /no longer Open/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, topic: 4 }, 20n, 10n, 1), /not Neuron Management/);
+  assert.throws(() => validateOpenManagerProposal(info, 21n, 10n, 1), /does not match/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, ballots: [] }, 20n, 10n, 1), /no visible ballot/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, ballots: [[10n, { vote: 1 }]] }, 20n, 10n, 1), /already Yes/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, ballots: [[10n, { vote: 2 }]] }, 20n, 10n, 1), /already No/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, ballots: [[10n, { vote: 9 }]] }, 20n, 10n, 1), /unknown vote code/);
+  assert.throws(() => validateOpenManagerProposal(info, 20n, 10n, 0), /explicitly/);
+  assert.throws(() => validateOpenManagerProposal({ ...info, id: [] }, 20n, 10n, 1), /unavailable/);
+});
+
+test("stored management targets accept legacy and modern neuron IDs and fail closed otherwise", () => {
+  const wrap = (managed) => ({ proposal: [{ action: [{ ManageNeuron: managed }] }] });
+  assert.equal(managedNeuronId(wrap({ id: [], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }] })), 20n);
+  assert.equal(managedNeuronId(wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [] })), 20n);
+  assert.equal(managedNeuronId(wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [{ NeuronId: { id: 20n } }] })), 20n);
+  assert.throws(() => managedNeuronId(wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [{ NeuronId: { id: 21n } }] })), /conflict/);
+  assert.throws(() => managedNeuronId(wrap({ id: [], neuron_id_or_subaccount: [{ Subaccount: new Uint8Array(32) }] })), /Subaccount/);
+  assert.throws(() => managedNeuronId(wrap({ id: [], neuron_id_or_subaccount: [] })), /missing/);
+  assert.deepEqual(filterTargetManageNeuronProposals([wrap({ id: [{ id: 20n }], neuron_id_or_subaccount: [] })], 20n).length, 1);
 });
 
 test("hotkey and reward readiness helpers preserve controller-honest boundaries", () => {
