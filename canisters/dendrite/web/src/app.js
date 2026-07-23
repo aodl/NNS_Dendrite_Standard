@@ -60,6 +60,7 @@ export function createApplication({
   let authenticatedPrincipal;
   let authenticatedSession;
   let authenticatedNnsActor;
+  let authenticationTransition = "none";
   const permanentAuthenticationError = browserAuth.originError
     ? boundedAuthenticationError(browserAuth.originError, "Internet Identity origin configuration is invalid.")
     : undefined;
@@ -95,8 +96,12 @@ export function createApplication({
     return pending;
   };
   const transactionPipeline = createTransactionPipeline({
-    getSession: async () => authenticatedSession,
+    getSession: async () => {
+      if (authenticationTransition !== "none") throw new Error("Authentication is changing; create a new review after it completes.");
+      return authenticatedSession;
+    },
     getNnsActor: async () => {
+      if (authenticationTransition !== "none") throw new Error("Authentication is changing; NNS access is unavailable.");
       if (!authenticatedNnsActor) throw new Error("A current authenticated NNS actor is required.");
       return authenticatedNnsActor;
     },
@@ -117,12 +122,23 @@ export function createApplication({
     if (recoverableAuthenticationError) {
       panel.append(element("p", recoverableAuthenticationError, "error"));
     }
+    if (authenticationTransition !== "none") {
+      panel.append(element("p", authenticationTransition === "signing-in" ? "Internet Identity sign-in is in progress…" : "Internet Identity sign-out is in progress…", "status"));
+      return panel;
+    }
     if (!authenticatedPrincipal) {
       const signIn = element(
         "button",
         recoverableAuthenticationError ? "Try again" : "Sign in with Internet Identity",
       );
       signIn.addEventListener("click", async () => {
+        if (authenticationTransition !== "none") {
+          recoverableAuthenticationError = "Another authentication transition is already in progress.";
+          renderCurrent();
+          return;
+        }
+        authenticationTransition = "signing-in";
+        renderCurrent();
         try {
           await activateAuthenticatedSession(await browserAuth.signIn());
           recoverableAuthenticationError = undefined;
@@ -131,6 +147,8 @@ export function createApplication({
             error,
             "Internet Identity sign-in failed.",
           );
+        } finally {
+          authenticationTransition = "none";
         }
         renderCurrent();
       });
@@ -148,9 +166,16 @@ export function createApplication({
         renderCurrent();
         return;
       }
+      if (authenticationTransition !== "none") {
+        recoverableAuthenticationError = "Another authentication transition is already in progress.";
+        renderCurrent();
+        return;
+      }
+      authenticationTransition = "signing-out";
+      transactionPipeline.discardUnsubmittedReview();
+      renderCurrent();
       try {
         await browserAuth.signOut();
-        transactionPipeline.discardUnsubmittedReview();
         authenticatedPrincipal = undefined;
         authenticatedSession = undefined;
         authenticatedNnsActor = undefined;
@@ -160,6 +185,8 @@ export function createApplication({
           error,
           "Internet Identity sign-out failed.",
         );
+      } finally {
+        authenticationTransition = "none";
       }
       renderCurrent();
     });
@@ -169,7 +196,7 @@ export function createApplication({
 
   function appendReportActions(id) {
     root.append(authenticationPanel());
-    if (transactionPipeline.state === "outcome-unknown" && !(authenticatedSession && authenticatedNnsActor)) {
+    if (transactionPipeline.state === "outcome-unknown" && (authenticationTransition !== "none" || !(authenticatedSession && authenticatedNnsActor))) {
       const summary = transactionPipeline.outcomeUnknown;
       root.append(
         element("h2", "Unresolved NNS transaction outcome", "error"),
@@ -179,7 +206,7 @@ export function createApplication({
     }
     if (authenticatedPrincipal && currentReport) {
       renderManagerAuthority(root, currentReport, authenticatedPrincipal);
-      if (authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
+      if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
         report: currentReport,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
