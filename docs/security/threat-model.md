@@ -53,5 +53,16 @@ ordered raw managers, distinct-manager count, quorum, committed topics, fee, and
 operation-specific evidence. Any drift clears the review. Manager voting additionally
 requires a caller-visible Unspecified ballot from the proposal's fixed electoral roll.
 Transport ambiguity or an unexpected post-call response cannot be retried from the same
-review. Configured reward-receiver IDs are not treated as proof of existence; the
+review. Review preparation is page-session serialized and generation-owned, so stale
+asynchronous work cannot replace a ready review, an in-flight update, or an unresolved
+outcome. Route generations similarly prevent stale anonymous checks and detached
+transaction panels from replacing the current route.
+
+An ambiguous ingress result retains only a bounded heap-only operation label, context
+and mutation/managed neuron IDs, request digest, and display-only browser timestamp.
+Mutation remains blocked across route, report, and authentication rerenders until the
+operator explicitly acknowledges that the operation may have succeeded. Acknowledgment
+never retries it. A full browser reload necessarily loses this coordination marker, so
+the operator must investigate uncertainty before reconstructing a request; no durable
+transaction state is added. Configured reward-receiver IDs are not treated as proof of existence; the
 bounded live check distinguishes readable, not returned to this caller, and unavailable.

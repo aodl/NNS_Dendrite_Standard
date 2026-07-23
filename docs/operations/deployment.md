@@ -69,4 +69,10 @@ same review twice.
 The smoke test must also confirm that an in-flight call survives report and route
 rerenders, sign-out is rejected until it settles, direct-operation confirmation names
 the manager neuron actually mutated, and Spawn rejects an omitted or non-user
-controller. These remain operator checks and are not run by the automated release pass.
+controller. Navigate to another neuron and to landing while a controlled update is
+deferred and confirm settlement never restores the old route. For an intentionally
+ambiguous result, confirm the digest/neuron warning survives route, report, and
+sign-out/sign-in rerenders; investigate it; then confirm explicit acknowledgment makes
+no call and only a wholly new review can proceed. A browser reload loses this heap-only
+marker, so investigate uncertainty before reconstructing any request. These remain
+operator checks and are not run by the automated release pass.

@@ -63,3 +63,13 @@ the report, changes route, rejects sign-out, and attempts another review and sub
 proving that exactly one `manage_neuron` call occurs. Review tests distinguish proposal
 managed targets from direct manager mutation targets, enforce self-authenticating Spawn
 controllers, and preserve duplicate raw authority rows while deduplicating actions.
+
+Final lifecycle regressions deterministically defer proposal and direct preparation in
+both orderings, reject overlap, cancel stale ownership, and prove exactly one update.
+Application tests complete neuron checks out of order, navigate to landing during a
+check, settle deferred updates after navigation to another neuron or landing, and cover
+known success, explicit Governance rejection, and ambiguous response shapes. They also
+require unresolved-outcome warnings and mutation blocking across report, route,
+sign-out/sign-in rerenders; confirmed no-retry acknowledgment; fresh voting-power
+snapshot/refresh/age/potential/deciding fingerprints; and failed sign-out retention of
+the validated session, actor, and ready transaction state.

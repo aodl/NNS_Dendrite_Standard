@@ -18,6 +18,11 @@ commands used here. Dendrite performs local preflight and exact review, not NNS
 simulation. Governance remains the final validator. Reward calculation/distribution,
 automatic polling, and automatic transaction retry remain absent.
 
+Ambiguous transaction coordination is deliberately heap-only. Its bounded warning
+survives application rerenders but not a full browser reload. After a reload, an
+operator must investigate whether the prior request succeeded before constructing a
+new request; Dendrite adds no durable in-flight record or transaction history.
+
 Open management-proposal enumeration is bounded, live, and caller-sensitive in
 Governance; Dendrite neither requests unrestricted enumeration nor reconstructs its
 visibility rules. NNS deadlines are informational in the browser. A configured reward
