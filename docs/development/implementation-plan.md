@@ -1,5 +1,30 @@
 # Aggressive simplification implementation plan
 
+## Final browser-lifecycle and transaction-concurrency correction pass
+
+Starting boundary: `620e6a7876dda73ec36cec2b582e412b2c56e809`. Preserve the
+stateless two-method canister, fixed browser-to-Governance actor, command policies, and
+completed transaction hardening while making only these lifecycle corrections:
+
+- [ ] Serialize proposal and direct review preparation with explicit `preparing`
+  ownership and generation-safe cancellation.
+- [ ] Ignore stale anonymous-check completions and keep landing/authentication renders
+  route-correct.
+- [ ] Settle completed transactions against the current route instead of a detached
+  control panel.
+- [ ] Retain a bounded heap-only unresolved-outcome summary until explicit confirmed
+  acknowledgment, with read-only recovery only.
+- [ ] Prepare voting-power refresh details and fingerprints from fresh pipeline
+  evidence at review and final preflight.
+- [ ] Preserve the authenticated actor and transaction state when browser sign-out
+  fails.
+- [ ] Add deterministic lifecycle/race regressions, update existing evidence, and run
+  every automated release and two-clean-build gate.
+
+The real Internet Identity popup/origin test and controlled transaction smoke test stay
+unrun and remain mandatory operator gates after this correction pass. No mainnet
+mutation is authorized or performed.
+
 ## Final transaction coordination and review-correctness pass
 
 Starting boundary: `4b0d318d28d60dc0c4d217df9a1a25ade01a2d40`. Preserve the
