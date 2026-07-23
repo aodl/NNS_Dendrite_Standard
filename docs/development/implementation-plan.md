@@ -6,14 +6,14 @@ Starting boundary: `74318417c61050bd55e7e14c435246efecb31ab8`. Preserve the
 stateless two-method canister, fixed browser-to-Governance actor, existing transaction
 states, and completed lifecycle hardening while making only these corrections:
 
-- [ ] Rerender the selected route without navigating to landing or invalidating an
+- [x] Rerender the selected route without navigating to landing or invalidating an
   owned neuron load.
-- [ ] Keep transaction settlement from replacing a newer loading or error route.
-- [ ] Guard sign-in/sign-out transitions and deny pipeline session/actor access while
+- [x] Keep transaction settlement from replacing a newer loading or error route.
+- [x] Guard sign-in/sign-out transitions and deny pipeline session/actor access while
   either transition is active.
-- [ ] Synchronously cancel preparing or ready work when sign-out begins while
+- [x] Synchronously cancel preparing or ready work when sign-out begins while
   preserving unresolved outcomes.
-- [ ] Add deterministic settlement, sign-in, sign-out, detached-control, and failure
+- [x] Add deterministic settlement, sign-in, sign-out, detached-control, and failure
   regressions; update existing evidence; and rerun every automated release gate.
 
 The real Internet Identity popup/origin test and controlled transaction smoke test stay

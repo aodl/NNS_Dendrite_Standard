@@ -76,3 +76,8 @@ sign-out/sign-in rerenders; investigate it; then confirm explicit acknowledgment
 no call and only a wholly new review can proceed. A browser reload loses this heap-only
 marker, so investigate uncertainty before reconstructing any request. These remain
 operator checks and are not run by the automated release pass.
+Also hold sign-in open while starting a neuron check and confirm completion leaves the
+loading route owned until its report renders with authenticated controls. Hold sign-out
+open after creating a review and confirm detached submit/review controls make no NNS
+call, duplicate authentication transitions are rejected, and failed sign-out retains
+the session/actor while requiring a new review.

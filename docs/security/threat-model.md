@@ -57,6 +57,14 @@ review. Review preparation is page-session serialized and generation-owned, so s
 asynchronous work cannot replace a ready review, an in-flight update, or an unresolved
 outcome. Route generations similarly prevent stale anonymous checks and detached
 transaction panels from replacing the current route.
+Selected-route rerenders are separate from route navigation: authentication completion
+and transaction settlement cannot increment the route generation, replace a loading or
+error neuron view with landing, or cancel a newer owned check. One application-local
+authentication-transition marker removes mutation controls, synchronously cancels
+preparing/ready work at sign-out start, and makes the pipeline's session and NNS-actor
+accessors fail closed until sign-in or sign-out finishes. A failed sign-out restores
+access to the retained validated session and actor, but never revives the cancelled
+review.
 
 An ambiguous ingress result retains only a bounded heap-only operation label, context
 and mutation/managed neuron IDs, request digest, and display-only browser timestamp.

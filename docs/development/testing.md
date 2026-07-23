@@ -72,4 +72,11 @@ known success, explicit Governance rejection, and ambiguous response shapes. The
 require unresolved-outcome warnings and mutation blocking across report, route,
 sign-out/sign-in rerenders; confirmed no-retry acknowledgment; fresh voting-power
 snapshot/refresh/age/potential/deciding fingerprints; and failed sign-out retention of
-the validated session, actor, and ready transaction state.
+the validated session and actor while cancelling unsubmitted transaction state.
+Route-ownership regressions additionally hold a newer neuron check unresolved while an
+older signed transaction settles as success, explicit rejection, or transport
+ambiguity, then prove the loading view and URL survive until the newer report renders.
+Authentication-transition regressions hold sign-in across neuron navigation and hold
+successful or failed sign-out across detached submit/review activation, duplicate
+clicks, ready review cancellation, and preparing review cancellation. Failed sign-out
+retains the principal/session/actor but requires a wholly new review.

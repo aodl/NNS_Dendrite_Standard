@@ -592,3 +592,58 @@ The real Internet Identity canonical/alternative-origin popup test and controlle
 transaction smoke test were not run. They remain the two mandatory operator gates
 after this correction pass. No mainnet mutation, proposal, vote, deployment, or
 operator-gate success is claimed.
+
+## Final route-ownership and authentication-transition evidence — 2026-07-23
+
+Starting from `74318417c61050bd55e7e14c435246efecb31ab8`, this correction
+pass separated selected-route rerendering from landing navigation and added one
+application-local authentication-transition guard. Transaction settlement and
+authentication completion now preserve newer loading/error routes; sign-out
+synchronously cancels preparing/ready work and denies detached controls access to the
+targeted session or fixed Governance actor until the transition settles. Failed
+sign-out retains the validated principal/session/actor but never revives the cancelled
+review. Unresolved outcomes remain intact. No command, canister method, storage, retry,
+timer, router, framework, crate, canister, or background work was added.
+
+The implementation through `7d66aaa` passed `git status`, `cargo fmt --all --
+--check`, warnings-denied workspace/all-target/all-feature Clippy, `cargo xtask check`,
+configured `cargo xtask test`, all three PocketIC scenarios, `cargo xtask coverage`,
+anonymous-verifier and transaction-interface semantic drift, generated
+transaction-IDL equality, `npm ci`, `npm test`, `npm run test:coverage`, repeated
+production asset byte identity, certified HTTP and alternative-origin checks,
+production dependency reachability, `cargo xtask security-scan`, `cargo xtask sbom`,
+configured `cargo xtask build`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible`. The 90 frontend tests reached 98.90%
+lines, 87.79% branches, and 92.19% functions. Workspace Rust line coverage was 90.68%.
+Two clean builds were byte-identical.
+
+Reproducibility inputs were fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, API host `https://icp-api.io`, root-key fetching
+disabled, canonical derivation origin `https://dendrite.example`, empty alternative
+origins, fixed provider `https://id.ai/authorize`, delegation TTL
+`28800000000000` nanoseconds, and `SOURCE_DATE_EPOCH=0`.
+
+Current deterministic hashes:
+
+- Transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Wasm, both clean builds: `022122f7c2ae48afb72977cf4e9ab52f7bd0467bfb558eb0a64e734d88a07434`.
+- Frontend tree, both clean builds: `25de76dd5f86eb40c509bdf183a20b1f2d252b4871a097efbeb7d0927a36776d`.
+- Asset manifest: `7a70184e6ba1f5e873f25844cbbb7956a38d027799ea0b16d1a95d48ba14b490`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite SBOM: `ed57353b909df37fa66d4b45eb45164bf599e4083b6cb04c5fe70c7d200cc246`.
+- Governance fixture SBOM: `cc023e316c90ac96d2da7778f4a4379587e1f5ac1344468a0e5d06e7bd491ebd`.
+- Types SBOM: `76e643fb6f6c57836efb2af853c7fc9f23cf42f293c92113511662aa47108a58`.
+- IC clients SBOM: `05ee608afc4ba9b7a17fc75b295f0aeeb27b79704a10c3a8bd6d4b625a95cef2`.
+- npm SBOM: `af13f8b681e5689fe1af5bb456f2a4bce6e50c0398cb6d4275d62dc98d2ac7be`.
+- xtask SBOM: `4c120680c4e5865ac0fd383669f7830040c56562ab42f82e5c149ddf1319bf11`.
+
+The existing narrowly documented `backoff`, `instant`, `paste`, and `serde_cbor`
+exceptions remain unchanged; no new exception was added.
+
+The real Internet Identity canonical/alternative-origin popup test and controlled
+transaction smoke test were not run. They remain the two mandatory operator gates
+after this correction. No mainnet mutation, proposal, vote, deployment, or
+operator-gate success is claimed.
