@@ -66,6 +66,7 @@ export function createApplication({
   let recoverableAuthenticationError;
   let currentReport;
   let currentNeuronId;
+  let currentView = "unselected";
   let routeGeneration = 0;
   async function activateAuthenticatedSession(session) {
     // Compatibility for injected read-only test sessions; production auth always
@@ -194,19 +195,16 @@ export function createApplication({
 
   function renderCurrent() {
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
-    if (match && currentReport && currentNeuronId === match[1]) {
+    if (match && currentView === "report" && currentReport && currentNeuronId === match[1]) {
       renderReport(root, currentReport);
       appendReportActions(currentNeuronId);
-    } else {
-      landing();
+    } else if (!match) {
+      renderLanding();
     }
   }
 
-  function landing(generation = ++routeGeneration) {
-    if (generation !== routeGeneration) return;
-    transactionPipeline.discardUnsubmittedReview();
-    currentReport = undefined;
-    currentNeuronId = undefined;
+  function renderLanding() {
+    currentView = "landing";
     clear(root);
     root.append(
       element("h1", "Dendrite"),
@@ -246,10 +244,19 @@ export function createApplication({
     );
   }
 
+  function landing(generation = ++routeGeneration) {
+    if (generation !== routeGeneration) return;
+    transactionPipeline.discardUnsubmittedReview();
+    currentReport = undefined;
+    currentNeuronId = undefined;
+    renderLanding();
+  }
+
   async function loadNeuron(id, generation = ++routeGeneration) {
     transactionPipeline.discardUnsubmittedReview();
     const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
     if (!ownsRoute()) return;
+    currentView = "loading";
     clear(root);
     root.setAttribute("aria-busy", "true");
     root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status"));
@@ -258,12 +265,14 @@ export function createApplication({
       if (!ownsRoute()) return;
       currentReport = report;
       currentNeuronId = id;
+      currentView = "report";
       renderReport(root, currentReport);
       appendReportActions(id);
     } catch (error) {
       if (!ownsRoute()) return;
       currentReport = undefined;
       currentNeuronId = undefined;
+      currentView = "error";
       clear(root);
       root.append(element("h1", `Neuron ${id}`));
       showError(root, errorMessage(error));
@@ -289,11 +298,11 @@ export function createApplication({
   async function settleTransaction(review, result) {
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (!match) {
-      landing();
+      renderCurrent();
       return;
     }
     const id = formatNeuronId(parseNeuronId(match[1]));
-    if (result && review?.dendriteContextNeuronId.toString() === id) {
+    if (result && currentView === "report" && review?.dendriteContextNeuronId.toString() === id && currentNeuronId === id) {
       await loadNeuron(id);
       return;
     }
