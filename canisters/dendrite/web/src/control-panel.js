@@ -1,7 +1,7 @@
 import { element, safeHttpsLink } from "./dom.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
-import { buildRefreshVotingPowerCommand, classifyRewardReceiver, formatE8s, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, verifyRewardReceivers } from "./transaction.js";
+import { classifyRewardReceiver, formatE8s, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRefreshVotingPower, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, verifyRewardReceivers } from "./transaction.js";
 import { renderAdvancedCommands } from "./advanced-panel.js";
 import { TOPIC_LABELS } from "./compliance-view.js";
 
@@ -48,7 +48,7 @@ export function directImpact(operation) {
   return undefined;
 }
 
-function reviewNode(pipeline, review, onSuccess, setControlsDisabled = () => {}) {
+function reviewNode(pipeline, review, onSettlement, setControlsDisabled = () => {}) {
   const root = document.createElement("section"); root.className = "transaction-review";
   root.append(
     element("h3", "Exact NNS request review"),
@@ -79,30 +79,63 @@ function reviewNode(pipeline, review, onSuccess, setControlsDisabled = () => {})
   if (review.highRisk) { typed = input("target-confirmation", "Type mutation target neuron ID"); root.append(typed); }
   const submit = element("button", "Submit exact reviewed request"); submit.type = "button";
   submit.addEventListener("click", async () => {
+    const attemptedCurrentReview = pipeline.state === "ready";
     setControlsDisabled(true); submit.disabled = true;
     try {
       const result = await pipeline.submit(review, { confirmed: confirmation.checked === true, typedTarget: typed?.value ?? "" });
       root.replaceChildren(element("p", result.proposalId ? `Proposal ${result.proposalId} submitted.` : `${result.operation} succeeded.`, "status"));
       if (result.proposalId) root.append(safeHttpsLink("View proposal", `https://dashboard.internetcomputer.org/proposal/${result.proposalId}`));
-      await onSuccess();
+      await onSettlement(review, result);
     } catch (error) {
       root.append(element("p", String(error?.message ?? "Transaction outcome is unknown.").slice(0, 512), "error"));
-      if (pipeline.state === "outcome-unknown") root.append(element("p", "Read-only recovery only: reload visible Open proposals, look up a proposal ID, or rerun the live Dendrite report before deliberately creating a new review."));
+      if (pipeline.state === "outcome-unknown") root.append(element("p", "Read-only recovery only: rerun the live Dendrite report, load caller-visible Open proposals, or inspect a proposal ID."));
+      if (attemptedCurrentReview && pipeline.state !== "ready") await onSettlement(review, pipeline.state === "none" ? { knownFailure: true } : undefined);
     } finally { setControlsDisabled(false); submit.disabled = pipeline.state === "outcome-unknown"; }
   });
   root.append(submit);
   return root;
 }
 
-export function renderControlPanel(root, { report, session, nnsActor, pipeline, onSuccess }) {
+export function renderControlPanel(root, { report, session, nnsActor, pipeline, onSettlement, onRerun }) {
+  onSettlement ??= async () => {};
+  onRerun ??= () => {};
   const panel = document.createElement("section"); panel.className = "control-panel";
   panel.append(element("h2", "Manage through NNS Governance"), element("p", "Privileged calls are signed in this browser and sent only to NNS Governance. Dendrite remains anonymous and stores no transaction or proposal history."));
+  const output = document.createElement("div");
+  if (pipeline.state === "outcome-unknown") {
+    const summary = pipeline.outcomeUnknown;
+    const warning = document.createElement("section"); warning.className = "error";
+    warning.append(
+      element("h3", "Unresolved NNS transaction outcome"),
+      element("p", `Operation: ${summary.operation}. Dendrite context neuron: ${summary.dendriteContextNeuronId}. Mutation or managed neuron: ${summary.mutationOrManagedNeuronId}.`),
+      element("p", `Request SHA-256: ${summary.requestDigest}. Browser timestamp (display only): ${new Date(summary.timestampMilliseconds).toISOString()}.`),
+      element("p", "The prior operation may have succeeded. Investigate before constructing another request. A full browser reload loses this heap-only coordination marker."),
+    );
+    const rerun = element("button", "Rerun current Dendrite report"); rerun.type = "button"; rerun.addEventListener("click", onRerun);
+    const proposalId = input("recovery-proposal", "Proposal ID"), inspect = element("button", "Inspect proposal ID"); inspect.type = "button";
+    inspect.addEventListener("click", async () => { try {
+      const id = parseNeuronId(proposalId.value);
+      const info = (await nnsActor.get_proposal_info(id))?.[0];
+      const result = document.createElement("section");
+      result.append(element("h4", `Proposal ${id}`));
+      for (const detail of proposalReviewDetails(info)) result.append(element("p", detail));
+      output.replaceChildren(result);
+    } catch (error) { output.replaceChildren(element("p", String(error?.message ?? error).slice(0, 512), "error")); } });
+    const confirmation = input("acknowledge-outcome"); confirmation.type = "checkbox";
+    const label = document.createElement("label"); label.append(confirmation, document.createTextNode(" I understand the prior operation may have succeeded"));
+    const acknowledge = element("button", "Acknowledge unresolved outcome and allow a new review"); acknowledge.type = "button";
+    acknowledge.addEventListener("click", async () => { try {
+      pipeline.acknowledgeOutcomeUnknown({ confirmed: confirmation.checked === true });
+      await onSettlement();
+    } catch (error) { output.replaceChildren(element("p", String(error?.message ?? error).slice(0, 512), "error")); } });
+    warning.append(rerun, proposalId, inspect, label, acknowledge);
+    panel.append(warning);
+  }
   const managers = managerSelect(report, session.principal);
   if (!managers.children?.length) { panel.append(element("p", "This principal has no authority over a Found target manager.")); root.append(panel); return; }
   panel.append(element("label", "Proposer manager "), managers);
-  const output = document.createElement("div");
   const setControlsDisabled = (disabled) => { const visit = (node) => { if (node.tagName === "BUTTON" || node.tag === "button") node.disabled = disabled; for (const child of node.children ?? []) visit(child); }; visit(panel); };
-  const showReview = (review) => output.replaceChildren(reviewNode(pipeline, review, onSuccess, setControlsDisabled));
+  const showReview = (review) => output.replaceChildren(reviewNode(pipeline, review, onSettlement, setControlsDisabled));
   const fail = (error) => output.replaceChildren(element("p", String(error?.message ?? error).slice(0, 512), "error"));
 
   const follow = document.createElement("fieldset");
@@ -120,8 +153,7 @@ export function renderControlPanel(root, { report, session, nnsActor, pipeline, 
 
   const refresh = document.createElement("fieldset"); refresh.append(element("legend", "2. Refresh target voting power"));
   const refreshReview = element("button", "Review voting-power refresh"); refreshReview.type = "button";
-  refreshReview.addEventListener("click", async () => { try { const target = report.target?.[0]; showReview(await pipeline.reviewProposal({ targetId: report.neuron_id, managerId: parseNeuronId(managers.value), innerCommand: buildRefreshVotingPowerCommand(), operation: "Refresh target voting power",
-    details: [`NNS snapshot: ${report.checked_at_timestamp_seconds}; current refresh timestamp: ${target?.voting_power_refreshed_timestamp_seconds?.[0] ?? "unavailable"}; refresh age: ${target?.voting_power_refreshed_timestamp_seconds?.[0] == null ? "unavailable" : report.checked_at_timestamp_seconds - target.voting_power_refreshed_timestamp_seconds[0]} seconds; six-month threshold: 15778800 seconds.`, `Potential voting power: ${target?.potential_voting_power?.[0] ?? "unavailable"}; deciding voting power: ${target?.deciding_voting_power?.[0] ?? "unavailable"}.`] })); } catch (error) { fail(error); } });
+  refreshReview.addEventListener("click", async () => { try { showReview(await pipeline.reviewProposal({ targetId: report.neuron_id, managerId: parseNeuronId(managers.value), prepare: prepareRefreshVotingPower(), operation: "Refresh target voting power" })); } catch (error) { fail(error); } });
   refresh.append(element("p", `NNS snapshot: ${report.checked_at_timestamp_seconds}; target refresh: ${report.target?.[0]?.voting_power_refreshed_timestamp_seconds?.[0] ?? "unavailable"}; threshold: 15778800 seconds. Adoption and execution are not guaranteed.`), refreshReview);
 
   const vote = document.createElement("fieldset"); vote.append(element("legend", "3. Register a target vote"));
@@ -155,5 +187,12 @@ export function renderControlPanel(root, { report, session, nnsActor, pipeline, 
   renderAdvancedCommands(panel, { report, nnsActor, pipeline, managerId: () => parseNeuronId(managers.value), showReview, fail });
   panel.append(output); root.append(panel);
   if (pipeline.state === "in-flight") setControlsDisabled(true);
-  return () => pipeline.discardReadyReview();
+  if (pipeline.state === "outcome-unknown") {
+    const disableMutation = (node) => {
+      if ((node.tagName === "BUTTON" || node.tag === "button") && /^Review |^Submit /.test(node.textContent)) node.disabled = true;
+      for (const child of node.children ?? []) disableMutation(child);
+    };
+    disableMutation(panel);
+  }
+  return () => pipeline.discardUnsubmittedReview();
 }

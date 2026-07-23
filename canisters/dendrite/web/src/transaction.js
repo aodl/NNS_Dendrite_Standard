@@ -428,6 +428,29 @@ export function prepareRewardReceiver(receiverId) {
   };
 }
 
+export function prepareRefreshVotingPower() {
+  return async ({ report }) => {
+    const target = report.target?.[0];
+    const snapshot = report.checked_at_timestamp_seconds;
+    const refreshed = target?.voting_power_refreshed_timestamp_seconds?.[0];
+    const potential = target?.potential_voting_power?.[0];
+    const deciding = target?.deciding_voting_power?.[0];
+    if ([snapshot, refreshed, potential, deciding].some((value) => typeof value !== "bigint")) {
+      throw new Error("Fresh voting-power evidence is unavailable.");
+    }
+    const age = snapshot - refreshed;
+    const evidence = { snapshot, refreshed, age, threshold: 15_778_800n, potential, deciding };
+    return {
+      command: buildRefreshVotingPowerCommand(),
+      details: [
+        `Fresh NNS snapshot: ${snapshot}; fresh target refresh timestamp: ${refreshed}; fresh refresh age: ${age} seconds; six-month threshold: ${evidence.threshold} seconds.`,
+        `Fresh potential voting power: ${potential}; fresh deciding voting power: ${deciding}.`,
+      ],
+      securityFingerprint: canonical(evidence),
+    };
+  };
+}
+
 const variant = (value) => Object.keys(value ?? {})[0];
 class GovernanceRejection extends Error {}
 export function decodeManageNeuronResponse(response, expected) {
@@ -458,24 +481,43 @@ const foundManager = (report, managerId, principal) => {
 
 export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron }) {
   let pending;
+  let outcomeUnknown;
   let state = "none";
+  let preparationGeneration = 0;
   const clear = () => { pending = undefined; state = "none"; };
-  const abandon = (nextState = "none") => { pending = undefined; state = nextState; };
-  const requireReviewSlot = () => {
+  const beginPreparation = () => {
+    if (state === "preparing") throw new Error("Another transaction review is already preparing.");
     if (state === "in-flight") throw new Error("Another transaction is already in flight; a review cannot replace it.");
+    if (state === "outcome-unknown") throw new Error("A prior transaction outcome is unresolved; acknowledge it before creating a new review.");
     pending = undefined;
-    state = "none";
+    preparationGeneration += 1;
+    state = "preparing";
+    return preparationGeneration;
   };
-  const liveContext = async (targetId, managerId) => {
-    const session = await getSession();
+  const ownsPreparation = (generation) => state === "preparing" && preparationGeneration === generation;
+  const requirePreparation = (generation) => {
+    if (!ownsPreparation(generation)) throw new Error("Transaction review preparation was cancelled.");
+  };
+  const preparedAwait = async (generation, value) => {
+    const result = await value;
+    requirePreparation(generation);
+    return result;
+  };
+  const failPreparation = (generation) => {
+    if (ownsPreparation(generation)) clear();
+  };
+  const liveContext = async (targetId, managerId, generation) => {
+    const session = generation === undefined ? await getSession() : await preparedAwait(generation, getSession());
     if (!session?.principal || !session?.signingIdentity || typeof session.validate !== "function") throw new Error("A current Governance-targeted session is required.");
-    await session.validate();
-    const report = await checkNeuron(targetId);
+    if (generation === undefined) await session.validate();
+    else await preparedAwait(generation, session.validate());
+    const report = generation === undefined ? await checkNeuron(targetId) : await preparedAwait(generation, checkNeuron(targetId));
     if (report?.neuron_id !== targetId) throw new Error("Fresh Dendrite report target does not match the request.");
     return { session, report, manager: foundManager(report, managerId, session.principal) };
   };
-  const economics = async (actor, manager) => {
-    const value = await actor.get_network_economics_parameters();
+  const economics = async (actor, manager, generation) => {
+    const request = actor.get_network_economics_parameters();
+    const value = generation === undefined ? await request : await preparedAwait(generation, request);
     const fee = value?.neuron_management_fee_per_proposal_e8s;
     const stake = manager.minted_stake_e8s?.[0];
     if (typeof fee !== "bigint" || typeof stake !== "bigint") throw new Error("Current proposal fee or manager minted stake is unavailable.");
@@ -489,69 +531,96 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
     quorum: context.report.quorum_threshold,
     committedTopics: context.report.committed_topics ?? [], fee,
   });
-  const runPreparation = async (prepare, context, actor, fixed) => {
-    const prepared = await prepare({ report: context.report, nnsActor: actor, targetId: fixed.targetId, managerId: fixed.managerId, principal: context.session.principal });
+  const runPreparation = async (prepare, context, actor, fixed, generation) => {
+    const request = prepare({ report: context.report, nnsActor: actor, targetId: fixed.targetId, managerId: fixed.managerId, principal: context.session.principal });
+    const prepared = generation === undefined ? await request : await preparedAwait(generation, request);
     if (!prepared?.command || Object.keys(prepared.command).length !== 1 || typeof prepared.securityFingerprint !== "string") {
       throw new Error("Operation preparation returned an invalid command or security fingerprint.");
     }
     return { command: prepared.command, details: boundedDetails(prepared.details), securityFingerprint: prepared.securityFingerprint };
   };
   return Object.freeze({
-    discardReadyReview() {
-      if (state === "ready") clear();
+    discardUnsubmittedReview() {
+      if (state === "preparing") {
+        preparationGeneration += 1;
+        clear();
+      } else if (state === "ready") {
+        clear();
+      }
     },
     get state() { return state; },
     get pending() { return pending; },
+    get outcomeUnknown() { return outcomeUnknown; },
+    acknowledgeOutcomeUnknown({ confirmed = false } = {}) {
+      if (state !== "outcome-unknown") throw new Error("There is no unresolved transaction outcome to acknowledge.");
+      if (!confirmed) throw new Error("Confirm that the prior operation may have succeeded before acknowledging it.");
+      outcomeUnknown = undefined;
+      clear();
+    },
     async reviewProposal({ targetId, managerId, innerCommand, prepare, operation, note = "", highRisk = false, details = [] }) {
-      requireReviewSlot();
-      const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
-      const context = await liveContext(target, manager);
-      const actor = await getNnsActor();
-      const { fee, stake } = await economics(actor, context.manager);
-      const preparation = prepare ?? (async () => ({ command: innerCommand, details, securityFingerprint: canonical(innerCommand) }));
-      const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager });
-      const request = buildManageNeuronProposal(manager, target, prepared.command, note);
-      const encodedRequest = encodeManageNeuronRequest(request);
-      pending = deepFreeze({ kind: "SubmitManageNeuronProposal",
-        dendriteContextNeuronId: target, proposerManagerNeuronId: manager,
-        managedNeuronId: target, confirmationNeuronId: target,
-        operation, details: prepared.details, highRisk, request, encodedRequest,
-        requestDigest: await requestDigest(encodedRequest), prepare: preparation,
-        securityFingerprint: `${baseProposalFingerprint(context, target, manager, fee)}|${prepared.securityFingerprint}`,
-        reviewedFeeE8s: fee, mintedStakeE8s: stake,
-        principal: context.session.principal.toText(),
-        managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
-        targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown",
-        managerCount: new Set(context.report.managers.map((entry) => entry.neuron_id.toString())).size,
-        quorum: context.report.quorum_threshold?.[0] });
-      state = "ready";
-      return pending;
+      const generation = beginPreparation();
+      try {
+        const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
+        const context = await liveContext(target, manager, generation);
+        const actor = await preparedAwait(generation, getNnsActor());
+        const { fee, stake } = await economics(actor, context.manager, generation);
+        const preparation = prepare ?? (async () => ({ command: innerCommand, details, securityFingerprint: canonical(innerCommand) }));
+        const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager }, generation);
+        const request = buildManageNeuronProposal(manager, target, prepared.command, note);
+        const encodedRequest = encodeManageNeuronRequest(request);
+        const digest = await preparedAwait(generation, requestDigest(encodedRequest));
+        requirePreparation(generation);
+        pending = deepFreeze({ kind: "SubmitManageNeuronProposal",
+          dendriteContextNeuronId: target, proposerManagerNeuronId: manager,
+          managedNeuronId: target, confirmationNeuronId: target,
+          operation, details: prepared.details, highRisk, request, encodedRequest,
+          requestDigest: digest, prepare: preparation,
+          securityFingerprint: `${baseProposalFingerprint(context, target, manager, fee)}|${prepared.securityFingerprint}`,
+          reviewedFeeE8s: fee, mintedStakeE8s: stake,
+          principal: context.session.principal.toText(),
+          managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
+          targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown",
+          managerCount: new Set(context.report.managers.map((entry) => entry.neuron_id.toString())).size,
+          quorum: context.report.quorum_threshold?.[0] });
+        state = "ready";
+        return pending;
+      } catch (error) {
+        failPreparation(generation);
+        throw error;
+      }
     },
     async reviewDirect({ targetId, managerId, command, prepare, operation, highRisk = false, controllerOnly = false, revalidate, details = [] }) {
-      requireReviewSlot();
-      const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
-      const context = await liveContext(target, manager);
-      const authority = classifyManagerAuthority(context.manager, context.session.principal);
-      if (controllerOnly && !authority.isController) throw new Error("This operation requires the manager controller.");
-      const actor = await getNnsActor();
-      const preparation = prepare ?? (async () => {
-        const validated = revalidate ? await revalidate() : command;
-        return { command: validated, details, securityFingerprint: canonical(validated) };
-      });
-      const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager });
-      const request = buildDirectManagerOperation(manager, prepared.command);
-      const encodedRequest = encodeManageNeuronRequest(request);
-      pending = deepFreeze({ kind: "DirectManagerOperation",
-        dendriteContextNeuronId: target, mutationNeuronId: manager,
-        confirmationNeuronId: manager,
-        operation, details: prepared.details, highRisk, controllerOnly, request, encodedRequest,
-        requestDigest: await requestDigest(encodedRequest), prepare: preparation,
-        securityFingerprint: prepared.securityFingerprint,
-        principal: context.session.principal.toText(),
-        managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
-        targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown" });
-      state = "ready";
-      return pending;
+      const generation = beginPreparation();
+      try {
+        const target = parseNeuronId(String(targetId)), manager = parseNeuronId(String(managerId));
+        const context = await liveContext(target, manager, generation);
+        const authority = classifyManagerAuthority(context.manager, context.session.principal);
+        if (controllerOnly && !authority.isController) throw new Error("This operation requires the manager controller.");
+        const actor = await preparedAwait(generation, getNnsActor());
+        const preparation = prepare ?? (async () => {
+          const validated = revalidate ? await revalidate() : command;
+          return { command: validated, details, securityFingerprint: canonical(validated) };
+        });
+        const prepared = await runPreparation(preparation, context, actor, { targetId: target, managerId: manager }, generation);
+        const request = buildDirectManagerOperation(manager, prepared.command);
+        const encodedRequest = encodeManageNeuronRequest(request);
+        const digest = await preparedAwait(generation, requestDigest(encodedRequest));
+        requirePreparation(generation);
+        pending = deepFreeze({ kind: "DirectManagerOperation",
+          dendriteContextNeuronId: target, mutationNeuronId: manager,
+          confirmationNeuronId: manager,
+          operation, details: prepared.details, highRisk, controllerOnly, request, encodedRequest,
+          requestDigest: digest, prepare: preparation,
+          securityFingerprint: prepared.securityFingerprint,
+          principal: context.session.principal.toText(),
+          managerName: context.manager.known_neuron?.[0]?.name ?? "unknown",
+          targetName: context.report.target?.[0]?.known_neuron?.[0]?.name ?? "unknown" });
+        state = "ready";
+        return pending;
+      } catch (error) {
+        failPreparation(generation);
+        throw error;
+      }
     },
     async submit(review, { confirmed = false, typedTarget = "" } = {}) {
       if (state === "in-flight") throw new Error("Another transaction is already in flight.");
@@ -593,12 +662,28 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
           return result;
         } catch (error) {
           if (error instanceof GovernanceRejection) { clear(); throw error; }
-          abandon("outcome-unknown");
+          pending = undefined;
+          outcomeUnknown = Object.freeze({
+            operation: String(review.operation ?? "NNS transaction").slice(0, 256),
+            dendriteContextNeuronId: review.dendriteContextNeuronId,
+            mutationOrManagedNeuronId: review.kind === "SubmitManageNeuronProposal" ? review.managedNeuronId : review.mutationNeuronId,
+            requestDigest: review.requestDigest,
+            timestampMilliseconds: Date.now(),
+          });
+          state = "outcome-unknown";
           throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Use proposal lookup or a live recheck. ${String(error?.message ?? "NNS returned an unexpected response.").slice(0, 256)}`);
         }
       } catch (error) {
         if (reachedUpdate && state === "in-flight") {
-          abandon("outcome-unknown");
+          pending = undefined;
+          outcomeUnknown = Object.freeze({
+            operation: String(review.operation ?? "NNS transaction").slice(0, 256),
+            dendriteContextNeuronId: review.dendriteContextNeuronId,
+            mutationOrManagedNeuronId: review.kind === "SubmitManageNeuronProposal" ? review.managedNeuronId : review.mutationNeuronId,
+            requestDigest: review.requestDigest,
+            timestampMilliseconds: Date.now(),
+          });
+          state = "outcome-unknown";
           throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Use proposal lookup or a live recheck. ${String(error?.message ?? "Network call did not return evidence.").slice(0, 256)}`);
         }
         throw error;

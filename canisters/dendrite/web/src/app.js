@@ -66,7 +66,7 @@ export function createApplication({
   let recoverableAuthenticationError;
   let currentReport;
   let currentNeuronId;
-  let cancelPendingTransaction;
+  let routeGeneration = 0;
   async function activateAuthenticatedSession(session) {
     // Compatibility for injected read-only test sessions; production auth always
     // returns the private { principal, signingIdentity } object.
@@ -147,13 +147,12 @@ export function createApplication({
         renderCurrent();
         return;
       }
-      cancelPendingTransaction?.();
-      cancelPendingTransaction = undefined;
-      authenticatedNnsActor = undefined;
       try {
         await browserAuth.signOut();
+        transactionPipeline.discardUnsubmittedReview();
         authenticatedPrincipal = undefined;
         authenticatedSession = undefined;
+        authenticatedNnsActor = undefined;
         recoverableAuthenticationError = undefined;
       } catch (error) {
         recoverableAuthenticationError = boundedAuthenticationError(
@@ -169,14 +168,23 @@ export function createApplication({
 
   function appendReportActions(id) {
     root.append(authenticationPanel());
+    if (transactionPipeline.state === "outcome-unknown" && !(authenticatedSession && authenticatedNnsActor)) {
+      const summary = transactionPipeline.outcomeUnknown;
+      root.append(
+        element("h2", "Unresolved NNS transaction outcome", "error"),
+        element("p", `Operation: ${summary.operation}. Dendrite context neuron: ${summary.dendriteContextNeuronId}. Mutation or managed neuron: ${summary.mutationOrManagedNeuronId}.`, "error"),
+        element("p", `Request SHA-256: ${summary.requestDigest}. The prior operation may have succeeded; sign in to use the read-only recovery and explicit acknowledgment controls. A full browser reload loses this heap-only marker.`, "error"),
+      );
+    }
     if (authenticatedPrincipal && currentReport) {
       renderManagerAuthority(root, currentReport, authenticatedPrincipal);
-      if (authenticatedSession && authenticatedNnsActor) cancelPendingTransaction = renderControlPanel(root, {
+      if (authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
         report: currentReport,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
         pipeline: transactionPipeline,
-        onSuccess: async () => loadNeuron(id),
+        onSettlement: settleTransaction,
+        onRerun: () => loadNeuron(id),
       });
     }
     const again = element("button", "Check again");
@@ -185,7 +193,8 @@ export function createApplication({
   }
 
   function renderCurrent() {
-    if (currentReport && currentNeuronId) {
+    const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
+    if (match && currentReport && currentNeuronId === match[1]) {
       renderReport(root, currentReport);
       appendReportActions(currentNeuronId);
     } else {
@@ -193,7 +202,11 @@ export function createApplication({
     }
   }
 
-  function landing() {
+  function landing(generation = ++routeGeneration) {
+    if (generation !== routeGeneration) return;
+    transactionPipeline.discardUnsubmittedReview();
+    currentReport = undefined;
+    currentNeuronId = undefined;
     clear(root);
     root.append(
       element("h1", "Dendrite"),
@@ -218,26 +231,39 @@ export function createApplication({
         input.reportValidity();
       }
     });
+    const unresolved = transactionPipeline.state === "outcome-unknown"
+      ? (() => {
+        const summary = transactionPipeline.outcomeUnknown;
+        return element("p", `Unresolved NNS transaction outcome: ${summary.operation}; context neuron ${summary.dendriteContextNeuronId}; mutation or managed neuron ${summary.mutationOrManagedNeuronId}; request SHA-256 ${summary.requestDigest}. The prior operation may have succeeded.`, "error");
+      })()
+      : undefined;
     root.append(
       authenticationPanel(),
+      ...(unresolved ? [unresolved] : []),
       form,
       element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."),
       resources(),
     );
   }
 
-  async function loadNeuron(id) {
-    cancelPendingTransaction?.();
-    cancelPendingTransaction = undefined;
+  async function loadNeuron(id, generation = ++routeGeneration) {
+    transactionPipeline.discardUnsubmittedReview();
+    const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
+    if (!ownsRoute()) return;
     clear(root);
     root.setAttribute("aria-busy", "true");
     root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status"));
     try {
-      currentReport = await checkLive(await actor(), id);
+      const report = await checkLive(await actor(), id);
+      if (!ownsRoute()) return;
+      currentReport = report;
       currentNeuronId = id;
       renderReport(root, currentReport);
       appendReportActions(id);
     } catch (error) {
+      if (!ownsRoute()) return;
+      currentReport = undefined;
+      currentNeuronId = undefined;
       clear(root);
       root.append(element("h1", `Neuron ${id}`));
       showError(root, errorMessage(error));
@@ -245,18 +271,33 @@ export function createApplication({
       retry.addEventListener("click", () => loadNeuron(id));
       root.append(retry, resources());
     } finally {
-      root.removeAttribute("aria-busy");
+      if (ownsRoute()) root.removeAttribute("aria-busy");
     }
   }
 
   function route() {
+    const generation = ++routeGeneration;
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
-    if (!match) return landing();
+    if (!match) return landing(generation);
     try {
-      return loadNeuron(formatNeuronId(parseNeuronId(match[1])));
+      return loadNeuron(formatNeuronId(parseNeuronId(match[1])), generation);
     } catch {
-      return landing();
+      return landing(generation);
     }
+  }
+
+  async function settleTransaction(review, result) {
+    const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
+    if (!match) {
+      landing();
+      return;
+    }
+    const id = formatNeuronId(parseNeuronId(match[1]));
+    if (result && review?.dendriteContextNeuronId.toString() === id) {
+      await loadNeuron(id);
+      return;
+    }
+    renderCurrent();
   }
 
   return {
