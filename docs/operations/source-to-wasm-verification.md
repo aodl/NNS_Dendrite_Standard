@@ -537,3 +537,58 @@ Current deterministic hashes:
 The real Internet Identity canonical/alternative-origin popup test and controlled
 transaction smoke test were not run. They remain the two mandatory operator gates. No
 mainnet mutation, proposal, vote, deployment, or operator-gate success is claimed.
+
+## Final browser-lifecycle and transaction-concurrency evidence — 2026-07-23
+
+Starting from `620e6a7876dda73ec36cec2b582e412b2c56e809`, this correction
+pass serialized asynchronous review preparation, made anonymous route loads
+generation-safe, settled transactions against the current route, retained bounded
+heap-only unresolved-outcome coordination until explicit acknowledgment, prepared
+voting-power refresh review evidence from the fresh pipeline report, and retained the
+validated actor/session on failed sign-out. It added no command, canister method,
+storage, retry, timer, framework, crate, canister, or background work.
+
+The implementation through `dc743c6` passed `git status`, `cargo fmt --all -- --check`,
+warnings-denied workspace/all-target/all-feature Clippy, `cargo xtask check`,
+configured `cargo xtask test`, all three PocketIC scenarios, `cargo xtask coverage`,
+both semantic interface drift checks, generated transaction-IDL equality, `npm ci`,
+`npm test`, `npm run test:coverage`, repeated production asset byte identity,
+production dependency reachability, `cargo xtask security-scan`, `cargo xtask sbom`,
+configured `cargo xtask build`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible`. The 86 frontend tests reached 98.88%
+lines, 87.85% branches, and 92.16% functions. Workspace Rust line coverage was 90.68%.
+Certified HTTP, alternative-origin assets/headers, anonymous upgrade behavior, and the
+exact transaction nesting remained covered by the passing PocketIC/frontend suites.
+Two clean builds were byte-identical.
+
+Reproducibility inputs were fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, API host `https://icp-api.io`, root-key fetching
+disabled, canonical derivation origin `https://dendrite.example`, empty alternative
+origins, fixed provider `https://id.ai/authorize`, delegation TTL
+`28800000000000` nanoseconds, and `SOURCE_DATE_EPOCH=0`.
+
+Current deterministic hashes:
+
+- Transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Wasm, both clean builds: `473bcbdbed1d0de74be1fecc39e84e7f9e3debcaf0663b75377bb750a9936a0d`.
+- Frontend tree, both clean builds: `767c1198c9d7c98c7fd1d61bf7a5262f1aa7da0886dbb8d6b560b0832cf4d37a`.
+- Asset manifest: `7b2d172395eeff4d18c3de12d294e28c2f10f84d1b9693d18b44bc379d01dab2`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite SBOM: `94f26c6d4507d645339e2f762ed6bc574fe3ba42828d2d2a1edc685184f4d225`.
+- Governance fixture SBOM: `62fe8adaeef2d2a4e88fa3c911935222c94cf820faf5f6811a59d5f6e74d1213`.
+- Types SBOM: `71ea93e54c48623242e4386f82b9387e9b9c7bf775535fb3b506d93e259b1da5`.
+- IC clients SBOM: `a1c6c600001c6dc9eaa64cbefb839a453b8658e87786c055262e600e1f807135`.
+- npm SBOM: `35407f137efd048ca32b4d64ab386200c6f9dda9ada2fe0e7014a5f531a5a550`.
+- xtask SBOM: `8a442d37937ae89808868c81721787a17c0b782f49eca4e12a563d190e392b81`.
+
+The existing narrowly documented `backoff`, `instant`, `paste`, and `serde_cbor`
+exceptions remain unchanged; production reachability still excludes PocketIC,
+`backoff`, and `instant`, and no new exception was added.
+
+The real Internet Identity canonical/alternative-origin popup test and controlled
+transaction smoke test were not run. They remain the two mandatory operator gates
+after this correction pass. No mainnet mutation, proposal, vote, deployment, or
+operator-gate success is claimed.

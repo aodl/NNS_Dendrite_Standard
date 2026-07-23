@@ -6,19 +6,19 @@ Starting boundary: `620e6a7876dda73ec36cec2b582e412b2c56e809`. Preserve the
 stateless two-method canister, fixed browser-to-Governance actor, command policies, and
 completed transaction hardening while making only these lifecycle corrections:
 
-- [ ] Serialize proposal and direct review preparation with explicit `preparing`
+- [x] Serialize proposal and direct review preparation with explicit `preparing`
   ownership and generation-safe cancellation.
-- [ ] Ignore stale anonymous-check completions and keep landing/authentication renders
+- [x] Ignore stale anonymous-check completions and keep landing/authentication renders
   route-correct.
-- [ ] Settle completed transactions against the current route instead of a detached
+- [x] Settle completed transactions against the current route instead of a detached
   control panel.
-- [ ] Retain a bounded heap-only unresolved-outcome summary until explicit confirmed
+- [x] Retain a bounded heap-only unresolved-outcome summary until explicit confirmed
   acknowledgment, with read-only recovery only.
-- [ ] Prepare voting-power refresh details and fingerprints from fresh pipeline
+- [x] Prepare voting-power refresh details and fingerprints from fresh pipeline
   evidence at review and final preflight.
-- [ ] Preserve the authenticated actor and transaction state when browser sign-out
+- [x] Preserve the authenticated actor and transaction state when browser sign-out
   fails.
-- [ ] Add deterministic lifecycle/race regressions, update existing evidence, and run
+- [x] Add deterministic lifecycle/race regressions, update existing evidence, and run
   every automated release and two-clean-build gate.
 
 The real Internet Identity popup/origin test and controlled transaction smoke test stay
