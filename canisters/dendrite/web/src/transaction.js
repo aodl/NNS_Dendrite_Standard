@@ -421,10 +421,36 @@ export function prepareRewardReceiver(receiverId) {
     const response = await nnsActor.list_neurons({ neuron_ids: [fixedReceiver], include_neurons_readable_by_caller: true,
       include_empty_neurons_readable_by_caller: [true], include_public_neurons_in_full_neurons: [true],
       page_number: [], page_size: [], neuron_subaccounts: [] });
-    const receiver = response.full_neurons.find((entry) => entry.id?.[0]?.id === fixedReceiver);
-    if (!receiver) throw new Error("Receiver neuron was not returned as readable to this caller.");
+    if (!Array.isArray(response?.full_neurons) || response.full_neurons.length !== 1 || response.full_neurons[0]?.id?.[0]?.id !== fixedReceiver) {
+      throw new Error("Exactly the requested receiver neuron must be returned as readable to this caller.");
+    }
+    const receiver = response.full_neurons[0];
+    if (!Array.isArray(receiver.controller) || receiver.controller.length !== 1) {
+      throw new Error("Receiver controller evidence is unavailable or malformed.");
+    }
+    let controller;
+    try { controller = principalText(receiver.controller[0]); } catch (_error) {
+      throw new Error("Receiver controller evidence is unavailable or malformed.");
+    }
+    if (!Array.isArray(receiver.hot_keys) || receiver.hot_keys.length > 10) {
+      throw new Error("Receiver hotkey evidence is unavailable or exceeds the bounded limit.");
+    }
+    let hotKeys;
+    try {
+      hotKeys = [...new Set(receiver.hot_keys.map(principalText))].sort();
+    } catch (_error) {
+      throw new Error("Receiver hotkey evidence is malformed.");
+    }
     const command = buildRewardReceiverCommand(fixedReceiver);
-    return { command, details: [`Replace the manager's entire Neuron Management followee list with singleton receiver ${fixedReceiver}.`, `Readable receiver stake: ${receiver.cached_neuron_stake_e8s ?? "unavailable"}; controller: ${receiver.controller?.[0]?.toText?.() ?? "unavailable"}.`], securityFingerprint: canonical({ managerId, receiverId: fixedReceiver }) };
+    return {
+      command,
+      details: [
+        `Receiver neuron ID: ${fixedReceiver}; receiver controller: ${controller}.`,
+        `Receiver hotkeys: ${hotKeys.length ? hotKeys.join(", ") : "None"}. Readable cached stake (informational): ${receiver.cached_neuron_stake_e8s ?? "unavailable"} e8s.`,
+        `This Follow operation gives receiver neuron ${fixedReceiver} sole Neuron Management followee status for manager neuron ${managerId}.`,
+      ],
+      securityFingerprint: canonical({ managerId, receiverId: fixedReceiver, controller, hotKeys }),
+    };
   };
 }
 
