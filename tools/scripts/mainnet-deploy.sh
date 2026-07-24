@@ -4,6 +4,7 @@ set -eu
 production_id=hp4av-oiaaa-aaaar-qcaha-cai
 production_origin=https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io
 production_alternatives='{"alternativeOrigins":[]}'
+canonical_wasm_hash=f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64
 mode=${1:-}
 
 case "$mode" in
@@ -35,11 +36,23 @@ resolved=$(icp canister status dendrite -e ic --id-only)
 [ "$resolved" = "$production_id" ] || { echo "resolved canister-ID mismatch: $resolved" >&2; exit 1; }
 tools/scripts/verify-release-artifacts.sh
 wasm_hash=$(sha256sum dist/release/dendrite.wasm | cut -d ' ' -f 1)
+[ "$wasm_hash" = "$canonical_wasm_hash" ] ||
+  { echo "release is not the verified canonical Docker Wasm" >&2; exit 1; }
 echo "Raw Wasm SHA-256: $wasm_hash"
 
 status_json=$(icp canister status dendrite -e ic --json)
 printf '%s\n' "$status_json"
-icp canister settings show dendrite -e ic
+if ! settings_output=$(icp canister settings show dendrite -e ic 2>&1); then
+  [ "$mode" = dry-run ] || {
+    printf '%s\n' "$settings_output" >&2
+    echo "controller-only settings preflight failed" >&2
+    exit 1
+  }
+  printf '%s\n' "Controller-only settings unavailable to the automated dry-run (expected for limited or anonymous identity)."
+  printf '%s\n' "$settings_output"
+else
+  printf '%s\n' "$settings_output"
+fi
 module_present=$(printf '%s\n' "$status_json" | grep -Eiq '"module_hash"[[:space:]]*:[[:space:]]*(null|\\[\\])' && printf no || printf yes)
 
 requested_mode=$mode
