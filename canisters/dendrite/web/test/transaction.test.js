@@ -391,6 +391,100 @@ test("reward-receiver preparation rejects missing or malformed authority evidenc
   }
 });
 
+test("receiver lookups use only explicit IDs with one bounded page", async () => {
+  const requests = [];
+  const actor = {
+    list_neurons: async (request) => {
+      requests.push(request);
+      return {
+        full_neurons: request.neuron_ids.map((id) => ({ id: [{ id }], controller: [principal], hot_keys: [], cached_neuron_stake_e8s: 1n })),
+        total_pages_available: [1n],
+      };
+    },
+  };
+  const configured = [
+    manager({ neuron_management_followees: [99n] }),
+    manager({ neuron_id: 11n, neuron_management_followees: [100n] }),
+    manager({ neuron_id: 12n, neuron_management_followees: [99n] }),
+  ];
+  const verification = await verifyRewardReceivers(configured, actor);
+  assert.deepEqual(verification.map((entry) => entry.status), ["FoundAndReadable", "FoundAndReadable", "FoundAndReadable"]);
+  assert.deepEqual(requests[0], {
+    neuron_ids: [99n, 100n],
+    include_neurons_readable_by_caller: false,
+    include_empty_neurons_readable_by_caller: [false],
+    include_public_neurons_in_full_neurons: [true],
+    page_number: [0n],
+    page_size: [2n],
+    neuron_subaccounts: [],
+  });
+
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true });
+  assert.deepEqual(requests[1], {
+    neuron_ids: [99n],
+    include_neurons_readable_by_caller: false,
+    include_empty_neurons_readable_by_caller: [false],
+    include_public_neurons_in_full_neurons: [true],
+    page_number: [0n],
+    page_size: [1n],
+    neuron_subaccounts: [],
+  });
+  assert.ok(requests.every((request) => request.include_neurons_readable_by_caller === false));
+});
+
+test("explicit receiver response validation distinguishes omission from unavailable evidence", async () => {
+  const managers = [manager({ neuron_management_followees: [99n] })];
+  const status = async (response) => (await verifyRewardReceivers(managers, { list_neurons: async () => response }))[0].status;
+  assert.equal(await status({ full_neurons: [{ id: [{ id: 99n }] }] }), "FoundAndReadable", "absent page count is one");
+  assert.equal(await status({ full_neurons: [{ id: [{ id: 99n }] }], total_pages_available: [] }), "FoundAndReadable");
+  assert.equal(await status({ full_neurons: [] }), "NotReturnedToCaller");
+  for (const response of [
+    { full_neurons: [{ id: [{ id: 100n }] }] },
+    { full_neurons: [{ id: [{ id: 99n }] }, { id: [{ id: 99n }] }] },
+    { full_neurons: [{ id: [{ id: 0n }] }] },
+    { full_neurons: [{ id: [] }] },
+    { full_neurons: [{ id: [{ id: "99" }] }] },
+    { full_neurons: "malformed" },
+    { full_neurons: [{ id: [{ id: 99n }] }], total_pages_available: [2n] },
+    { full_neurons: [{ id: [{ id: 99n }] }], total_pages_available: [1n, 1n] },
+  ]) assert.equal(await status(response), "UpstreamUnavailable");
+});
+
+test("explicit receiver setup avoids caller-readable union expansion", async () => {
+  const receiver = { id: [{ id: 99n }], controller: [principal], hot_keys: [], cached_neuron_stake_e8s: 1n };
+  const requests = []; let calls = 0;
+  const actor = {
+    list_neurons: async (request) => {
+      requests.push(request);
+      const records = [receiver];
+      if (request.include_neurons_readable_by_caller) records.unshift({ id: [{ id: 10n }], controller: [principal], hot_keys: [] });
+      return { full_neurons: records, total_pages_available: [1n] };
+    },
+    manage_neuron: async () => { calls++; return { command: [{ Follow: {} }] }; },
+  };
+  const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+  const review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true });
+  assert.equal(requests[0].include_neurons_readable_by_caller, false);
+  assert.deepEqual(requests[0].neuron_ids, [99n]);
+  assert.match(review.details.join(" "), /Receiver neuron ID: 99/);
+  await pipeline.submit(review, { confirmed: true });
+  assert.equal(calls, 1);
+  assert.ok(requests.every((request) => request.neuron_ids.length === 1 && request.neuron_ids[0] === 99n));
+});
+
+test("public and private explicit receivers use returned readability without existence inference", async () => {
+  const fullReceiver = { id: [{ id: 99n }], controller: [principal], hot_keys: [], cached_neuron_stake_e8s: 1n };
+  for (const visibility of ["public", "private-readable"]) {
+    const actor = { list_neurons: async () => ({ full_neurons: [fullReceiver], total_pages_available: [1n] }) };
+    const prepared = await prepareRewardReceiver(99n)({ report: report(), nnsActor: actor, targetId: 20n, managerId: 10n });
+    assert.match(prepared.details.join(" "), /Receiver neuron ID: 99/, visibility);
+  }
+  const omitted = { list_neurons: async () => ({ full_neurons: [], total_pages_available: [1n] }) };
+  await assert.rejects(() => prepareRewardReceiver(99n)({ report: report(), nnsActor: omitted, targetId: 20n, managerId: 10n }), /not returned as readable to this caller/);
+  assert.equal((await verifyRewardReceivers([manager({ neuron_management_followees: [99n] })], omitted))[0].status, "NotReturnedToCaller");
+});
+
 test("SetFollowing and manager-vote preparation derive exact commands from fresh reads", async () => {
   const fresh = report({ committed_topics: [{ topic: 4 }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
   const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }) };
