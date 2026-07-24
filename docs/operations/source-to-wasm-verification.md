@@ -663,7 +663,7 @@ canister, arbitrary call capability, or background work was added.
 
 The implementation and tests through `8eb0ba6`, plus the generated assets and
 documentation recorded by the final documentation commit, passed `git status`, `npm
-ci`, all 93 frontend tests, frontend coverage, `cargo fmt --all -- --check`, explicit
+ci`, all 94 frontend tests, frontend coverage, `cargo fmt --all -- --check`, explicit
 warnings-denied workspace/all-target/all-feature Clippy, `cargo xtask check`,
 configured `cargo xtask test`, all three PocketIC scenarios, `cargo xtask coverage`,
 anonymous-verifier and transaction-interface semantic drift, generated
@@ -671,7 +671,7 @@ transaction-IDL equality, production asset byte identity, certified HTTP and
 alternative-origin checks, production dependency reachability, `cargo xtask
 security-scan`, `cargo xtask sbom`, configured `cargo xtask build`, configured `cargo
 xtask build-reproducible`, and configured `cargo xtask verify-reproducible`.
-Frontend coverage was 99.12% lines, 88.04% branches, and 93.07% functions. Workspace
+Frontend coverage was 99.12% lines, 88.06% branches, and 93.07% functions. Workspace
 Rust line coverage was 90.68%. The clean Wasm and frontend builds were byte-identical.
 
 Reproducibility inputs were fixture canister ID
