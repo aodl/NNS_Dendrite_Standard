@@ -435,18 +435,18 @@ export function prepareRefreshVotingPower() {
     const refreshed = target?.voting_power_refreshed_timestamp_seconds?.[0];
     const potential = target?.potential_voting_power?.[0];
     const deciding = target?.deciding_voting_power?.[0];
-    if ([snapshot, refreshed, potential, deciding].some((value) => typeof value !== "bigint")) {
+    if (!target || [snapshot, refreshed, potential, deciding].some((value) => typeof value !== "bigint" || value < 0n)) {
       throw new Error("Fresh voting-power evidence is unavailable.");
     }
+    if (refreshed > snapshot) throw new Error("Target refresh timestamp is later than the NNS snapshot timestamp.");
     const age = snapshot - refreshed;
-    const evidence = { snapshot, refreshed, age, threshold: 15_778_800n, potential, deciding };
     return {
       command: buildRefreshVotingPowerCommand(),
       details: [
-        `Fresh NNS snapshot: ${snapshot}; fresh target refresh timestamp: ${refreshed}; fresh refresh age: ${age} seconds; six-month threshold: ${evidence.threshold} seconds.`,
-        `Fresh potential voting power: ${potential}; fresh deciding voting power: ${deciding}.`,
+        `Evidence observed for this review — NNS snapshot: ${snapshot}; target refresh timestamp: ${refreshed}; refresh age: ${age} seconds; six-month threshold: 15778800 seconds.`,
+        `Evidence observed for this review — potential voting power: ${potential}; deciding voting power: ${deciding}.`,
       ],
-      securityFingerprint: canonical(evidence),
+      securityFingerprint: canonical({ command: "RefreshVotingPower", refreshed }),
     };
   };
 }
