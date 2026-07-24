@@ -89,3 +89,12 @@ loading route owned until its report renders with authenticated controls. Hold s
 open after creating a review and confirm detached submit/review controls make no NNS
 call, duplicate authentication transitions are rejected, and failed sign-out retains
 the session/actor while requiring a new review.
+
+For the RefreshVotingPower workflow, allow ordinary NNS snapshot, refresh-age, and
+potential/deciding voting-power progression during human review time. A changed target
+refresh timestamp must invalidate the old review, and missing, negative, or
+refresh-after-snapshot evidence must fail before submission. For reward-receiver setup,
+review the readable receiver's exact controller and normalized hotkey membership.
+Controller or hotkey membership changes must invalidate the review; hotkey order and
+cached-stake-only changes must not. Every such failed final preflight must make no NNS
+update call.

@@ -91,3 +91,20 @@ supersedes any same-neuron check begun before settlement. Settlement on landing 
 different neuron never navigates, cancels that route's check, or restores the old
 route. Proposal creation is not adoption or execution, and Dendrite performs no
 automatic proposal polling, mutation retry, or adoption inference.
+
+RefreshVotingPower review copy uses a fresh NNS snapshot, target refresh timestamp,
+calculated age, threshold, and potential/deciding voting power. Final preflight
+revalidates that all are present non-negative integers and internally consistent, but
+normal NNS time and voting-power progression is not treated as configuration drift.
+Only the operation kind and target refresh timestamp enter the operation-specific
+fingerprint; a changed refresh timestamp proves an intervening refresh and requires a
+new review. Proposal-level principal, manager set/order, quorum, committed topics,
+authority, fee, and exact request integrity checks remain unchanged.
+
+Reward-receiver setup reads exactly the requested receiver through the existing fixed
+Governance `list_neurons` actor method. A readable receiver must expose one controller
+and a bounded hotkey array. The review displays the canonical controller, sorted and
+deduplicated hotkey membership, and informational cached stake. Controller or hotkey
+membership drift invalidates final preflight, while ordering, duplicate representation,
+and stake-only drift do not. This exposes authority without requiring the authenticated
+principal to control the receiver and adds no catalogue, destination, or method.

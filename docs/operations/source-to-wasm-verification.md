@@ -648,6 +648,65 @@ transaction smoke test were not run. They remain the two mandatory operator gate
 after this correction. No mainnet mutation, proposal, vote, deployment, or
 operator-gate success is claimed.
 
+## Final transaction-preflight semantics evidence — 2026-07-24
+
+Starting from `541afdaa5b65392b5cdf6255bcd88e20d6d666ed`, this correction
+keeps RefreshVotingPower final preflight live while allowing ordinary NNS snapshot,
+refresh-age, and voting-power progression. The stable operation fingerprint now binds
+the command and reviewed target refresh timestamp; a changed refresh timestamp or
+missing, negative, or contradictory evidence still invalidates the review before any
+update. Reward-receiver review and final preflight now require and bind the exact
+receiver controller plus the sorted, deduplicated hotkey set. Stake remains
+informational. No workflow, canister method, state, history, retry, poll, timer,
+framework, crate, canister, arbitrary call capability, or background work was added.
+
+The implementation through `a3ec244`, plus regenerated certified assets and this
+documentation, passed initial and final `git status`, `npm ci`, all 98 frontend tests,
+frontend coverage, `cargo fmt --all -- --check`, warnings-denied
+workspace/all-target/all-feature Clippy, `cargo xtask check`, configured `cargo xtask
+test`, all three PocketIC scenarios, `cargo xtask coverage`, anonymous-verifier and
+transaction-interface semantic drift, generated transaction-IDL equality, repeated
+production asset byte identity, certified HTTP and alternative-origin checks,
+production dependency reachability, `cargo xtask security-scan`, `cargo xtask sbom`,
+configured `cargo xtask build`, configured `cargo xtask build-reproducible`, and
+configured `cargo xtask verify-reproducible`. Frontend coverage was 99.13% lines,
+88.26% branches, and 93.41% functions. Workspace Rust line coverage was 90.68%. Two
+clean Wasm and frontend builds were byte-identical.
+
+Reproducibility inputs were fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, API host `https://icp-api.io`, root-key fetching
+disabled, canonical derivation origin `https://dendrite.example`, empty alternative
+origins, fixed provider `https://id.ai/authorize`, delegation TTL
+`28800000000000` nanoseconds, `DFX_IDENTITY=codex_local` for IC tests, and
+`SOURCE_DATE_EPOCH=0`.
+
+Current deterministic hashes:
+
+- Transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Wasm, both clean builds: `dd335738b09f66287075b9814c918a048530be37a412914f0dbcae785c39f633`.
+- Frontend tree, both clean builds: `e0fab32eb4b6b3b867c5ddb5eac71a7f83cfbd13bfd61264a5969093d750217a`.
+- Asset manifest: `64ff2ade4cc2e910cbe33bca6e1c6cc7f8de6c385822eabfb326c7adde666ea9`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite SBOM: `381374b432e90814a96eb608dead91c642acd3f6aa283a6bc8d748f2a0a441f4`.
+- Governance fixture SBOM: `4139b23a2beea47a7da139c5306ef21b7536c28a0eda8bd5404ef951e766b119`.
+- Types SBOM: `9867eacd95ce7c71df57418fb78bef2b295b0e79de53914c8ccce706467cbf62`.
+- IC clients SBOM: `3ead0b7f96de29f83a0624cd21683bb101122d8df81c166e1e09daf03cfe4e62`.
+- npm SBOM: `fd73169f9232fc6c0b7595e53e659f102eff5f5864441d574016fb3dd1433fa7`.
+- xtask SBOM: `ce61f732a7f36ba357088d6bc64a5b93b5c66fdff3dde627f9d8021af4807dd4`.
+
+The public Candid API remains update `check_neuron : (nat64) -> (CheckResult)` and
+certified query `http_request`. Production reachability still excludes PocketIC,
+`backoff`, and `instant`; the existing narrowly documented `backoff`, `instant`,
+`paste`, and `serde_cbor` exceptions remain unchanged.
+
+The real Internet Identity canonical/alternative-origin popup test and controlled
+transaction smoke test were not run. They remain the two mandatory operator gates
+after this correction. No mainnet mutation, proposal, vote, deployment, or
+operator-gate success is claimed.
+
 ## Final transaction-receipt and post-settlement evidence — 2026-07-24
 
 Starting from `58d02801d8a8e6b1d0f606f9d07ac1d18f815524`, this correction
