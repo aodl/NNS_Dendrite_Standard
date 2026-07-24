@@ -20,7 +20,7 @@ Export those values as shown in the [README](../../README.md), then run:
 
 ```sh
 tools/scripts/docker-build-release.sh
-sha256sum -c dist/release/SHA256SUMS
+(cd dist/release && sha256sum -c SHA256SUMS)
 ```
 
 The digest-pinned `Dockerfile.repro`, pinned lockfiles, and `linux/amd64` platform

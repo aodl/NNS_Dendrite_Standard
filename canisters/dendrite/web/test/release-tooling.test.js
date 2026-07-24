@@ -199,6 +199,11 @@ test("committed release material contains no secret-like content", () => {
       .filter((entry) => entry.isFile() && entry.name !== "security-scan.sh")
       .map((entry) => join("tools/scripts", entry.name)),
   ];
-  const forbidden = /BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|seed phrase|authentication cookie|recovery phrase/i;
+  const forbidden = new RegExp([
+    "BEGIN (?:RSA |EC |OPENSSH )?PRIVATE" + " KEY",
+    "seed" + " phrase",
+    "authentication" + " cookie",
+    "recovery" + " phrase",
+  ].join("|"), "i");
   for (const file of files) assert.doesNotMatch(readFileSync(file, "utf8"), forbidden, file);
 });

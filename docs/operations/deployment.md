@@ -96,7 +96,7 @@ Pinned 0.2.6 resolves a name with `icp canister status dendrite -e ic --id-only`
 ```sh
 icp canister status dendrite -e ic
 icp canister settings show dendrite -e ic
-sha256sum -c dist/release/SHA256SUMS
+(cd dist/release && sha256sum -c SHA256SUMS)
 DENDRITE_CANISTER_ID=hp4av-oiaaa-aaaar-qcaha-cai \
   tools/scripts/verify-mainnet-readonly.sh
 ```
