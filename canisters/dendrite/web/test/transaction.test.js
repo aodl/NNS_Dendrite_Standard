@@ -242,15 +242,55 @@ test("unresolved outcome summary blocks review until explicit no-retry acknowled
   assert.ok(await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, command: { RegisterVote: { proposal: [{ id: 2n }], vote: 1 } } }));
 });
 
-test("voting-power refresh preparation fingerprints fresh report evidence", async () => {
-  let current = report({ checked_at_timestamp_seconds: 100n, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [8n], deciding_voting_power: [7n] }] }), calls = 0;
+const votingReport = (snapshot, refreshed, potential = 8n, deciding = 7n) => report({
+  checked_at_timestamp_seconds: snapshot,
+  target: [{ voting_power_refreshed_timestamp_seconds: refreshed === undefined ? [] : [refreshed],
+    potential_voting_power: potential === undefined ? [] : [potential],
+    deciding_voting_power: deciding === undefined ? [] : [deciding] }],
+});
+
+test("voting-power refresh permits ordinary time and power progression", async () => {
+  for (const final of [
+    votingReport(101n, 40n),
+    votingReport(3_700n, 40n),
+    votingReport(101n, 40n, 9n, 6n),
+  ]) {
+    let current = votingReport(100n, 40n), calls = 0;
+    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] }; } };
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+    const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare: prepareRefreshVotingPower() });
+    assert.match(review.details.join(" "), /Evidence observed for this review.*NNS snapshot: 100.*target refresh timestamp: 40.*refresh age: 60.*six-month threshold: 15778800/);
+    assert.match(review.details.join(" "), /potential voting power: 8.*deciding voting power: 7/);
+    current = final;
+    await pipeline.submit(review, { confirmed: true });
+    assert.equal(calls, 1);
+  }
+});
+
+test("voting-power refresh invalidates changed refresh evidence and fails missing or contradictory evidence closed", async () => {
+  let current = votingReport(100n, 40n), calls = 0;
   const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 1n }] } }] }; } };
   const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
   const review = await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare: prepareRefreshVotingPower() });
-  assert.match(review.details.join(" "), /Fresh NNS snapshot: 100.*fresh target refresh timestamp: 40.*fresh refresh age: 60/);
-  assert.match(review.details.join(" "), /potential voting power: 8.*deciding voting power: 7/);
-  current = report({ checked_at_timestamp_seconds: 101n, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [8n], deciding_voting_power: [7n] }] });
+  current = votingReport(101n, 41n);
   await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /evidence changed/);
+  assert.equal(calls, 0);
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /current explicitly confirmed review/);
+  current = votingReport(101n, 40n);
+  assert.ok(await pipeline.reviewProposal({ targetId: 20n, managerId: 10n, prepare: prepareRefreshVotingPower() }));
+
+  for (const invalid of [
+    report({ checked_at_timestamp_seconds: undefined, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [8n], deciding_voting_power: [7n] }] }),
+    votingReport(100n, undefined),
+    report({ checked_at_timestamp_seconds: 100n, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [], deciding_voting_power: [7n] }] }),
+    report({ checked_at_timestamp_seconds: 100n, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [8n], deciding_voting_power: [] }] }),
+    votingReport(100n, 101n),
+    votingReport(-1n, 0n),
+    report({ checked_at_timestamp_seconds: 100n, target: [] }),
+  ]) {
+    const isolated = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => invalid });
+    await assert.rejects(() => isolated.reviewProposal({ targetId: 20n, managerId: 10n, prepare: prepareRefreshVotingPower() }), /unavailable|later than/);
+  }
   assert.equal(calls, 0);
 });
 
@@ -286,7 +326,7 @@ test("operation preparation revalidates omega readiness and target proposal stat
 
 test("hotkey and receiver facts are re-read immediately before direct submission", async () => {
   const other = "rrkah-fqaaa-aaaaa-aaaaq-cai"; let current = report(), readable = true, calls = 0;
-  const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: readable ? neuron_ids.map((id) => ({ id: [{ id }], controller: [], cached_neuron_stake_e8s: 1n })) : [] }), manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
+  const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: readable ? neuron_ids.map((id) => ({ id: [{ id }], controller: [principal], hot_keys: [], cached_neuron_stake_e8s: 1n })) : [] }), manage_neuron: async () => { calls++; return { command: [{ Configure: {} }] }; } };
   const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
   let review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareManagerHotkey(other), controllerOnly: true });
   current = report({ managers: [manager({ hot_keys: [Principal.fromText(other)] })] });
@@ -295,8 +335,60 @@ test("hotkey and receiver facts are re-read immediately before direct submission
   current = report(); readable = true;
   review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true });
   readable = false;
-  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /not returned as readable/);
+  await assert.rejects(() => pipeline.submit(review, { confirmed: true }), /requested receiver neuron.*returned as readable/);
   assert.equal(pipeline.pending, undefined); assert.equal(calls, 0);
+});
+
+test("reward-receiver preflight binds controller and normalized hotkey membership but not stake", async () => {
+  const controllerA = Principal.selfAuthenticating(Uint8Array.from([4, 1]));
+  const controllerB = Principal.selfAuthenticating(Uint8Array.from([4, 2]));
+  const hotkeyA = Principal.selfAuthenticating(Uint8Array.from([4, 3]));
+  const hotkeyB = Principal.selfAuthenticating(Uint8Array.from([4, 4]));
+  const receiver = (overrides = {}) => ({ id: [{ id: 99n }], controller: [controllerA], hot_keys: [hotkeyA, hotkeyB], cached_neuron_stake_e8s: 1n, ...overrides });
+  const cases = [
+    { name: "unchanged", review: receiver(), final: receiver(), succeeds: true },
+    { name: "controller change", review: receiver(), final: receiver({ controller: [controllerB] }) },
+    { name: "hotkey addition", review: receiver({ hot_keys: [hotkeyA] }), final: receiver({ hot_keys: [hotkeyA, hotkeyB] }) },
+    { name: "hotkey removal", review: receiver(), final: receiver({ hot_keys: [hotkeyA] }) },
+    { name: "hotkey order", review: receiver(), final: receiver({ hot_keys: [hotkeyB, hotkeyA] }), succeeds: true },
+    { name: "duplicate normalization", review: receiver({ hot_keys: [hotkeyA, hotkeyA, hotkeyB] }), final: receiver({ hot_keys: [hotkeyB, hotkeyA] }), succeeds: true },
+    { name: "stake only", review: receiver(), final: receiver({ cached_neuron_stake_e8s: 99n }), succeeds: true },
+    { name: "controller missing at preflight", review: receiver(), final: receiver({ controller: [] }), error: /controller/ },
+    { name: "hotkeys malformed at preflight", review: receiver(), final: receiver({ hot_keys: "bad" }), error: /hotkey/ },
+  ];
+  for (const scenario of cases) {
+    let currentReceiver = scenario.review, calls = 0;
+    const actor = {
+      list_neurons: async () => ({ full_neurons: [currentReceiver] }),
+      manage_neuron: async () => { calls++; return { command: [{ Follow: {} }] }; },
+    };
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+    const review = await pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true, highRisk: true });
+    assert.match(review.details.join(" "), /Receiver neuron ID: 99.*receiver controller:/);
+    assert.match(review.details.join(" "), /Receiver hotkeys:.*Readable cached stake \(informational\):/);
+    assert.match(review.details.join(" "), /sole Neuron Management followee status for manager neuron 10/);
+    currentReceiver = scenario.final;
+    if (scenario.succeeds) await pipeline.submit(review, { confirmed: true, typedTarget: "10" });
+    else await assert.rejects(() => pipeline.submit(review, { confirmed: true, typedTarget: "10" }), scenario.error ?? /evidence changed/, scenario.name);
+    assert.equal(calls, scenario.succeeds ? 1 : 0, scenario.name);
+  }
+});
+
+test("reward-receiver preparation rejects missing or malformed authority evidence without an update", async () => {
+  const invalid = [
+    { id: [{ id: 99n }], controller: [], hot_keys: [], cached_neuron_stake_e8s: 1n },
+    { id: [{ id: 99n }], controller: [principal], cached_neuron_stake_e8s: 1n },
+    { id: [{ id: 99n }], controller: [principal], hot_keys: "bad", cached_neuron_stake_e8s: 1n },
+    { id: [{ id: 99n }], controller: [principal], hot_keys: Array(11).fill(principal), cached_neuron_stake_e8s: 1n },
+    { id: [{ id: 99n }], controller: [principal], hot_keys: [{}], cached_neuron_stake_e8s: 1n },
+  ];
+  for (const receiver of invalid) {
+    let calls = 0;
+    const actor = { list_neurons: async () => ({ full_neurons: [receiver] }), manage_neuron: async () => { calls++; return { command: [{ Follow: {} }] }; } };
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => report() });
+    await assert.rejects(() => pipeline.reviewDirect({ targetId: 20n, managerId: 10n, prepare: prepareRewardReceiver(99n), controllerOnly: true }), /controller|hotkey/);
+    assert.equal(calls, 0);
+  }
 });
 
 test("SetFollowing and manager-vote preparation derive exact commands from fresh reads", async () => {
@@ -372,7 +464,7 @@ test("control panel renders primary workflows and performs no mutation before ex
   try {
     const root = new FakeNode("main"), current = report({ checked_at_timestamp_seconds: 50n, target: [{ voting_power_refreshed_timestamp_seconds: [40n], potential_voting_power: [2n], deciding_voting_power: [2n] }], committed_topics: [] });
     let mutations = 0, refreshed = 0;
-    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }), manage_neuron: async () => { mutations++; return { command: [{ MakeProposal: { proposal_id: [{ id: 8n }], message: [] } }] }; } };
+    const actor = { get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }), list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }], controller: [principal], hot_keys: [], cached_neuron_stake_e8s: 1n })) }), manage_neuron: async () => { mutations++; return { command: [{ MakeProposal: { proposal_id: [{ id: 8n }], message: [] } }] }; } };
     const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
     const cleanup = renderControlPanel(root, { report: current, session: targetedSession(), nnsActor: actor, pipeline, onSettlement: async () => { refreshed++; }, onRerun: async () => {} });
     const selects = []; const collect = (node) => { if (node.tag === "select") selects.push(node); for (const child of node.children ?? []) collect(child); }; collect(root); selects[0].value = "10";
@@ -402,6 +494,28 @@ test("control panel renders primary workflows and performs no mutation before ex
     const checkbox = find(root, (node) => node.name === "confirmation"); checkbox.checked = true;
     await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
     assert.equal(mutations, 1); assert.equal(refreshed, 1); assert.match(JSON.stringify(root), /Proposal 8 submitted/);
+  } finally { globalThis.document = previous; }
+});
+
+test("delayed RefreshVotingPower UI review submits after ordinary NNS time progression", async () => {
+  const previous = globalThis.document; globalThis.document = { createElement: (tag) => new FakeNode(tag), createTextNode: (text) => ({ textContent: text }) };
+  try {
+    const root = new FakeNode("main");
+    let current = votingReport(100n, 40n, 8n, 7n), calls = 0;
+    const actor = {
+      get_network_economics_parameters: async () => ({ neuron_management_fee_per_proposal_e8s: 1n }),
+      manage_neuron: async () => { calls++; return { command: [{ MakeProposal: { proposal_id: [{ id: 55n }] } }] }; },
+    };
+    const pipeline = createTransactionPipeline({ getSession: async () => targetedSession(), getNnsActor: async () => actor, checkNeuron: async () => current });
+    renderControlPanel(root, { report: current, session: targetedSession(), nnsActor: actor, pipeline, onSettlement: async () => {} });
+    find(root, (node) => node.tag === "select" && node.children?.some((child) => child.textContent === "10 — Manager")).value = "10";
+    await find(root, (node) => node.textContent === "Review voting-power refresh").dispatch("click");
+    assert.match(JSON.stringify(root), /Evidence observed for this review.*NNS snapshot: 100/);
+    current = votingReport(3_700n, 40n, 10n, 6n);
+    find(root, (node) => node.name === "confirmation").checked = true;
+    await find(root, (node) => node.textContent === "Submit exact reviewed request").dispatch("click");
+    assert.equal(calls, 1);
+    assert.match(JSON.stringify(root), /Proposal 55 submitted/);
   } finally { globalThis.document = previous; }
 });
 

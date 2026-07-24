@@ -1,5 +1,31 @@
 # Aggressive simplification implementation plan
 
+## Final transaction-preflight semantics correction
+
+Starting boundary: `541afdaa5b65392b5cdf6255bcd88e20d6d666ed`. Preserve the
+stateless two-method canister, fixed browser-to-Governance actor, exact reviewed
+request, final live preflight, application-scoped receipt, and route/authentication
+coordination while making only these corrections:
+
+- [ ] Validate and display fresh RefreshVotingPower evidence at review and final
+  preflight, but fingerprint only the command kind and observed target refresh
+  timestamp so ordinary NNS time and voting-power progression remain submittable.
+- [ ] Keep refresh preparation fail-closed for missing, negative, or contradictory
+  snapshot/refresh/potential/deciding evidence and invalidate a review when the target
+  refresh timestamp itself changes.
+- [ ] Require readable receiver controller and bounded hotkey evidence; display exact
+  receiver authority and informational stake; fingerprint the canonical controller
+  and sorted, deduplicated hotkey set while allowing stake-only drift.
+- [ ] Replace the incorrect time-drift regression and add focused refresh, receiver,
+  zero-update, and realistic delayed-UI tests without changing any other workflow.
+- [ ] Regenerate certified frontend assets, update existing operational/security
+  evidence, and rerun every automated release and two-clean-build gate.
+
+The real Internet Identity popup/origin test and controlled transaction smoke test stay
+unrun and remain mandatory operator gates after this correction. No mainnet mutation,
+deployment, automatic retry, polling, history, storage, or product-scope expansion is
+authorized or performed.
+
 ## Final transaction-receipt and post-settlement evidence correction
 
 Starting boundary: `58d02801d8a8e6b1d0f606f9d07ac1d18f815524`. Preserve the
