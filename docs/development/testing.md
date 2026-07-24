@@ -1,6 +1,6 @@
 # Testing
 
-Build commands use the production values from the [README](../../README.md). Local
+Build commands use the production values from [deployment](../operations/deployment.md). Local
 replica commands additionally use `DFX_IDENTITY=codex_local`, a local API/provider,
 and root-key fetching `true`; production commands require root-key fetching `false`.
 

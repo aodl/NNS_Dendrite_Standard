@@ -2,7 +2,7 @@
 
 ## Purpose and safety boundary
 
-This is the executable `icp-cli` 0.2.6 procedure for installing or upgrading the exact
+This is the sole executable `icp-cli` 0.2.6 procedure for installing or upgrading the exact
 reviewed prebuilt artifact. It never creates a canister, changes controllers, tops up
 cycles, retries, or supports `reinstall`. `dfx` 0.27.0 remains local/PocketIC support
 only. The reserved production canister is currently empty.
@@ -39,8 +39,10 @@ changes no controller.
 
 ## Cycles policy
 
-The live check guard requires a 2T liquid-cycle reserve. Inspect balance independently;
-do not combine top-up with deployment. See [cycles and rate limits](cycles-and-rate-limits.md).
+The live check guard requires a 2T liquid-cycle reserve. It admits at most two
+concurrent checks, one check per neuron, and 20 starts per 60 seconds; stale in-flight
+entries prune after 300 seconds. Inspect balance independently and never combine a
+top-up with deployment.
 
 ## Reserving an empty canister ID
 
@@ -86,7 +88,9 @@ icp canister install dendrite --environment ic --mode install \
 
 Repeat every source/build/verification step, require an existing module, run dry-run
 with `DENDRITE_DRY_RUN_MODE=upgrade`, then execute the guarded `upgrade` mode. Never
-use automatic mode or `reinstall`.
+use automatic mode or `reinstall`. Dendrite has no application stable state; upgrade
+replaces code and certified assets and resets only heap-local guards. Browser sessions,
+receipts, and unresolved-outcome markers are also outside canister stable state.
 
 ## Post-install verification
 
@@ -112,6 +116,15 @@ body, and referenced hashed assets. Optionally set public
 There is no automatic rollback or retry. Stop, preserve evidence, inspect whether the
 write occurred, and prepare a new reviewed `upgrade` artifact if correction is needed.
 Do not delete/recreate the canister and do not use `reinstall` as a generic remedy.
+
+## Target-neuron operational boundary
+
+Dendrite verifies but does not perform target-neuron setup. A target needs 5–15
+distinct known managers, committed-topic delegates, exact alpha-vote/omega-reject
+following, maximum locked delay, no hotkeys, and `not_for_profit = false`. Blackholing
+is the final irreversible step: uninstall the separate controller canister's Wasm and
+remove all controllers only after every other failure is resolved. A failed lookup,
+stopped canister, or retained recovery controller is not proof of blackholing.
 
 ## Troubleshooting
 

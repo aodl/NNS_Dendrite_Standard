@@ -9,9 +9,7 @@ evidence. Never include private identity or authentication material.
 | --- | --- |
 | Release Git commit | UNRUN |
 | Release tag | UNRUN |
-| Canister ID | `hp4av-oiaaa-aaaar-qcaha-cai` |
-| Canonical origin | `https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io` |
-| Alternative origins | None (`{"alternativeOrigins":[]}`) |
+| Production mapping | See authoritative [deployment identifiers](deployment.md) |
 | Deployment mode | UNRUN |
 | Operator identity principal | UNRUN |
 | Controller list before | UNRUN |

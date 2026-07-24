@@ -7,9 +7,9 @@ Both gates are independent and **UNRUN**. Automated tests do not satisfy them.
 **Purpose:** prove final-origin identity, Governance-only delegation, and anonymous
 Dendrite behavior.
 
-**Prerequisites / exact environment:** installed reviewed module at
-`https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io`, II
-`https://id.ai/authorize`, alternatives none, reviewed commit/hash, interactive browser.
+**Prerequisites / exact environment:** installed reviewed module using the exact
+production configuration in [deployment](deployment.md), reviewed commit/hash, and an
+interactive browser.
 
 **Test data:** one operator-controlled principal and a target whose fresh report can
 recognize that manager authority without exposing private material.
@@ -17,8 +17,8 @@ recognize that manager authority without exposing private material.
 1. Load the canonical URL; expect certified application success and no redirect.
 2. Open the canonical-origin popup and authenticate; expect successful II completion.
 3. Record the exact displayed Dendrite principal; reload and expect restoration.
-4. Inspect the session; expect delegation targets only NNS Governance
-   `rrkah-fqaaa-aaaaa-aaaaq-cai`.
+4. Inspect the session; expect delegation targets only the NNS Governance principal
+   recorded in [deployment](deployment.md).
 5. Confirm no approved alternatives, and an unapproved origin cannot sign in.
 6. Run a fresh report; expect the correct controller/hotkey manager recognition.
 7. Sign out; expect identity removal and a successful fresh anonymous verification.

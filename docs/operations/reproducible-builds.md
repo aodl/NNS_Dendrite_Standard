@@ -8,20 +8,10 @@ does not authorize deployment.
 
 ## Release inputs
 
-The canonical `linux/amd64` build uses `SOURCE_DATE_EPOCH=0`, canister ID
-`hp4av-oiaaa-aaaar-qcaha-cai`, derivation origin
-`https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io`, exact alternative-origin document
-`{"alternativeOrigins":[]}`, API host `https://icp-api.io`, root-key fetching `false`,
-and identity provider `https://id.ai/authorize`.
+The canonical `linux/amd64` build uses `SOURCE_DATE_EPOCH=0` and the exact immutable
+production inputs in [deployment](deployment.md). Root-key fetching is disabled.
 
 ## Canonical Docker build
-
-Export those values as shown in the [README](../../README.md), then run:
-
-```sh
-tools/scripts/docker-build-release.sh
-(cd dist/release && sha256sum -c SHA256SUMS)
-```
 
 The digest-pinned `Dockerfile.repro`, pinned lockfiles, and `linux/amd64` platform
 produce only `dendrite.wasm`, `frontend/`, `asset-manifest.json`,
@@ -34,14 +24,25 @@ An ordinary configured `cargo xtask build` writes toolchain-local outputs.
 `cargo xtask verify-reproducible` compares two clean builds on the same host. These are
 useful diagnostics, not the canonical public container artifact.
 
-## Two-build verification
-
-```sh
-tools/scripts/verify-docker-reproducible.sh
-```
-
-This performs two clean no-cache Docker builds into separate temporary directories and
+The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
+
+## Canonical Docker evidence — 2026-07-24
+
+Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
+`dendrite-canonical` `docker-container` builder. The Buildx local exporter smoke test
+passed. Two clean `--no-cache` local exports completed with identical file sets,
+byte-identical files, and identical deterministic manifests. No alternate engine or
+prior failed-export artifact contributed to this evidence.
+
+- Raw Wasm SHA-256:
+  `f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64`
+- `SHA256SUMS` file SHA-256:
+  `5c5b00d0c02abad5c04fb1f205d28baa0777c15e62ad220804f9473b8e767788`
+
+The release manifest excludes itself, uses relative byte-sorted paths, and verifies
+from inside the release directory. `icp.yaml` binds the prebuilt recipe directly to the
+raw canonical Wasm and configures no implicit production rebuild.
 
 ## Mainnet module-hash comparison
 
@@ -69,3 +70,5 @@ behavior, or either transaction operator gate.
 
 Reproducibility depends on the pinned public registries and digest availability.
 Module-hash equality proves installed code bytes, not who may later replace them.
+Final-origin identity and controlled transaction tests remain the two unrun
+[operator gates](operator-gates.md).

@@ -6,21 +6,17 @@ Dendrite is one stateless Rust canister that serves a certified frontend and per
 anonymous, live NNS Dendrite Standard verification. Its public application methods are
 only update `check_neuron` and query `http_request`.
 
-| Item | Production value |
-| --- | --- |
-| Canister name | `dendrite` |
-| Reserved canister ID | `hp4av-oiaaa-aaaar-qcaha-cai` |
-| Canonical URL | `https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io` |
-
-The ID is reserved, but the production Wasm has not been installed. Only a completed
-[production record](docs/operations/production-record.md) may supersede that statement.
+The reserved production canister is empty. Production identifiers and configuration
+have one authoritative source in [deployment](docs/operations/deployment.md); only a
+completed [production record](docs/operations/production-record.md) may supersede the
+empty-canister statement.
 
 ## Trust model
 
 Dendrite stores no application state, cache, report, transaction history, or proposal
 history. Internet Identity sessions and Governance-only delegations remain in the
 browser and are never sent to Dendrite. Privileged mutations go directly from the
-browser to fixed NNS Governance. See the [threat model](docs/security/threat-model.md).
+browser to fixed NNS Governance. See [security](docs/security.md).
 
 ## Production deployment
 
@@ -37,26 +33,6 @@ SHA-256 is bound in `icp.yaml`, checked against `dist/release/SHA256SUMS`, and c
 with the installed module hash after deployment. See
 [reproducible builds](docs/operations/reproducible-builds.md).
 
-## Common commands
-
-```sh
-npm ci
-cargo xtask check
-cargo xtask test
-cargo xtask coverage
-cargo xtask security-scan
-cargo xtask sbom
-
-export DENDRITE_CANISTER_ID=hp4av-oiaaa-aaaar-qcaha-cai
-export DENDRITE_DERIVATION_ORIGIN=https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io
-export DENDRITE_ALTERNATIVE_ORIGINS_JSON='{"alternativeOrigins":[]}'
-export DENDRITE_API_HOST=https://icp-api.io
-export DENDRITE_IDENTITY_PROVIDER=https://id.ai/authorize
-export DENDRITE_FETCH_ROOT_KEY=false
-export SOURCE_DATE_EPOCH=0
-tools/scripts/docker-build-release.sh
-```
-
 ## Repository layout
 
 `canisters/dendrite/` contains the canister and frontend, `crates/` the pure rules and
@@ -65,7 +41,7 @@ tooling, and `docs/` architecture, development, operations, security, and the st
 
 ## Documentation
 
-Start with the [architecture overview](docs/architecture/overview.md),
+Start with [architecture](docs/architecture.md),
 [testing matrix](docs/development/testing.md), [deployment procedure](docs/operations/deployment.md),
-[release checklist](docs/operations/release-checklist.md), and
-[source-to-Wasm verification](docs/operations/source-to-wasm-verification.md).
+[reproducible-build evidence](docs/operations/reproducible-builds.md),
+[operator gates](docs/operations/operator-gates.md), and [security](docs/security.md).

@@ -1,0 +1,55 @@
+# Security
+
+## Threat boundaries
+
+All neuron fields, strings, URLs, principals, errors, routes, IDs, and upstream
+collections are untrusted. Typed clients enforce bounds and reject unexpected or
+duplicate records before map construction. Successful omission is factual evidence;
+rejection, decode failure, or structurally invalid evidence remains unavailable.
+Unknown protocol semantics require a standard update.
+
+The frontend creates text-safe DOM nodes, validates HTTPS links, never uses dynamic
+`innerHTML`, and keeps NNS IDs as decimal strings or `bigint`. Production uses a
+validated build-time canister principal, a fixed API origin, no root-key fetching,
+strict CSP, and no third-party runtime content.
+
+Internet Identity introduces a browser-only boundary. Delegations target only fixed NNS
+Governance and are never logged, rendered, serialized to Dendrite, or sent to the
+canister. Every mutation requires fresh authority evidence, an immutable exact review,
+explicit confirmation, strict response validation, and no automatic retry. Ambiguous
+outcomes block another mutation until acknowledged; this coordination and the single
+current receipt are bounded, heap-only, and lost on reload.
+
+Controller blackholing is proven only by successful `canister_info`, no Wasm, and no
+controllers. A failed lookup is indeterminate. Dendrite's own controller can replace
+both verifier code and the transaction-signing frontend and therefore remains an
+explicit operator trust boundary. Other boundaries are the certified frontend, browser
+runtime, Internet Identity, NNS Governance, management-canister reads, target and
+manager neurons, build environment, release artifacts, and production lifecycle
+identity.
+
+Cycle exhaustion is bounded by a fixed 2T liquid-cycle reserve, at most two concurrent
+checks, one in-flight check per neuron, and 20 admitted starts per 60 seconds. Guard
+entries are heap-only, prune after 300 seconds, expose no counters, and reset on
+upgrade.
+
+Receiver checks request only explicit deduplicated IDs and distinguish readable,
+not-returned-to-caller, and unavailable evidence. Final transaction preflight
+fingerprints security-relevant authority and configuration while allowing ordinary
+stake, time, and voting-power progression. A changed refresh timestamp or receiver
+controller/hotkey set invalidates the review.
+
+## Dependency exceptions
+
+| Package/version | Reachability | Exception and removal condition |
+| --- | --- | --- |
+| `paste 1.0.15` | Transitive Candid compile-time macro | RUSTSEC-2024-0436 abandonment; review on Candid update or 2026-10-17 |
+| `pocket-ic 15.0.0` | Workspace development only | Required local consensus scenarios; remove on compatible replacement |
+| `backoff 0.4.0` | PocketIC development tree only | Remove when PocketIC removes it or if production reachability changes |
+| `instant 0.1.13` | PocketIC development tree only | Remove when PocketIC removes it or if production reachability changes |
+| `serde_cbor 0.11.2` | Official certification libraries and PocketIC | Not directly used by application code; review when certification reachability changes |
+
+Automated dependency reachability fails if `pocket-ic`, `backoff`, or `instant` enters
+the production Wasm normal/build tree. Lockfiles, advisory scans, reproducible
+comparison, and SBOMs are compensating controls. The existing Apache-2.0 LLVM
+toolchain expression remains the narrow license-policy exception.
