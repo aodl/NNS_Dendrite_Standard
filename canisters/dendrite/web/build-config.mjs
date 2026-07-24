@@ -29,8 +29,11 @@ export function exactOrigin(value, name, protocols) {
 export function normalizeAlternativeOrigins(value, derivationOrigin, mode) {
   let parsed;
   try { parsed = JSON.parse(value ?? "[]"); } catch { throw new Error("DENDRITE_ALTERNATIVE_ORIGINS_JSON must be valid JSON."); }
+  if (parsed && !Array.isArray(parsed) && Object.keys(parsed).length === 1) {
+    parsed = parsed.alternativeOrigins;
+  }
   if (!Array.isArray(parsed) || parsed.some((origin) => typeof origin !== "string")) {
-    throw new Error("DENDRITE_ALTERNATIVE_ORIGINS_JSON must be an array of strings.");
+    throw new Error("DENDRITE_ALTERNATIVE_ORIGINS_JSON must be an array of strings or an exact alternativeOrigins document.");
   }
   if (parsed.length > 10) throw new Error("At most 10 alternative origins are allowed.");
   const protocols = mode === "production" ? new Set(["https:"]) : new Set(["http:", "https:"]);
