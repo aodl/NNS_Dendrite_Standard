@@ -23,13 +23,36 @@ production_identity_provider=https://id.ai/authorize
 [ "${DENDRITE_FETCH_ROOT_KEY:-false}" = false ] || { echo "root-key fetching must be disabled" >&2; exit 1; }
 [ -f Cargo.lock ] && [ -f Dockerfile.repro ] && [ -f icp.yaml ] || { echo "run from the repository root" >&2; exit 1; }
 command -v docker >/dev/null
-docker buildx version >/dev/null
+docker_context=${DOCKER_CONTEXT:-default}
+buildx_builder=${BUILDX_BUILDER:-dendrite-canonical}
+docker_version=$(docker --context "$docker_context" version 2>&1) || {
+  printf '%s\n' "$docker_version" >&2
+  exit 1
+}
+printf '%s\n' "$docker_version"
+printf '%s\n' "$docker_version" | grep -q '^Server: Docker Engine' ||
+  { echo "canonical release requires Docker Engine" >&2; exit 1; }
+docker_endpoint=$(docker context inspect "$docker_context" --format '{{(index .Endpoints "docker").Host}}')
+case "$docker_endpoint" in *[Pp][Oo][Dd][Mm][Aa][Nn]*) echo "Podman endpoint is forbidden: $docker_endpoint" >&2; exit 1 ;; esac
+builder_info=$(docker --context "$docker_context" buildx inspect "$buildx_builder" 2>&1) || {
+  printf '%s\n' "$builder_info" >&2
+  exit 1
+}
+printf '%s\n' "Selected context: $docker_context"
+printf '%s\n' "Docker endpoint: $docker_endpoint"
+printf '%s\n' "Selected builder: $buildx_builder"
+printf '%s\n' "$builder_info"
+printf '%s\n' "$builder_info" | grep -Eq '^Driver:[[:space:]]+docker-container$' ||
+  { echo "canonical builder driver must be docker-container" >&2; exit 1; }
+printf '%s\n' "$builder_info" | grep -Eq '^[[:space:]]*Status:[[:space:]]+running$' ||
+  { echo "canonical builder is not running" >&2; exit 1; }
 
 output_dir=${DENDRITE_RELEASE_OUTPUT_DIR:-dist/release}
 export_dir=$(mktemp -d)
 trap 'find "$export_dir" -type f -delete; find "$export_dir" -depth -type d -empty -delete' EXIT HUP INT TERM
 
-docker buildx build \
+docker --context "$docker_context" buildx build \
+  --builder "$buildx_builder" \
   --platform linux/amd64 \
   --file Dockerfile.repro \
   --target artifacts \
@@ -60,5 +83,8 @@ cp -R "$export_dir/frontend" "$output_dir/frontend"
     LC_ALL=C sort -z |
     xargs -0 sha256sum > SHA256SUMS
 )
-sha256sum -c "$output_dir/SHA256SUMS" >/dev/null
+(
+  cd "$output_dir"
+  sha256sum -c SHA256SUMS >/dev/null
+)
 sed "s|  |  $output_dir/|" "$output_dir/SHA256SUMS"

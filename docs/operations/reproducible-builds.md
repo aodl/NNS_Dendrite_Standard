@@ -44,6 +44,13 @@ The release manifest excludes itself, uses relative byte-sorted paths, and verif
 from inside the release directory. `icp.yaml` binds the prebuilt recipe directly to the
 raw canonical Wasm and configures no implicit production rebuild.
 
+Clean-checkout hermeticity passed with `dist/` absent: `npm ci`, all 112 frontend tests,
+and frontend coverage completed before the unchanged canonical release was restored
+and reverified. The automated anonymous mainnet dry-run also passed: it verified the
+mapping, empty module hash, release checksums, raw Wasm hash, and prebuilt manifest;
+tolerated the expected controller-only settings rejection; printed the intended fresh
+install command; and performed no write.
+
 ## Mainnet module-hash comparison
 
 After installation, compare `sha256sum dist/release/dendrite.wasm` with the module hash

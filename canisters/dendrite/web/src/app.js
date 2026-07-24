@@ -16,9 +16,9 @@ function resources() {
     document.createTextNode(" · "),
     safeHttpsLink("Source", "https://github.com/aodl/NNS_Dendrite_Standard"),
     document.createTextNode(" · "),
-    safeHttpsLink("Reproducible builds", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/operations/reproducible-builds.md"),
+    safeHttpsLink("Reproducible builds", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/development/reproducible-builds.md"),
     document.createTextNode(" · "),
-    safeHttpsLink("Security model", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/security.md"),
+    safeHttpsLink("Security model", "https://github.com/aodl/NNS_Dendrite_Standard/blob/main/docs/security/threat-model.md"),
   );
   return node;
 }

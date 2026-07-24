@@ -41,4 +41,23 @@ awk '
         }
     }
 ' "$branch_report"
-cargo llvm-cov --workspace --summary-only --fail-under-lines 85
+workspace_report=$(mktemp)
+trap 'rm -f "$branch_report" "$workspace_report"' EXIT
+cargo llvm-cov --workspace --summary-only | tee "$workspace_report"
+awk '
+    /^TOTAL/ {
+        value = $(NF - 3)
+        sub(/%$/, "", value)
+        if ((value + 0) < 85) {
+            print "workspace line coverage " value "% is below 85%" > "/dev/stderr"
+            exit 1
+        }
+        found = 1
+    }
+    END {
+        if (!found) {
+            print "workspace coverage TOTAL was not reported" > "/dev/stderr"
+            exit 1
+        }
+    }
+' "$workspace_report"
