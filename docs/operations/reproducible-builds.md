@@ -1,33 +1,71 @@
 # Reproducible builds
 
-Local verification runs two builds separated by `cargo clean`, while keeping reference artifacts in a temporary directory outside `target/`:
+## What is verified
+
+Release verification connects one reviewed commit and lockfiles to the raw Wasm,
+embedded frontend bytes, build configuration, checked-in interfaces, and SBOMs. It
+does not authorize deployment.
+
+## Release inputs
+
+The canonical `linux/amd64` build uses `SOURCE_DATE_EPOCH=0`, canister ID
+`hp4av-oiaaa-aaaar-qcaha-cai`, derivation origin
+`https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io`, exact alternative-origin document
+`{"alternativeOrigins":[]}`, API host `https://icp-api.io`, root-key fetching `false`,
+and identity provider `https://id.ai/authorize`.
+
+## Canonical Docker build
+
+Export those values as shown in the [README](../../README.md), then run:
 
 ```sh
-DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> \
-  DENDRITE_DERIVATION_ORIGIN=<final-reviewed-https-origin> \
-  cargo xtask verify-reproducible
+tools/scripts/docker-build-release.sh
+sha256sum -c dist/release/SHA256SUMS
 ```
 
-The explicit fixture ID is validated with `Principal.fromText` and embedded unchanged.
-The production IC API host is fixed to `https://icp-api.io`; production root-key
-fetching is fixed off. The command also records the canonical derivation origin, sorted
-alternative origins, fixed identity provider, and eight-hour delegation TTL. The
-selected SDK wrapper exposes no PIN-policy option, so Dendrite supplies none and makes
-no separate PIN-policy claim. The exact same identity inputs are used for both clean builds; changing any
-input changes the frontend and therefore the embedding Wasm. The command uses lockfiles
-and `--locked` Cargo invocations, sets
-`SOURCE_DATE_EPOCH=0`, builds the frontend before Wasm, compares exact Wasm bytes and
-frontend manifests, and prints SHA-256 hashes. These bytes are a production
-reproducibility fixture, not a deployable artifact, until an operator supplies an
-explicitly authorized mainnet canister ID. `Dockerfile.repro` accepts the same
-mandatory `DENDRITE_CANISTER_ID` and `DENDRITE_DERIVATION_ORIGIN` build arguments, pins
-Node and Rust base-image indexes by digest, and exports only Wasm, frontend, and hashes.
-Node/npm versions are pinned by `.nvmrc`, `packageManager`, and exact engines. Production
-builds never fetch Candid interfaces or generate broad NNS bindings dynamically.
-Runtime report timestamps do not enter the embedded artifact: the report's
-`checked_at_timestamp_seconds` comes from each live NNS evidence response, while local
-time is used only by the heap-only abuse guard.
+The digest-pinned `Dockerfile.repro`, pinned lockfiles, and `linux/amd64` platform
+produce only `dendrite.wasm`, `frontend/`, `asset-manifest.json`,
+`build-configuration.txt`, and deterministic `SHA256SUMS`. The latter excludes itself.
 
-Evidence additionally records transaction Candid/declaration hashes, the fixed
-Governance principal and delegation target, and enabled/disabled capability lists. A
-privileged-interface or policy change therefore changes deterministic source/assets.
+## Local determinism check
+
+An ordinary configured `cargo xtask build` writes toolchain-local outputs.
+`cargo xtask build-reproducible` packages a local configured build.
+`cargo xtask verify-reproducible` compares two clean builds on the same host. These are
+useful diagnostics, not the canonical public container artifact.
+
+## Two-build verification
+
+```sh
+tools/scripts/verify-docker-reproducible.sh
+```
+
+This performs two clean no-cache Docker builds into separate temporary directories and
+fails on any missing, extra, or different file or manifest.
+
+## Mainnet module-hash comparison
+
+After installation, compare `sha256sum dist/release/dendrite.wasm` with the module hash
+from `icp canister status dendrite -e ic`. The management interface defines
+`module_hash` as SHA-256 of the installed module and accepts raw or gzip install input;
+the IC decompresses gzip before installation. Dendrite installs the raw file, so the
+live hash must equal its raw bytes directly. Do not compare a gzip container hash.
+
+## Frontend asset verification
+
+Record the `asset-manifest.json` hash and a deterministic frontend tree hash; require
+every generated hashed asset to exist. Verify the exact alternative-origin bytes,
+certified response headers, build configuration, transaction Candid, generated
+declaration, command policy, and response policy hashes.
+
+## Runtime configuration verification
+
+Confirm the served bundle embeds the production canister ID, API host, origin,
+alternative origins, identity provider, and disabled root-key policy. Hash equality
+alone does not prove controller policy, cycles, canonical DNS/origin behavior, popup
+behavior, or either transaction operator gate.
+
+## Limitations
+
+Reproducibility depends on the pinned public registries and digest availability.
+Module-hash equality proves installed code bytes, not who may later replace them.

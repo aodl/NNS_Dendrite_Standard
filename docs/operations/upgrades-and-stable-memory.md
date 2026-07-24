@@ -1,13 +1,15 @@
-# Upgrades and stateless operation
+# Upgrades and stable memory
 
-Dendrite has no stable application state and therefore no snapshot schema, migration,
-cache metadata, counters, configuration, or operational recovery data. Its heap-only
-abuse guard resets on upgrade. Embedded asset certification is deterministically rebuilt
-from the same content-hashed frontend files during initialization and post-upgrade.
-The guard alone uses local canister time. `checked_at_timestamp_seconds` is the NNS
-evidence snapshot and is never preserved across upgrades.
+Dendrite has no application stable state: no user database, compliance cache,
+configuration, proposal history, transaction history, or report archive. An upgrade
+replaces code and certified frontend assets and resets the heap-only abuse guard.
 
-Before upgrading, verify the narrow Candid API, semantic upstream interface drift,
-PocketIC certified-asset upgrade test, full checks, and reproducible hashes. An upgrade
-does not preserve live checks in flight or any report; callers may submit another live
-`check_neuron` after the upgrade.
+Browser-held authentication is outside the canister. The current transaction receipt
+and unresolved-outcome marker are heap-only browser-session data and disappear on
+reload. Operators must investigate uncertainty before reconstructing a request.
+
+`reinstall` is not an ordinary recovery procedure even though application stable state
+is absent. Routine releases use explicit `upgrade`, preserve the two-method public
+Candid surface, and retain source-to-Wasm evidence. Changing the canonical derivation
+origin changes Dendrite principals and is a security migration, not an ordinary
+upgrade.

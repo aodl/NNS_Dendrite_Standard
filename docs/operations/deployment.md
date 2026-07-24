@@ -1,106 +1,131 @@
-# Deployment
+# Production deployment
 
-Use `DFX_IDENTITY=codex_local` for local replicas. Build and verify before installation:
+## Purpose and safety boundary
+
+This is the executable `icp-cli` 0.2.6 procedure for installing or upgrading the exact
+reviewed prebuilt artifact. It never creates a canister, changes controllers, tops up
+cycles, retries, or supports `reinstall`. `dfx` 0.27.0 remains local/PocketIC support
+only. The reserved production canister is currently empty.
+
+## Prerequisites
+
+Use Rust 1.94.1, Node 24.15.0, npm 11.12.1, `icp-cli` 0.2.6, Docker 28.0.1,
+Docker buildx 0.21.1, and local-only dfx 0.27.0. Require a clean reviewed commit, the
+tracked mapping, a production controller identity selected in `icp-cli`, adequate
+cycles, Docker daemon/buildx access, and all automated gates. `codex_local` is
+local-only and must never be the production identity.
+
+## Production identifiers
+
+| Name                       | Value                                         |
+| -------------------------- | --------------------------------------------- |
+| Canister                   | `dendrite`                                    |
+| Mainnet canister ID        | `hp4av-oiaaa-aaaar-qcaha-cai`                 |
+| Canonical origin           | `https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io` |
+| Alternative origins        | None                                          |
+| NNS Governance             | `rrkah-fqaaa-aaaaa-aaaaq-cai`                 |
+| Internet Identity provider | `https://id.ai/authorize`                     |
+| IC API host                | `https://icp-api.io`                          |
+| Mainnet environment        | `ic`                                          |
+
+## Controller policy
+
+The Dendrite application is not the blackholed target-neuron controller canister. It
+must retain reviewed upgrade control because a controller can replace both verifier
+code and the served transaction-signing frontend. Long-term control must be documented
+as secured individual control, multisig, Orbit, SNS, or another reviewed mechanism.
+Never call Dendrite immutable unless live controller state proves it. This tranche
+changes no controller.
+
+## Cycles policy
+
+The live check guard requires a 2T liquid-cycle reserve. Inspect balance independently;
+do not combine top-up with deployment. See [cycles and rate limits](cycles-and-rate-limits.md).
+
+## Reserving an empty canister ID
+
+Reservation is an earlier, operator-controlled action. The public result is already
+tracked as `dendrite -> hp4av-oiaaa-aaaar-qcaha-cai` under `.icp/data/mappings/`.
+Do not recreate it. `.icp/cache/` is transient and ignored.
+
+## Choosing the canonical origin
+
+The exact origin is `https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io`; alternatives are
+exactly `{"alternativeOrigins":[]}`. Changing the canonical origin changes browser
+principals and requires a separately reviewed migration.
+
+## Canonical release build
+
+Export the production inputs in the [README](../../README.md), run
+`tools/scripts/docker-build-release.sh`, then
+`tools/scripts/verify-docker-reproducible.sh`. Update `icp.yaml` from
+`sha256sum dist/release/dendrite.wasm` and rerun
+`tools/scripts/verify-release-artifacts.sh`. `@dfinity/prebuilt@v2.0.0` only verifies
+and selects that file; no production source rebuild is configured.
+
+## Fresh installation
+
+| Situation                  | Mode                          | Effect                                              |
+| -------------------------- | ----------------------------- | --------------------------------------------------- |
+| Reserved empty canister    | `install`                     | Installs the first reviewed Wasm                    |
+| Existing Dendrite canister | `upgrade`                     | Replaces code; no application stable state exists   |
+| Reset or recovery          | Unsupported routine operation | `reinstall` is not part of the production procedure |
+
+Set `DENDRITE_CONFIRM_MAINNET` to the exact canister ID. Run
+`tools/scripts/mainnet-deploy.sh dry-run`, review commit, identity/principal, mapping,
+status/settings, module absence, hash, and exact command. Then run
+`tools/scripts/mainnet-deploy.sh install` and type the ID at its interactive prompt.
+The executed form is:
 
 ```sh
-npm ci
-cargo xtask check
-cargo xtask test
-DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> \
-DENDRITE_DERIVATION_ORIGIN=<final-reviewed-https-origin> cargo xtask build
-DENDRITE_CANISTER_ID=<reviewed-dendrite-canister-id> \
-DENDRITE_DERIVATION_ORIGIN=<final-reviewed-https-origin> cargo xtask verify-reproducible
-DFX_IDENTITY=codex_local dfx start --clean --background
-tools/scripts/deploy-local.sh
+icp canister install dendrite --environment ic --mode install \
+  --wasm dist/release/dendrite.wasm
 ```
 
-The local wrapper deterministically creates the canister, obtains its ID, builds the
-frontend for that exact ID and `http://127.0.0.1:4943` with explicit local root-key
-fetching, builds the Wasm, and installs it. `CANISTER_ID_DENDRITE`, when supplied by
-`dfx`, is accepted as the equivalent canister-ID input. Custom hostnames never affect
-the configured principal.
+## Routine upgrade
 
-Local functional verification and production reproducibility are separate. The local
-flow uses its actual local canister ID, a supported local replica origin, and root-key
-fetching. A production reproducibility fixture uses an explicit fixture canister ID,
-fixed `https://icp-api.io`, and root-key fetching disabled to demonstrate deterministic
-bytes only. It is not a deployable release. A production artifact may be labelled
-deployable only after the operator creates and explicitly authorizes an actual mainnet
-Dendrite canister ID.
+Repeat every source/build/verification step, require an existing module, run dry-run
+with `DENDRITE_DRY_RUN_MODE=upgrade`, then execute the guarded `upgrade` mode. Never
+use automatic mode or `reinstall`.
 
-Mainnet deployment is intentionally not scripted here and must not be performed without
-explicit authorization. Before production deployment, review the compile-time canister
-ID, fixed cycle reserve, canonical derivation origin, normalized operator-controlled
-alternative origins, and CSP gateway origins. Changing the canonical origin changes
-users' Dendrite principals; finalize it before any external hotkey onboarding. There is
-no mutable deployment configuration or stable application state to migrate.
+## Post-install verification
 
-The anonymous verifier remains complete. Browser mutations go directly to fixed NNS
-Governance; no authenticated identity reaches Dendrite. Mainnet mutation is not part of
-this deployment procedure.
+Pinned 0.2.6 resolves a name with `icp canister status dendrite -e ic --id-only`
+(`icp canister id` is not available in this version). Read-only commands are:
 
-## Manual local Internet Identity popup smoke test
+```sh
+icp canister status dendrite -e ic
+icp canister settings show dendrite -e ic
+sha256sum -c dist/release/SHA256SUMS
+DENDRITE_CANISTER_ID=hp4av-oiaaa-aaaar-qcaha-cai \
+  tools/scripts/verify-mainnet-readonly.sh
+```
 
-With local Internet Identity running, prefer the standard provider alias
-`http://id.ai.localhost:8000/authorize` (a canister-style `.localhost` alias is also
-accepted). Set `DENDRITE_DERIVATION_ORIGIN` to the explicitly labelled local test origin
-and deploy with `DFX_IDENTITY=codex_local`. In an interactive browser, verify that the
-popup opens and completes; the exact principal appears; reload restores the same
-principal; an approved alternative origin produces that same principal; an unapproved
-origin cannot sign in; sign-out clears the session; a neuron report recomputes manager
-authority; and anonymous checks still work after sign-out. Record the exact origins,
-certified `/.well-known/ii-alternative-origins`, provider, and result. Do not describe
-this procedure as automated popup E2E.
+Status reports module hash, cycles, and controllers. The verifier checks `/`,
+`/asset-manifest.json`, and `/.well-known/ii-alternative-origins` for success, content
+type, IC certification, COOP, CSP/security headers, well-known CORS/no redirect/exact
+body, and referenced hashed assets. Optionally set public
+`DENDRITE_SMOKE_NEURON_ID` for one anonymous live update; never store an operational ID.
 
-This is an outstanding operator release gate until it is run against the finalized
-canonical origin (or an explicitly labelled local test origin). No manager should add a
-Dendrite principal as a hotkey before the gate passes on the final canonical origin.
+## Rollback and recovery
 
-## Manual controlled transaction smoke test
+There is no automatic rollback or retry. Stop, preserve evidence, inspect whether the
+write occurred, and prepare a new reviewed `upgrade` artifact if correction is needed.
+Do not delete/recreate the canister and do not use `reinstall` as a generic remedy.
 
-Using a controlled test neuron or local fixed-principal fixture, verify manager
-recognition, review with no pre-confirmation mutation, fee display, proposal ID return,
-a manager Yes vote, and a fresh post-operation report. This is an outstanding operator
-gate unless its environment and result are recorded; it authorizes no mainnet mutation.
-Also verify that open management-proposal enumeration retains Governance caller
-visibility, the selected manager has a visible Unspecified ballot, final-preflight drift
-discards the review, and an intentionally ambiguous transport result cannot submit the
-same review twice.
-The smoke test must also confirm that an in-flight call survives report and route
-rerenders, sign-out is rejected until it settles, direct-operation confirmation names
-the manager neuron actually mutated, and Spawn rejects an omitted or non-user
-controller. Navigate to another neuron and to landing while a controlled update is
-deferred and confirm settlement never restores the old route. A known result retains
-at most one bounded, heap-only current transaction receipt across application
-rerenders; it is not transaction history, is never stored in browser storage or sent
-to Dendrite, and is lost on reload. Confirm a returned proposal ID and its dashboard
-link remain visible after the refreshed report, while proposal creation remains
-separate from adoption and execution. A successful transaction on the currently
-selected context neuron must start exactly one new post-response live check; there is
-no automatic proposal polling or transaction retry. A known Governance rejection must
-remain visible and distinguish itself from an ambiguous result. For an intentionally
-ambiguous result, confirm the digest/neuron warning survives route, report, and
-sign-out/sign-in rerenders; investigate it; then confirm explicit acknowledgment makes
-no call and only a wholly new review can proceed. A browser reload loses this heap-only
-marker, so investigate uncertainty before reconstructing any request. These remain
-operator checks and are not run by the automated release pass.
-Also hold sign-in open while starting a neuron check and confirm completion leaves the
-loading route owned until its report renders with authenticated controls. Hold sign-out
-open after creating a review and confirm detached submit/review controls make no NNS
-call, duplicate authentication transitions are rejected, and failed sign-out retains
-the session/actor while requiring a new review.
+## Troubleshooting
 
-For the RefreshVotingPower workflow, allow ordinary NNS snapshot, refresh-age, and
-potential/deciding voting-power progression during human review time. A changed target
-refresh timestamp must invalidate the old review, and missing, negative, or
-refresh-after-snapshot evidence must fail before submission. For reward-receiver setup,
-review the readable receiver's exact controller and normalized hotkey membership.
-Controller or hotkey membership changes must invalidate the review; hotkey order and
-cached-stake-only changes must not. Every such failed final preflight must make no NNS
-update call.
-Receiver readiness and setup must issue an explicit-ID-only `list_neurons` request:
-caller-readable expansion is false, public full-neuron inclusion is true, page zero is
-requested, and page size equals the one-to-fifteen distinct receiver IDs. An omitted
-private receiver means only that it was not returned as readable to this caller.
-Unexpected, duplicate, malformed, or paginated records make the lookup unavailable;
-unrelated caller-readable neurons must never affect readiness or setup.
+- ID/mapping/controller/origin mismatch: stop and reconcile operator evidence.
+- Empty canister contains code or lifecycle mode is wrong: stop; identify the installed
+  module and choose an explicitly reviewed mode.
+- Module/release hash mismatch or stale assets: rebuild canonically and update the
+  prebuilt hash only after equality.
+- Insufficient cycles: top up in a separate reviewed operation.
+- Package registry, Docker, or buildx failure: preserve the clean source and retry the
+  build only after the dependency/daemon is restored.
+- Alternative-origin or popup failure: verify certified bytes, final origin, popup
+  policy, and Gate 1; do not mutate NNS.
+- Live verifier failure: distinguish transport/unavailable evidence from factual
+  failure.
+- Unresolved transaction outcome: block retry and investigate Governance before a new
+  request.

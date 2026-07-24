@@ -1,82 +1,43 @@
-# Test strategy and coverage
+# Testing
 
-Run `cargo xtask check` for formatting, warnings-denied Clippy, interface checks, and
-frontend tests; `cargo xtask test` for workspace and PocketIC tests; `cargo xtask
-coverage` for pinned Rust coverage; and `npm run test:coverage` for frontend thresholds.
-All xtask Cargo subprocesses use `--locked`.
+Build commands use the production values from the [README](../../README.md). Local
+replica commands additionally use `DFX_IDENTITY=codex_local`, a local API/provider,
+and root-key fetching `true`; production commands require root-key fetching `false`.
 
-Pure tests cover a compliant report and a focused mutation for every mandatory rule,
-duplicate raw managers/delegates/topic keys, unknown semantics, source rejection/decode,
-successful target/dependency omission, unavailable atomic batches, invalid page and
-stake arithmetic, topic-local availability, blackhole evidence, hotkeys,
-`not_for_profit`, batching at 50/51/>100, unexpected responses, and exact omega-reject
-`u64`. One recording fake asserts exact client call order and proves the boundary has no
-arbitrary destination or method.
-Focused timestamp tests cover the exact six-month NNS boundary, one second beyond it,
-local clocks far behind and ahead, future refresh contradiction, and missing, duplicate,
-zero, or unexpected neuron-info keys. The derived 272-neuron graph remains covered.
+| Layer | Command | Network | Writes state? | Automated or manual | Purpose | Expected evidence |
+| --- | --- | --- | --- | --- | --- | --- |
+| Frontend unit | `npm test` | None | Files in temp only | Automated | UI, identity, transaction rules | 103+ passing tests |
+| Frontend coverage | `npm run test:coverage` | None | Coverage output | Automated | 85% thresholds | Coverage summary |
+| Rust unit/workspace | `cargo test --workspace --locked` | None | Build files | Automated | Rules and collector | Passing tests |
+| Complete suite/PocketIC | `cargo xtask test` | Local PocketIC | Local only | Automated | Live graphs, rejection, certified HTTP/upgrade | Passing scenarios |
+| Rust coverage | `cargo xtask coverage` | None | Coverage output | Automated | Workspace >85%, engine >95% | Coverage summary |
+| Interface drift | `tools/scripts/check-interface-drift.sh` | Pinned GitHub source | No IC state | Automated | Anonymous and transaction Candid semantics; generated IDL equality | Pinned revision pass |
+| Certified HTTP/alternatives | `cargo xtask test` | PocketIC | Local only | Automated | Headers and exact well-known bytes | Assertions pass |
+| Production asset identity | `npm test` | None | Temp only | Automated | Checked-in assets unchanged by tests | Tree hash equality |
+| Dependency reachability | `tools/scripts/check-production-dependencies.sh` | Registry metadata | No IC state | Automated | Exclude PocketIC packages from Wasm | Tree report |
+| Security scan | `cargo xtask security-scan` | Public registries/GitHub | No IC state | Automated | Advisories, policy, drift, secrets | No unapproved finding |
+| SBOM | `cargo xtask sbom` | None | `dist/sbom` | Automated | CycloneDX evidence | SBOM hashes |
+| Configured local build | `cargo xtask build` | None | Build output | Automated | Current toolchain build | Wasm |
+| Local packaged build | `cargo xtask build-reproducible` | Public registries | Build output | Automated | Same-toolchain package | Local hashes |
+| Local two-build | `cargo xtask verify-reproducible` | Public registries | Build output | Automated | Same-toolchain determinism | Byte equality |
+| Canonical Docker | `tools/scripts/docker-build-release.sh` | Public registries | `dist/release` | Automated | Public release artifact | `SHA256SUMS` |
+| Canonical two-build | `tools/scripts/verify-docker-reproducible.sh` | Public registries | Temp only | Automated | Two no-cache builds | Tree equality |
+| Deployment dry-run | `tools/scripts/mainnet-deploy.sh dry-run` | Read-only mainnet | No | Automated/operator review | Validate exact lifecycle command | “no write performed” |
+| Local II popup | Gate 1 with labelled local origin | Local | Browser session only | Manual | Popup mechanics | Signed local evidence |
+| Final-origin II | Gate 1 | Mainnet HTTP/II | Browser session only | Manual | Production principal/origin | Signed gate |
+| Controlled transaction | Gate 2 | Controlled NNS context | Yes, explicitly controlled | Manual | Full browser-to-NNS flow | Signed gate |
 
-PocketIC covers compliant, non-compliant, and rejected live checks, controller inspection
-where supported, certified landing assets, and certified assets after upgrade. Frontend
-tests cover the actual bootstrap, canonical navigation, loading/success/failure/retry,
-every overall/error status, controller evidence, topic labels, malicious text and links,
-custom-domain-independent build configuration, no `innerHTML`, and no numeric ID
-conversion. Coverage explicitly includes every production file under
-`canisters/dendrite/web/src/`.
-Frontend builder tests write only to a temporary output directory, inspect that bundle
-and manifest, remove it, and assert the checked-in `canisters/dendrite/public` tree has
-the same byte hash before and after the suite.
-No browser automation framework is required in this tranche.
+### Troubleshooting
 
-Frontend tests also cover canonical, approved-alternative, and unexpected page origins;
-unsafe/duplicate configuration and the ten-origin cap; session restoration,
-sign-in/cancellation/failure/sign-out; exact principal display/copy; every manager
-authority role; duplicate rows; recomputation; anonymous Dendrite actor construction;
-and exact certified well-known, COOP, CORS, and resource-policy behavior. The local
-popup smoke procedure in deployment documentation is manual and is reported as run only
-when an interactive browser and local Internet Identity service are available.
-Startup tests require identity restoration before the first route, retry controls after
-bounded transient failures, a closed permanent-origin failure, and honest failed
-sign-out state. Generated bundles are checked for the absence of a global authentication
-test hook.
-
-Whole-workspace Rust and frontend line coverage floors remain 85%. The pure rule engine
-retains its 95% line/branch target. Coverage exclusions must be justified; modules are
-not split merely to alter percentages.
-
-Transaction tests cover exact delegation targets, legacy-session rejection, the fixed
-Governance actor, recursive proposal nesting, immutable request identity, fee/stake and
-authority changes, confirmation, response tags, every pinned command capability,
-primary workflows, manager voting, hotkey/reward readiness, nat64, and exact e8s.
-They also cover caller-filtered proposal reads, browser clocks on both sides of an NNS
-deadline, explicit ballots, all legacy/modern stored-target combinations, fresh
-operation fingerprints, controller downgrade, candidate/hotkey/receiver drift,
-byte-level tamper detection, terminal ambiguous outcomes, and in-flight review
-exclusion. PocketIC records the safe list request and exact submitted ingress bytes.
-The production IDL must equal deterministic output from the reviewed transaction Candid
-after the explicit removal of query annotations for replicated reads.
-
-Final coordination regressions mix ordinary, target, other-target, and malformed Open
-proposals; valid target entries remain usable while malformed management entries render
-bounded warnings. An application-entry deferred-update test rerenders the panel, reloads
-the report, changes route, rejects sign-out, and attempts another review and submit while
-proving that exactly one `manage_neuron` call occurs. Review tests distinguish proposal
-managed targets from direct manager mutation targets, enforce self-authenticating Spawn
-controllers, and preserve duplicate raw authority rows while deduplicating actions.
-
-Final lifecycle regressions deterministically defer proposal and direct preparation in
-both orderings, reject overlap, cancel stale ownership, and prove exactly one update.
-Application tests complete neuron checks out of order, navigate to landing during a
-check, settle deferred updates after navigation to another neuron or landing, and cover
-known success, explicit Governance rejection, and ambiguous response shapes. They also
-require unresolved-outcome warnings and mutation blocking across report, route,
-sign-out/sign-in rerenders; confirmed no-retry acknowledgment; fresh voting-power
-snapshot/refresh/age/potential/deciding fingerprints; and failed sign-out retention of
-the validated session and actor while cancelling unsubmitted transaction state.
-Route-ownership regressions additionally hold a newer neuron check unresolved while an
-older signed transaction settles as success, explicit rejection, or transport
-ambiguity, then prove the loading view and URL survive until the newer report renders.
-Authentication-transition regressions hold sign-in across neuron navigation and hold
-successful or failed sign-out across detached submit/review activation, duplicate
-clicks, ready review cancellation, and preparing review cancellation. Failed sign-out
-retains the principal/session/actor but requires a wholly new review.
+- Missing ID/origin or malformed alternative JSON: export every exact build input.
+- Wrong Node/npm: select Node 24.15.0 and npm 11.12.1.
+- Missing fixture Wasm: run `cargo xtask test`, which builds fixtures first.
+- Docker/buildx unavailable: restore daemon access/buildx; do not substitute a local
+  artifact as canonical.
+- `icp-cli` identity mismatch: stop and select the reviewed production identity; never
+  export identity material.
+- Registry failure: retry only the build after registry recovery.
+- Stale generated assets: rerun the configured frontend build and byte-identity tests.
+- Dirty worktree: commit/review intended changes; the deploy guard intentionally fails.
+- Release hash mismatch: rebuild canonically, regenerate `SHA256SUMS`, then update
+  `icp.yaml`.

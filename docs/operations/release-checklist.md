@@ -1,5 +1,8 @@
 # Release checklist
 
+Production canister `hp4av-oiaaa-aaaar-qcaha-cai` uses canonical origin
+`https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io`.
+
 ## A. Source freeze
 
 - [ ] Hard stop: worktree is clean and the reviewed commit/tag is fixed.
