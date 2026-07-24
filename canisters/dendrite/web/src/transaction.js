@@ -296,6 +296,45 @@ export function classifyRewardReceiver(manager) {
   return Object.freeze({ status: "Ambiguous", receiverIds: distinct });
 }
 
+const listExplicitRewardReceivers = async (nnsActor, receiverIds) => {
+  if (!Array.isArray(receiverIds) || receiverIds.length < 1 || receiverIds.length > 15) {
+    throw new RangeError("Receiver lookup requires one to 15 distinct neuron IDs.");
+  }
+  const ids = receiverIds.map((id) => parseNeuronId(String(id)));
+  const requested = new Set(ids.map(String));
+  if (requested.size !== ids.length) throw new Error("Receiver lookup neuron IDs must be distinct.");
+  const response = await nnsActor.list_neurons({
+    neuron_ids: ids,
+    include_neurons_readable_by_caller: false,
+    include_empty_neurons_readable_by_caller: [false],
+    include_public_neurons_in_full_neurons: [true],
+    page_number: [0n],
+    page_size: [BigInt(ids.length)],
+    neuron_subaccounts: [],
+  });
+  if (!Array.isArray(response?.full_neurons)) throw new Error("Receiver lookup returned malformed full-neuron evidence.");
+  const pages = response.total_pages_available;
+  if (pages !== undefined && (!Array.isArray(pages) || pages.length > 1 || (pages.length === 1 && pages[0] !== 1n))) {
+    throw new Error("Receiver lookup returned an invalid page count.");
+  }
+  const returned = new Map();
+  for (const entry of response.full_neurons) {
+    let id;
+    try {
+      if (!Array.isArray(entry?.id) || entry.id.length !== 1) throw new Error();
+      if (typeof entry.id[0]?.id !== "bigint") throw new Error();
+      id = parseNeuronId(String(entry.id[0].id));
+    } catch (_error) {
+      throw new Error("Receiver lookup returned a malformed or zero neuron ID.");
+    }
+    const key = String(id);
+    if (!requested.has(key)) throw new Error("Receiver lookup returned an unexpected neuron ID.");
+    if (returned.has(key)) throw new Error("Receiver lookup returned a duplicate neuron ID.");
+    returned.set(key, entry);
+  }
+  return returned;
+};
+
 export async function verifyRewardReceivers(managers, nnsActor) {
   const configured = [];
   const seenManagers = new Set();
@@ -308,15 +347,12 @@ export async function verifyRewardReceivers(managers, nnsActor) {
   const receiverIds = [...new Map(configured.map((entry) => [String(entry.receiverId), entry.receiverId])).values()];
   if (receiverIds.length > 15) throw new Error("Receiver verification is bounded to 15 distinct IDs.");
   if (!receiverIds.length) return [];
-  let response;
+  let returned;
   try {
-    response = await nnsActor.list_neurons({ neuron_ids: receiverIds, include_neurons_readable_by_caller: true,
-      include_empty_neurons_readable_by_caller: [true], include_public_neurons_in_full_neurons: [true],
-      page_number: [], page_size: [], neuron_subaccounts: [] });
+    returned = await listExplicitRewardReceivers(nnsActor, receiverIds);
   } catch (_error) {
     return configured.map((entry) => Object.freeze({ ...entry, status: "UpstreamUnavailable" }));
   }
-  const returned = new Set(response.full_neurons.map((entry) => String(entry.id?.[0]?.id)));
   return configured.map((entry) => Object.freeze({ ...entry, status: returned.has(String(entry.receiverId)) ? "FoundAndReadable" : "NotReturnedToCaller" }));
 }
 
@@ -418,13 +454,9 @@ export function prepareRewardReceiver(receiverId) {
     if (fixedReceiver === managerId) throw new Error("A manager neuron cannot be its own reward receiver.");
     const manager = report.managers.find((entry) => entry.neuron_id === managerId);
     if (!manager) throw new Error("Selected manager is no longer a current target manager.");
-    const response = await nnsActor.list_neurons({ neuron_ids: [fixedReceiver], include_neurons_readable_by_caller: true,
-      include_empty_neurons_readable_by_caller: [true], include_public_neurons_in_full_neurons: [true],
-      page_number: [], page_size: [], neuron_subaccounts: [] });
-    if (!Array.isArray(response?.full_neurons) || response.full_neurons.length !== 1 || response.full_neurons[0]?.id?.[0]?.id !== fixedReceiver) {
-      throw new Error("Exactly the requested receiver neuron must be returned as readable to this caller.");
-    }
-    const receiver = response.full_neurons[0];
+    const receivers = await listExplicitRewardReceivers(nnsActor, [fixedReceiver]);
+    const receiver = receivers.get(String(fixedReceiver));
+    if (!receiver) throw new Error("The requested receiver neuron was not returned as readable to this caller.");
     if (!Array.isArray(receiver.controller) || receiver.controller.length !== 1) {
       throw new Error("Receiver controller evidence is unavailable or malformed.");
     }
