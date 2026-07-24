@@ -7,19 +7,19 @@ stateless two-method canister, fixed browser-to-Governance actor, application-sc
 transaction coordination, route/load generations, and unresolved-outcome authority
 while making only these corrections:
 
-- [ ] Retain at most one bounded, heap-only current known transaction receipt at
+- [x] Retain at most one bounded, heap-only current known transaction receipt at
   application scope; render it safely on landing, loading, report, and live-check
   error views without creating history or browser persistence.
-- [ ] Return structured success, explicit Governance-rejection, and final-preflight
+- [x] Return structured success, explicit Governance-rejection, and final-preflight
   settlement outcomes from the transaction review boundary while leaving local form
   validation errors local and preserving the pipeline-owned ambiguous-outcome state.
-- [ ] Guarantee one newer anonymous live check after a known successful settlement
+- [x] Guarantee one newer anonymous live check after a known successful settlement
   when the selected route still names the same Dendrite context neuron, without
   navigating, polling, retrying, or replacing a newer route.
-- [ ] Keep known results visible across rerenders and route changes, preserve proposal
+- [x] Keep known results visible across rerenders and route changes, preserve proposal
   IDs and dashboard links after refresh, and show unresolved-outcome warnings on
   loading and live-check error views.
-- [ ] Add deterministic receipt, dismissal, rejection, preflight, navigation,
+- [x] Add deterministic receipt, dismissal, rejection, preflight, navigation,
   stale-check, storage, and actual-entry-point regressions; update existing evidence;
   and rerun every automated release and two-clean-build gate.
 

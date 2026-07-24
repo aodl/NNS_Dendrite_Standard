@@ -647,3 +647,64 @@ The real Internet Identity canonical/alternative-origin popup test and controlle
 transaction smoke test were not run. They remain the two mandatory operator gates
 after this correction. No mainnet mutation, proposal, vote, deployment, or
 operator-gate success is claimed.
+
+## Final transaction-receipt and post-settlement evidence — 2026-07-24
+
+Starting from `58d02801d8a8e6b1d0f606f9d07ac1d18f815524`, this correction
+added one bounded, heap-only current known transaction receipt at application scope.
+It is not transaction history, is never persisted or sent to Dendrite, and is lost on
+reload. Structured success, explicit Governance rejection, and final-preflight
+outcomes now survive application rerenders. Proposal IDs and dashboard links remain
+visible after report refresh. A successful transaction on the selected context neuron
+always starts one newer post-response anonymous live check generation, while
+settlement on landing or another neuron never navigates or replaces that route. No
+canister method, stable state, cache, history, retry, poll, timer, framework, crate,
+canister, arbitrary call capability, or background work was added.
+
+The implementation and tests through `8eb0ba6`, plus the generated assets and
+documentation recorded by the final documentation commit, passed `git status`, `npm
+ci`, all 93 frontend tests, frontend coverage, `cargo fmt --all -- --check`, explicit
+warnings-denied workspace/all-target/all-feature Clippy, `cargo xtask check`,
+configured `cargo xtask test`, all three PocketIC scenarios, `cargo xtask coverage`,
+anonymous-verifier and transaction-interface semantic drift, generated
+transaction-IDL equality, production asset byte identity, certified HTTP and
+alternative-origin checks, production dependency reachability, `cargo xtask
+security-scan`, `cargo xtask sbom`, configured `cargo xtask build`, configured `cargo
+xtask build-reproducible`, and configured `cargo xtask verify-reproducible`.
+Frontend coverage was 99.12% lines, 88.04% branches, and 93.07% functions. Workspace
+Rust line coverage was 90.68%. The clean Wasm and frontend builds were byte-identical.
+
+Reproducibility inputs were fixture canister ID
+`v27v7-7x777-77774-qaaha-cai`, API host `https://icp-api.io`, root-key fetching
+disabled, canonical derivation origin `https://dendrite.example`, empty alternative
+origins, fixed provider `https://id.ai/authorize`, delegation TTL
+`28800000000000` nanoseconds, and `SOURCE_DATE_EPOCH=0`.
+
+Current deterministic hashes:
+
+- Transaction Candid: `128c336a20726099636defddc507332b3d9555424cca970902a7dfcff04c7d77`.
+- Generated declaration: `985fe39067cc3b0e62d972585283d178b1662746355e437575c2eb847a53dd2c`.
+- Command policy: `06a708b17d7e1bbfde4c385f3141b7c7cf6d05f6e763d1140e40d9df537df191`.
+- Response policy: `ba2fd9220d1376a2b0af62a00dc710fe08f9b3bcbbab6a33001cef32ba7dad0f`.
+- Wasm, both clean builds: `823bff48c50eb458c8329b301bd494208f211cc36887f6206f39db087dc09aa3`.
+- Frontend tree, both clean builds: `ea7a54e0ca82cf93929e71aed00834b6b966f93fc0a4815b987663173477c56b`.
+- Asset manifest: `2dce81c930d5638292f6701772d78ebb3ad1c576ad89e424346aeede224b7fb4`.
+- Build configuration: `a8a4c643eacd4f5c491b761ba1897d16d71c14327582fecb3ab1f5808170b238`.
+- Dendrite SBOM: `df25866f75ba99f3dbf85cfbf815ae5a658ccf79d8531282622f56baed054f10`.
+- Governance fixture SBOM: `645748cf1301e9862ff63d62f430970d10b49f981173a3951645a59870b065e8`.
+- Types SBOM: `fcd863e83470c856d901f564c881f00ed159ecc22d98370d315c05411d9058d8`.
+- IC clients SBOM: `be5c082c36d33b9bfb58916a87555bf374da533aecba66b994e9a1908895dcae`.
+- npm SBOM: `b3bbe23a7fafd0489d3c39c57e625209a5cb27aefb8e770d706eb03040e1fce8`.
+- xtask SBOM: `78a5162f5ec710d44b91ff0616f8a7471958ac19b166d39fe72f0203fc3c6623`.
+
+The public Candid API remains update `check_neuron : (nat64) -> (CheckResult)` and
+certified query `http_request`. Canister outbound calls remain fixed to NNS Governance
+`list_neurons` and management `canister_info` at source revision
+`d55a0f4d4edfabe49d8fd543aff473084cb741f2`. Production reachability still excludes
+PocketIC, `backoff`, and `instant`; the existing narrowly documented `backoff`,
+`instant`, `paste`, and `serde_cbor` exceptions remain unchanged.
+
+The real Internet Identity canonical/alternative-origin popup test and controlled
+transaction smoke test were not run. They remain the two mandatory operator gates
+after this correction. No mainnet mutation, proposal, vote, deployment, or
+operator-gate success is claimed.

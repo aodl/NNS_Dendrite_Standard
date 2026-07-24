@@ -74,3 +74,20 @@ never retries it. A full browser reload necessarily loses this coordination mark
 the operator must investigate uncertainty before reconstructing a request; no durable
 transaction state is added. Configured reward-receiver IDs are not treated as proof of existence; the
 bounded live check distinguishes readable, not returned to this caller, and unavailable.
+
+Separately, the application retains at most one bounded heap-only current known
+transaction receipt. A later known result replaces it; dismissal makes no NNS call and
+does not acknowledge or clear an unresolved outcome. The receipt contains only the
+operation label, context and mutation/managed neuron IDs, request digest, optional
+proposal ID or bounded known error, and a display-only browser timestamp. It contains
+no identity, delegation, complete request, or private manager data; it is neither
+history nor persistence and is lost on reload. Explicit Governance rejection is known
+negative evidence, while transport ambiguity remains under the pipeline's blocking
+acknowledgment authority.
+
+After a known successful response, a selected route for the same Dendrite context
+always receives one newer anonymous live check generation. That post-response check
+supersedes any same-neuron check begun before settlement. Settlement on landing or a
+different neuron never navigates, cancels that route's check, or restores the old
+route. Proposal creation is not adoption or execution, and Dendrite performs no
+automatic proposal polling, mutation retry, or adoption inference.

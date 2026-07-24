@@ -70,7 +70,15 @@ The smoke test must also confirm that an in-flight call survives report and rout
 rerenders, sign-out is rejected until it settles, direct-operation confirmation names
 the manager neuron actually mutated, and Spawn rejects an omitted or non-user
 controller. Navigate to another neuron and to landing while a controlled update is
-deferred and confirm settlement never restores the old route. For an intentionally
+deferred and confirm settlement never restores the old route. A known result retains
+at most one bounded, heap-only current transaction receipt across application
+rerenders; it is not transaction history, is never stored in browser storage or sent
+to Dendrite, and is lost on reload. Confirm a returned proposal ID and its dashboard
+link remain visible after the refreshed report, while proposal creation remains
+separate from adoption and execution. A successful transaction on the currently
+selected context neuron must start exactly one new post-response live check; there is
+no automatic proposal polling or transaction retry. A known Governance rejection must
+remain visible and distinguish itself from an ambiguous result. For an intentionally
 ambiguous result, confirm the digest/neuron warning survives route, report, and
 sign-out/sign-in rerenders; investigate it; then confirm explicit acknowledgment makes
 no call and only a wholly new review can proceed. A browser reload loses this heap-only
