@@ -98,3 +98,9 @@ review the readable receiver's exact controller and normalized hotkey membership
 Controller or hotkey membership changes must invalidate the review; hotkey order and
 cached-stake-only changes must not. Every such failed final preflight must make no NNS
 update call.
+Receiver readiness and setup must issue an explicit-ID-only `list_neurons` request:
+caller-readable expansion is false, public full-neuron inclusion is true, page zero is
+requested, and page size equals the one-to-fifteen distinct receiver IDs. An omitted
+private receiver means only that it was not returned as readable to this caller.
+Unexpected, duplicate, malformed, or paginated records make the lookup unavailable;
+unrelated caller-readable neurons must never affect readiness or setup.

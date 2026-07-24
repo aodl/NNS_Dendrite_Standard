@@ -1,5 +1,28 @@
 # Aggressive simplification implementation plan
 
+## Final explicit-neuron reward-receiver lookup correction
+
+Starting boundary: `08ece6700d67752be9a5c87c8471ccc5dafc3f4c`. Preserve the
+stateless two-method canister, fixed browser-to-Governance actor, live final preflight,
+receiver authority fingerprint, transaction receipt, and route/authentication
+coordination while making only these corrections:
+
+- [x] Add one local explicit-neuron receiver lookup helper with a bounded one-to-fifteen
+  ID request, fixed single-page shape, and strict returned-ID/page validation.
+- [x] Use the helper for readiness verification and reward-receiver preparation so
+  unrelated caller-readable neurons are never requested or processed.
+- [x] Preserve readable/omitted/unavailable classification and controller/hotkey
+  fingerprinting while allowing public or caller-readable private receivers.
+- [x] Add focused production request-shape, NNS union-semantics, response-boundary,
+  drift, zero-update, and production-bundle regressions.
+- [x] Regenerate certified frontend assets, update existing operational/security
+  evidence, and rerun every automated release and two-clean-build gate.
+
+The real Internet Identity popup/origin test and controlled transaction smoke test stay
+unrun and remain mandatory operator gates after this correction. No mainnet mutation,
+deployment, automatic retry, polling, history, storage, or product-scope expansion is
+authorized or performed.
+
 ## Final transaction-preflight semantics correction
 
 Starting boundary: `541afdaa5b65392b5cdf6255bcd88e20d6d666ed`. Preserve the

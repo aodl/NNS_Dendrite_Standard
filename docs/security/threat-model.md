@@ -108,3 +108,11 @@ deduplicated hotkey membership, and informational cached stake. Controller or ho
 membership drift invalidates final preflight, while ordering, duplicate representation,
 and stake-only drift do not. This exposes authority without requiring the authenticated
 principal to control the receiver and adds no catalogue, destination, or method.
+Both receiver readiness and setup disable caller-readable request expansion and ask
+for only the deduplicated receiver IDs, with public full-neuron inclusion and an
+explicit single page sized to that bounded set. One shared local validator rejects
+unexpected, duplicate, malformed, zero-ID, or multi-page responses before constructing
+its canonical ID map. Successful omission is `NotReturnedToCaller`, not proof that a
+private neuron does not exist; transport or structurally invalid evidence remains
+`UpstreamUnavailable`. Thus a controller's readable manager neuron and any other
+caller-readable neurons cannot enter or perturb the receiver result.
