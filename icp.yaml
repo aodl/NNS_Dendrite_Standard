@@ -1,7 +1,6 @@
-version: 1
 canisters:
-  dendrite:
-    type: custom
-    candid: canisters/dendrite/dendrite.did
-    wasm: target/wasm32-unknown-unknown/release/dendrite.wasm
-
+  - name: dendrite
+    recipe:
+      type: "@dfinity/prebuilt@v2.0.0"
+      configuration:
+        path: dist/release/dendrite.wasm
