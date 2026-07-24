@@ -31,6 +31,9 @@ function showError(root, message) {
 }
 
 const MAX_AUTHENTICATION_ERROR_LENGTH = 512;
+const MAX_RECEIPT_OPERATION_LENGTH = 256;
+const MAX_RECEIPT_MESSAGE_LENGTH = 512;
+const boundedReceiptField = (value, maximum) => String(value ?? "").slice(0, maximum);
 
 export function boundedAuthenticationError(error, fallback) {
   const message = error instanceof Error ? error.message : fallback;
@@ -69,6 +72,76 @@ export function createApplication({
   let currentNeuronId;
   let currentView = "unselected";
   let routeGeneration = 0;
+  let currentTransactionReceipt;
+  let currentTransactionNotices;
+
+  function transactionNotices() {
+    const notices = document.createElement("section");
+    notices.className = "transaction-notices";
+    if (currentTransactionReceipt) {
+      const receipt = currentTransactionReceipt;
+      const known = document.createElement("section");
+      known.className = receipt.kind === "Success" ? "status" : "error";
+      known.append(
+        element("h2", "Current transaction receipt"),
+        element("p", `Operation: ${boundedReceiptField(receipt.operation, MAX_RECEIPT_OPERATION_LENGTH)}.`),
+      );
+      if (receipt.kind === "Success") {
+        known.append(
+          element("p", `Dendrite context neuron: ${boundedReceiptField(receipt.dendriteContextNeuronId, 20)}. Mutation or managed neuron: ${boundedReceiptField(receipt.mutationOrManagedNeuronId, 20)}.`),
+          element("p", `Request SHA-256: ${boundedReceiptField(receipt.requestDigest, 64)}.`),
+        );
+        if (receipt.proposalId !== undefined) {
+          known.append(
+            element("p", `Proposal ID: ${boundedReceiptField(receipt.proposalId, 20)}.`),
+            safeHttpsLink("View proposal on the Internet Computer dashboard", `https://dashboard.internetcomputer.org/proposal/${receipt.proposalId}`),
+            element("p", "Proposal creation is not adoption or execution. Dendrite does not poll for either."),
+          );
+        }
+        known.append(element("p", "A fresh Dendrite report is authoritative for the resulting neuron state."));
+      } else if (receipt.kind === "GovernanceRejection") {
+        known.append(
+          element("p", `Request SHA-256: ${boundedReceiptField(receipt.requestDigest, 64)}.`),
+          element("p", `Governance rejection: ${boundedReceiptField(receipt.message, MAX_RECEIPT_MESSAGE_LENGTH)}`),
+          element("p", "Governance returned a known rejection; this is not an ambiguous transaction result."),
+        );
+      } else {
+        known.append(
+          element("p", `Reason: ${boundedReceiptField(receipt.message, MAX_RECEIPT_MESSAGE_LENGTH)}`),
+          element("p", "Final preflight failed. No NNS update call was made."),
+        );
+      }
+      known.append(element("p", `Browser timestamp (display only): ${new Date(receipt.timestampMilliseconds).toISOString()}.`));
+      const dismiss = element("button", "Dismiss transaction receipt");
+      dismiss.type = "button";
+      dismiss.addEventListener("click", () => {
+        currentTransactionReceipt = undefined;
+        refreshTransactionNotices();
+      });
+      known.append(dismiss);
+      notices.append(known);
+    }
+    if (transactionPipeline.state === "outcome-unknown") {
+      const summary = transactionPipeline.outcomeUnknown;
+      notices.append(
+        element("h2", "Unresolved NNS transaction outcome", "error"),
+        element("p", `Operation: ${boundedReceiptField(summary.operation, MAX_RECEIPT_OPERATION_LENGTH)}. Dendrite context neuron: ${boundedReceiptField(summary.dendriteContextNeuronId, 20)}. Mutation or managed neuron: ${boundedReceiptField(summary.mutationOrManagedNeuronId, 20)}.`, "error"),
+        element("p", `Request SHA-256: ${boundedReceiptField(summary.requestDigest, 64)}. The prior operation may have succeeded. A full browser reload loses this heap-only marker.`, "error"),
+      );
+    }
+    return notices;
+  }
+
+  function appendTransactionNotices() {
+    currentTransactionNotices = transactionNotices();
+    root.append(currentTransactionNotices);
+  }
+
+  function refreshTransactionNotices() {
+    if (!currentTransactionNotices) return;
+    const replacement = transactionNotices();
+    currentTransactionNotices.replaceChildren(...replacement.children);
+  }
   async function activateAuthenticatedSession(session) {
     // Compatibility for injected read-only test sessions; production auth always
     // returns the private { principal, signingIdentity } object.
@@ -195,15 +268,8 @@ export function createApplication({
   }
 
   function appendReportActions(id) {
+    appendTransactionNotices();
     root.append(authenticationPanel());
-    if (transactionPipeline.state === "outcome-unknown" && (authenticationTransition !== "none" || !(authenticatedSession && authenticatedNnsActor))) {
-      const summary = transactionPipeline.outcomeUnknown;
-      root.append(
-        element("h2", "Unresolved NNS transaction outcome", "error"),
-        element("p", `Operation: ${summary.operation}. Dendrite context neuron: ${summary.dendriteContextNeuronId}. Mutation or managed neuron: ${summary.mutationOrManagedNeuronId}.`, "error"),
-        element("p", `Request SHA-256: ${summary.requestDigest}. The prior operation may have succeeded; sign in to use the read-only recovery and explicit acknowledgment controls. A full browser reload loses this heap-only marker.`, "error"),
-      );
-    }
     if (authenticatedPrincipal && currentReport) {
       renderManagerAuthority(root, currentReport, authenticatedPrincipal);
       if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
@@ -256,15 +322,11 @@ export function createApplication({
         input.reportValidity();
       }
     });
-    const unresolved = transactionPipeline.state === "outcome-unknown"
-      ? (() => {
-        const summary = transactionPipeline.outcomeUnknown;
-        return element("p", `Unresolved NNS transaction outcome: ${summary.operation}; context neuron ${summary.dendriteContextNeuronId}; mutation or managed neuron ${summary.mutationOrManagedNeuronId}; request SHA-256 ${summary.requestDigest}. The prior operation may have succeeded.`, "error");
-      })()
-      : undefined;
     root.append(
       authenticationPanel(),
-      ...(unresolved ? [unresolved] : []),
+    );
+    appendTransactionNotices();
+    root.append(
       form,
       element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."),
       resources(),
@@ -287,6 +349,7 @@ export function createApplication({
     clear(root);
     root.setAttribute("aria-busy", "true");
     root.append(element("h1", `Neuron ${id}`), element("div", "Running live verification…", "status"));
+    appendTransactionNotices();
     try {
       const report = await checkLive(await actor(), id);
       if (!ownsRoute()) return;
@@ -303,6 +366,7 @@ export function createApplication({
       clear(root);
       root.append(element("h1", `Neuron ${id}`));
       showError(root, errorMessage(error));
+      appendTransactionNotices();
       const retry = element("button", "Check again");
       retry.addEventListener("click", () => loadNeuron(id));
       root.append(retry, resources());
@@ -322,18 +386,32 @@ export function createApplication({
     }
   }
 
-  async function settleTransaction(review, result) {
+  async function settleTransaction(review, outcome) {
+    if (review && outcome) {
+      const common = {
+        kind: outcome.kind,
+        operation: boundedReceiptField(review.operation || "NNS transaction", MAX_RECEIPT_OPERATION_LENGTH),
+        dendriteContextNeuronId: review.dendriteContextNeuronId,
+        mutationOrManagedNeuronId: review.kind === "SubmitManageNeuronProposal" ? review.managedNeuronId : review.mutationNeuronId,
+        requestDigest: boundedReceiptField(review.requestDigest, 64),
+        timestampMilliseconds: Date.now(),
+      };
+      currentTransactionReceipt = Object.freeze(outcome.kind === "Success"
+        ? { ...common, proposalId: outcome.result.proposalId }
+        : { ...common, message: boundedReceiptField(outcome.message, MAX_RECEIPT_MESSAGE_LENGTH) });
+    }
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (!match) {
-      renderCurrent();
+      refreshTransactionNotices();
       return;
     }
     const id = formatNeuronId(parseNeuronId(match[1]));
-    if (result && currentView === "report" && review?.dendriteContextNeuronId.toString() === id && currentNeuronId === id) {
+    if (outcome?.kind === "Success" && review?.dendriteContextNeuronId.toString() === id) {
       await loadNeuron(id);
       return;
     }
-    renderCurrent();
+    if (currentView === "report" && currentNeuronId === id) renderCurrent();
+    else refreshTransactionNotices();
   }
 
   return {

@@ -1,7 +1,7 @@
 import { element, safeHttpsLink } from "./dom.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
-import { classifyRewardReceiver, formatE8s, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRefreshVotingPower, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, verifyRewardReceivers } from "./transaction.js";
+import { classifyRewardReceiver, formatE8s, isGovernanceRejection, managedNeuronId, openManageNeuronProposalRequest, prepareManagerHotkey, prepareManagerVote, preparePrimaryFollow, prepareRefreshVotingPower, prepareRewardReceiver, prepareTargetVote, proposalReviewDetails, selectTargetManageNeuronProposals, verifyRewardReceivers } from "./transaction.js";
 import { renderAdvancedCommands } from "./advanced-panel.js";
 import { TOPIC_LABELS } from "./compliance-view.js";
 
@@ -85,11 +85,18 @@ function reviewNode(pipeline, review, onSettlement, setControlsDisabled = () => 
       const result = await pipeline.submit(review, { confirmed: confirmation.checked === true, typedTarget: typed?.value ?? "" });
       root.replaceChildren(element("p", result.proposalId ? `Proposal ${result.proposalId} submitted.` : `${result.operation} succeeded.`, "status"));
       if (result.proposalId) root.append(safeHttpsLink("View proposal", `https://dashboard.internetcomputer.org/proposal/${result.proposalId}`));
-      await onSettlement(review, result);
+      await onSettlement(review, { kind: "Success", result });
     } catch (error) {
       root.append(element("p", String(error?.message ?? "Transaction outcome is unknown.").slice(0, 512), "error"));
       if (pipeline.state === "outcome-unknown") root.append(element("p", "Read-only recovery only: rerun the live Dendrite report, load caller-visible Open proposals, or inspect a proposal ID."));
-      if (attemptedCurrentReview && pipeline.state !== "ready") await onSettlement(review, pipeline.state === "none" ? { knownFailure: true } : undefined);
+      if (attemptedCurrentReview && pipeline.state !== "ready") {
+        const outcome = pipeline.state === "outcome-unknown"
+          ? undefined
+          : isGovernanceRejection(error)
+            ? { kind: "GovernanceRejection", message: error.message }
+            : { kind: "PreflightFailure", message: String(error?.message ?? "Final preflight failed.") };
+        await onSettlement(review, outcome);
+      }
     } finally { setControlsDisabled(false); submit.disabled = pipeline.state === "outcome-unknown"; }
   });
   root.append(submit);

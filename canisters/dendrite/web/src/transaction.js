@@ -453,6 +453,7 @@ export function prepareRefreshVotingPower() {
 
 const variant = (value) => Object.keys(value ?? {})[0];
 class GovernanceRejection extends Error {}
+export const isGovernanceRejection = (error) => error instanceof GovernanceRejection;
 export function decodeManageNeuronResponse(response, expected) {
   if (!Array.isArray(response?.command) || response.command.length !== 1) throw new Error("NNS response is missing a command; interface update required.");
   const command = response.command[0];

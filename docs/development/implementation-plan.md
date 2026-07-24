@@ -1,5 +1,33 @@
 # Aggressive simplification implementation plan
 
+## Final transaction-receipt and post-settlement evidence correction
+
+Starting boundary: `58d02801d8a8e6b1d0f606f9d07ac1d18f815524`. Preserve the
+stateless two-method canister, fixed browser-to-Governance actor, application-scoped
+transaction coordination, route/load generations, and unresolved-outcome authority
+while making only these corrections:
+
+- [ ] Retain at most one bounded, heap-only current known transaction receipt at
+  application scope; render it safely on landing, loading, report, and live-check
+  error views without creating history or browser persistence.
+- [ ] Return structured success, explicit Governance-rejection, and final-preflight
+  settlement outcomes from the transaction review boundary while leaving local form
+  validation errors local and preserving the pipeline-owned ambiguous-outcome state.
+- [ ] Guarantee one newer anonymous live check after a known successful settlement
+  when the selected route still names the same Dendrite context neuron, without
+  navigating, polling, retrying, or replacing a newer route.
+- [ ] Keep known results visible across rerenders and route changes, preserve proposal
+  IDs and dashboard links after refresh, and show unresolved-outcome warnings on
+  loading and live-check error views.
+- [ ] Add deterministic receipt, dismissal, rejection, preflight, navigation,
+  stale-check, storage, and actual-entry-point regressions; update existing evidence;
+  and rerun every automated release and two-clean-build gate.
+
+The real Internet Identity popup/origin test and controlled transaction smoke test stay
+unrun and remain mandatory operator gates after this correction. No mainnet mutation,
+deployment, automatic proposal polling, or transaction retry is authorized or
+performed.
+
 ## Final route-ownership and authentication-transition correction
 
 Starting boundary: `74318417c61050bd55e7e14c435246efecb31ab8`. Preserve the
