@@ -3,8 +3,8 @@
 /coverage/
 /node_modules/
 /.dfx/
+/.icp/cache/
 *.wasm
 *.wasm.gz
 *.pem
 .env*
-

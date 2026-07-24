@@ -1,32 +1,29 @@
-# Anonymous verification data flow
+# Data flow
 
-1. Validate a non-zero `nat64` target ID and admit it through the heap-only global guard.
-2. Request the full public target with fixed Governance `list_neurons`.
-3. Atomically validate full-neuron and neuron-info keys and use the target NNS retrieval
-   timestamp for activity evaluation and `checked_at_timestamp_seconds`. On confirmed omission, return a completed
-   non-compliant report; on unavailable evidence, return indeterminate immediately.
-4. Preserve raw manager/topic vectors, add alpha-vote and omega-reject, enforce the
-   derived 272-ID graph bound, and split unique dependencies into batches of at most 50.
-5. Request each batch through fixed Governance `list_neurons`; each requested ID becomes
-   found, confirmed missing, or unavailable. Invalid batches retain no partial records,
-   and failures identify the exact affected IDs.
-6. Inspect the target controller with management `canister_info`, requesting zero
-   changes.
-7. Normalize evidence, evaluate every supported rule, return the timestamped report,
-   release the guard, and store nothing.
-8. Independently, the browser may restore or obtain an Internet Identity delegation,
-   keep it locally, and compare its principal with raw manager controller/hotkey evidence
-   from that report. Sign-in never reconstructs the Dendrite actor.
+## Anonymous verification
 
-No step accepts a destination, method, raw Candid payload, delegation, configuration,
-or proposal record from a caller. No catalogue, economics, mutation, cache, timer,
-history, or background call exists.
-The local canister clock appears only in step 1's operational guard and is never used as
-the NNS evidence timestamp.
-The authenticated NNS actor exists only in the browser. Controller-authorized changes
-use the reviewed direct-operation branch and are confirmed by a new live check.
+```text
+Browser
+  -> Dendrite check_neuron
+  -> NNS Governance and management canister reads
+  -> bounded live report
+  -> Browser
+```
 
-Browser management requests only Governance as a delegation target. It performs fresh
-anonymous and replicated-NNS preflight, freezes the exact reviewed request, requires
-confirmation, revalidates security-sensitive values, submits once, strictly decodes the
-response, and refreshes the anonymous report. Review and proposal values stay in memory.
+Dendrite validates the target, batches at most 50 dependency IDs per `list_neurons`
+call, enforces the derived 272-ID bound, reads `canister_info`, evaluates every
+supported rule, and stores no result. The browser uses an anonymous Dendrite actor.
+
+## Authenticated mutation
+
+```text
+Browser
+  -> Internet Identity
+  -> Governance-targeted delegation held in browser
+  -> NNS Governance manage_neuron
+  -> Browser receipt and fresh anonymous report
+```
+
+The browser freezes the exact reviewed request, confirms and revalidates it, submits
+once without automatic retry, retains only bounded heap-session receipt state, then
+runs a fresh anonymous report. Delegation material never travels through Dendrite.
