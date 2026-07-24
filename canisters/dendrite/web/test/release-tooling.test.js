@@ -44,15 +44,14 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   const yaml = readFileSync("icp.yaml", "utf8");
   assert.match(yaml, /type: "@dfinity\/prebuilt@v2\.0\.0"/);
   assert.match(yaml, /path: dist\/release\/dendrite\.wasm/);
+  assert.match(yaml, /sha256: f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64/);
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
-  assert.equal(run("tools/scripts/verify-release-artifacts.sh").status, 0);
-  assert.doesNotMatch(readFileSync("dist/release/SHA256SUMS", "utf8"), /SHA256SUMS/);
 });
 
-test("release frontend manifest names existing generated assets", () => {
-  const manifest = JSON.parse(readFileSync("dist/release/asset-manifest.json"));
+test("production frontend manifest names existing generated assets", () => {
+  const manifest = JSON.parse(readFileSync("canisters/dendrite/public/asset-manifest.json"));
   for (const path of Object.values(manifest)) {
-    assert.ok(existsSync(join("dist/release/frontend", path)));
+    assert.ok(existsSync(join("canisters/dendrite/public", path)));
   }
 });
 
@@ -105,6 +104,42 @@ test("release verifier rejects missing, corrupted, and manifest-mismatched Wasm"
     writeValid();
     writeFileSync(join(fixture, "icp.yaml"), readFileSync(join(fixture, "icp.yaml"), "utf8").replace(/[0-9a-f]{64}\n$/, `${"0".repeat(64)}\n`));
     assert.notEqual(verify().status, 0);
+    writeValid();
+    writeFileSync(join(fixture, "dist/release/SHA256SUMS"), `${hashFor("release-artifact")}  /dendrite.wasm\n`);
+    assert.notEqual(verify().status, 0);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+const hashFor = (value) => createHash("sha256").update(value).digest("hex");
+
+test("release checksum verification runs inside the release directory", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "dendrite-checksum-cwd-"));
+  try {
+    mkdirSync(join(fixture, "tools/scripts"), { recursive: true });
+    mkdirSync(join(fixture, "dist/release"), { recursive: true });
+    mkdirSync(join(fixture, "bin"), { recursive: true });
+    cpSync(join(root, "tools/scripts/verify-release-artifacts.sh"), join(fixture, "tools/scripts/verify-release-artifacts.sh"));
+    writeFileSync(join(fixture, "Cargo.lock"), "");
+    const wasm = Buffer.from("release-artifact");
+    const hash = hashFor(wasm);
+    writeFileSync(join(fixture, "dist/release/dendrite.wasm"), wasm);
+    writeFileSync(join(fixture, "dist/release/SHA256SUMS"), `${hash}  dendrite.wasm\n`);
+    writeFileSync(join(fixture, "icp.yaml"), `canisters:\n  - name: dendrite\n    recipe:\n      type: "@dfinity/prebuilt@v2.0.0"\n      configuration:\n        path: dist/release/dendrite.wasm\n        sha256: ${hash}\n`);
+    writeFileSync(join(fixture, "bin/sha256sum"), `#!/bin/sh
+printf '%s\n' "$PWD" >> "$CHECKSUM_CWD_LOG"
+exec /usr/bin/sha256sum "$@"
+`);
+    chmodSync(join(fixture, "bin/sha256sum"), 0o755);
+    const cwdLog = join(fixture, "cwd.log");
+    const result = spawnSync("tools/scripts/verify-release-artifacts.sh", [], {
+      cwd: fixture,
+      encoding: "utf8",
+      env: { ...process.env, CHECKSUM_CWD_LOG: cwdLog, PATH: `${join(fixture, "bin")}:${process.env.PATH}` },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(readFileSync(cwdLog, "utf8"), new RegExp(`${fixture}/dist/release`));
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
@@ -127,6 +162,11 @@ test("guarded dry-run reaches no lifecycle write", () => {
     writeFileSync(join(fixture, "dist/release/dendrite.wasm"), wasm);
     writeFileSync(join(fixture, "dist/release/SHA256SUMS"), `${hash}  dendrite.wasm\n`);
     writeFileSync(join(fixture, "icp.yaml"), `canisters:\n  - name: dendrite\n    recipe:\n      type: "@dfinity/prebuilt@v2.0.0"\n      configuration:\n        path: dist/release/dendrite.wasm\n        sha256: ${hash}\n`);
+    writeFileSync(
+      join(fixture, "tools/scripts/mainnet-deploy.sh"),
+      readFileSync(join(fixture, "tools/scripts/mainnet-deploy.sh"), "utf8")
+        .replace("f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64", hash),
+    );
     const log = join(fixture, "icp.log");
     writeFileSync(join(fixture, "bin/icp"), `#!/bin/sh
 printf '%s\\n' "$*" >> "$ICP_TEST_LOG"
@@ -136,7 +176,7 @@ case "$*" in
   "identity principal") echo "aaaaa-aa" ;;
   "canister status dendrite -e ic --id-only") echo "${productionId}" ;;
   "canister status dendrite -e ic --json") echo '{"module_hash":null}' ;;
-  "canister settings show dendrite -e ic") echo 'controllers: [aaaaa-aa]' ;;
+  "canister settings show dendrite -e ic") echo 'Caller is not a controller' >&2; exit 2 ;;
   *) exit 91 ;;
 esac
 `);
@@ -159,27 +199,36 @@ esac
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /dry-run complete; no write performed/);
+    assert.match(result.stdout, /Controller-only settings unavailable/);
     assert.doesNotMatch(readFileSync(log, "utf8"), /canister install/);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
 });
 
-test("documentation links resolve and production identifiers are consistent", () => {
-  const required = [
-    "README.md", "docs/operations/deployment.md", "docs/operations/reproducible-builds.md",
-    "docs/operations/release-checklist.md", "docs/operations/operator-gates.md",
+test("documentation set is consolidated and links resolve", () => {
+  const expected = [
+    "README.md",
+    "docs/architecture.md",
+    "docs/development/implementation-plan.md",
+    "docs/development/testing.md",
+    "docs/operations/deployment.md",
+    "docs/operations/operator-gates.md",
     "docs/operations/production-record.md",
+    "docs/operations/reproducible-builds.md",
+    "docs/security.md",
+    "docs/standard/NNS_DENDRITE_STANDARD.md",
+    "docs/standard/SOURCE_BASELINE.md",
   ];
-  for (const file of required) {
-    const text = readFileSync(file, "utf8");
-    assert.match(text, new RegExp(productionId), file);
-    assert.match(text, new RegExp(productionOrigin.replaceAll(".", "\\.")), file);
-  }
   const markdown = (directory) => readdirSync(directory, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => join(entry.parentPath, entry.name));
-  for (const file of ["README.md", ...markdown("docs")]) {
+  const actual = ["README.md", ...markdown("docs")].sort();
+  assert.deepEqual(actual, expected.sort());
+  const deployment = readFileSync("docs/operations/deployment.md", "utf8");
+  assert.match(deployment, new RegExp(productionId));
+  assert.match(deployment, new RegExp(productionOrigin.replaceAll(".", "\\.")));
+  for (const file of actual) {
     const text = readFileSync(file, "utf8");
     for (const match of text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
       const target = match[1].split("#")[0];

@@ -21,6 +21,16 @@ grep -Eq "^[0-9a-f]{64}  dendrite\\.wasm$" "$sums" ||
   { echo "SHA256SUMS does not list dendrite.wasm" >&2; exit 1; }
 ! grep -Eq '(^|[ /])SHA256SUMS$' "$sums" ||
   { echo "SHA256SUMS must not hash itself" >&2; exit 1; }
+awk '
+  length($0) < 67 || substr($0, 65, 2) != "  " { exit 1 }
+  {
+    path = substr($0, 67)
+    if (path ~ /^\// || path ~ /(^|\/)\.\.?($|\/)/) exit 1
+  }
+' "$sums" || { echo "SHA256SUMS paths must be relative and canonical" >&2; exit 1; }
+manifest_paths=$(sed 's/^[0-9a-f]\{64\}  //' "$sums")
+[ "$manifest_paths" = "$(printf '%s\n' "$manifest_paths" | LC_ALL=C sort)" ] ||
+  { echo "SHA256SUMS entries must use deterministic byte ordering" >&2; exit 1; }
 (
   cd "$release"
   sha256sum -c SHA256SUMS
