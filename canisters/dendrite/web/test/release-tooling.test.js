@@ -55,6 +55,48 @@ test("production frontend manifest names existing generated assets", () => {
   }
 });
 
+test("frontend documentation URLs resolve to retained documents", () => {
+  const source = readFileSync("canisters/dendrite/web/src/app.js", "utf8");
+  const manifest = JSON.parse(readFileSync("canisters/dendrite/public/asset-manifest.json"));
+  const bundle = readFileSync(join("canisters/dendrite/public", manifest["app.js"]), "utf8");
+  const retained = new Set([
+    "docs/architecture.md",
+    "docs/development/implementation-plan.md",
+    "docs/development/testing.md",
+    "docs/operations/deployment.md",
+    "docs/operations/operator-gates.md",
+    "docs/operations/production-record.md",
+    "docs/operations/reproducible-builds.md",
+    "docs/security.md",
+    "docs/standard/NNS_DENDRITE_STANDARD.md",
+    "docs/standard/SOURCE_BASELINE.md",
+  ]);
+  const required = [
+    "docs/operations/reproducible-builds.md",
+    "docs/security.md",
+  ];
+  const deleted = [
+    "docs/development/reproducible-builds.md",
+    "docs/security/threat-model.md",
+  ];
+  for (const path of required) {
+    assert.match(source, new RegExp(path.replaceAll("/", "\\/")));
+    assert.match(bundle, new RegExp(path.replaceAll("/", "\\/")));
+  }
+  for (const path of deleted) {
+    assert.doesNotMatch(source, new RegExp(path.replaceAll("/", "\\/")));
+    assert.doesNotMatch(bundle, new RegExp(path.replaceAll("/", "\\/")));
+  }
+  const repositoryDocumentationUrl =
+    /https:\/\/github\.com\/aodl\/NNS_Dendrite_Standard\/blob\/main\/([^"'`)\s]+\.md)/g;
+  const paths = [...source.matchAll(repositoryDocumentationUrl)].map((match) => match[1]);
+  assert.ok(paths.length > 0);
+  for (const path of paths) {
+    assert.ok(retained.has(path), `frontend documentation URL is not retained: ${path}`);
+    assert.ok(existsSync(path), `frontend documentation URL does not resolve: ${path}`);
+  }
+});
+
 test("guard rejects unsafe modes, confirmation, IDs, dirty state, and artifacts", () => {
   const base = {
     ...process.env,
