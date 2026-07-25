@@ -24,9 +24,18 @@ esac
 [ -f Cargo.lock ] && [ -f icp.yaml ] && [ -d .git ] || { echo "unexpected project root" >&2; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "dirty Git worktree" >&2; exit 1; }
 command -v icp >/dev/null
-[ "$(icp --version)" = "icp 0.2.6" ] || { echo "icp-cli 0.2.6 is required" >&2; exit 1; }
+required_icp_version=1.2.0
+icp_version_output=$(icp --version 2>&1)
+[ "$icp_version_output" = "icp $required_icp_version" ] || {
+  printf 'icp-cli %s is required; found: %s\n' \
+    "$required_icp_version" \
+    "$icp_version_output" >&2
+  exit 1
+}
 
 echo "Git commit: $(git rev-parse HEAD)"
+echo "icp-cli executable: $(command -v icp)"
+echo "icp-cli version: $icp_version_output"
 echo "icp-cli identity: $(icp identity default)"
 echo "icp-cli principal: $(icp identity principal)"
 

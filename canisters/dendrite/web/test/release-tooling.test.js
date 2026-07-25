@@ -213,7 +213,7 @@ test("guarded dry-run reaches no lifecycle write", () => {
     writeFileSync(join(fixture, "bin/icp"), `#!/bin/sh
 printf '%s\\n' "$*" >> "$ICP_TEST_LOG"
 case "$*" in
-  "--version") echo "icp 0.2.6" ;;
+  "--version") printf '%s\\n' "$ICP_VERSION_OUTPUT" ;;
   "identity default") echo "release-operator" ;;
   "identity principal") echo "aaaaa-aa" ;;
   "canister status dendrite -e ic --id-only") echo "${productionId}" ;;
@@ -228,18 +228,32 @@ esac
     run("git", ["config", "user.name", "Release Test"], { cwd: fixture });
     run("git", ["add", "."], { cwd: fixture });
     run("git", ["commit", "-qm", "fixture"], { cwd: fixture });
+    const environment = {
+      ...process.env,
+      ...productionEnvironment,
+      DENDRITE_CONFIRM_MAINNET: productionId,
+      ICP_TEST_LOG: log,
+      ICP_VERSION_OUTPUT: "icp 1.2.0",
+      PATH: `${join(fixture, "bin")}:${process.env.PATH}`,
+    };
+    for (const versionOutput of ["icp 0.2.6", "icp 1.1.0", "icp 1.2.1", "unexpected version output"]) {
+      const rejected = spawnSync("tools/scripts/mainnet-deploy.sh", ["dry-run"], {
+        cwd: fixture,
+        encoding: "utf8",
+        env: { ...environment, ICP_VERSION_OUTPUT: versionOutput },
+      });
+      assert.notEqual(rejected.status, 0, versionOutput);
+      assert.match(rejected.stderr, /icp-cli 1\.2\.0 is required/);
+      rmSync(log, { force: true });
+    }
     const result = spawnSync("tools/scripts/mainnet-deploy.sh", ["dry-run"], {
       cwd: fixture,
       encoding: "utf8",
-      env: {
-        ...process.env,
-        ...productionEnvironment,
-        DENDRITE_CONFIRM_MAINNET: productionId,
-        ICP_TEST_LOG: log,
-        PATH: `${join(fixture, "bin")}:${process.env.PATH}`,
-      },
+      env: environment,
     });
     assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /icp-cli executable: .*\/bin\/icp/);
+    assert.match(result.stdout, /icp-cli version: icp 1\.2\.0/);
     assert.match(result.stdout, /dry-run complete; no write performed/);
     assert.match(result.stdout, /Controller-only settings unavailable/);
     assert.doesNotMatch(readFileSync(log, "utf8"), /canister install/);
