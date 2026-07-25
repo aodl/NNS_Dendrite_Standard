@@ -27,7 +27,7 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
-## Canonical Docker evidence — 2026-07-24
+## Canonical Docker evidence — 2026-07-25
 
 Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
 `dendrite-canonical` `docker-container` builder. The Buildx local exporter smoke test
@@ -36,9 +36,20 @@ byte-identical files, and identical deterministic manifests. No alternate engine
 prior failed-export artifact contributed to this evidence.
 
 - Raw Wasm SHA-256:
-  `f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64`
+  `1291a51cc26bcdd1ea387f6509aeef3f9c39e19f04f58495576f842873aa371a`
 - `SHA256SUMS` file SHA-256:
-  `5c5b00d0c02abad5c04fb1f205d28baa0777c15e62ad220804f9473b8e767788`
+  `090f2cba0cfa230323506d8051bda7b18866da3a0f4f787264dfb0e56d28ad7b`
+- Frontend tree SHA-256:
+  `1d61cb33d96e4628570f6ad7d613dc48ac2f0644bb6dfce23d1e16db8f59e2f9`
+- `asset-manifest.json` SHA-256:
+  `1791938f3a445cbaf3d5c21afe6ff5a1313d309e5e652ca8a4102f60660c82eb`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+
+The earlier
+`f8f856c83f1dde99f3cdb1796d0af9e3fd448e929ba3392d2a7cdde472fd9d64`
+artifact was superseded before deployment because the final frontend documentation
+links were corrected. It was not deployed.
 
 The release manifest excludes itself, uses relative byte-sorted paths, and verifies
 from inside the release directory. `icp.yaml` binds the prebuilt recipe directly to the
