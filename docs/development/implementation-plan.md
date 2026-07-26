@@ -1,5 +1,27 @@
 # Aggressive simplification implementation plan
 
+## Browser-first trust-state correction
+
+Starting boundary: `d8753c6a351103f00d935931d947a5d2adf1374a`.
+
+- [x] Make every new consensus attempt stale the prior result immediately and require a
+  newly successful `check_neuron` before restoring authoritative presentation or
+  transaction controls.
+- [x] Separate the three expected management-canister uncertainties from the public
+  preliminary headline without changing their `Indeterminate` policy status.
+- [x] Compare a canonical full policy-report projection across 38 deterministic Rust
+  and JavaScript fixtures, with decimal-string `u64` values and textual principals.
+- [x] Preserve typed dependency batch failures, bounded messages, exact affected IDs,
+  atomic response rejection, and retryable failed cache entries.
+- [x] Remove repository dfx configuration and the obsolete local deployment script;
+  retain PocketIC as the automated local canister environment.
+- [x] Normalize topic presentation groups as logical ID multisets while leaving exact
+  following evaluation unchanged.
+- [x] Add a conditional real-Chromium read-only smoke procedure with an honest `UNRUN`
+  result and deterministic manual preview when no engine is installed.
+- [x] Re-run the complete automated and canonical two-build release matrix, bind the
+  corrected candidate hashes, record evidence, and perform only the guarded dry-run.
+
 ## Browser-first analysis and presentation release candidate
 
 Starting boundary: reviewed release `5be98b8a8bbc51828faba655c302580a9f1086fb`

@@ -4,7 +4,7 @@ set -eu
 production_id=hp4av-oiaaa-aaaar-qcaha-cai
 production_origin=https://hp4av-oiaaa-aaaar-qcaha-cai.icp0.io
 production_alternatives='{"alternativeOrigins":[]}'
-canonical_wasm_hash=5b1a3f617d00149c903b1f6822117112316417dc8261e695adfde5269551a2cc
+canonical_wasm_hash=c77b44945b47497a73510ec28e980fa12b006ac50722e8607be108d5d7c90402
 mode=${1:-}
 
 case "$mode" in
