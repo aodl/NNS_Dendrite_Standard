@@ -1349,4 +1349,237 @@ mod tests {
             .collect();
         assert_rule(too_many_failures, "DENDRITE-DATA-002", RuleStatus::Fail);
     }
+
+    fn differential_case(name: &str) -> EvaluationEvidence {
+        let mut evidence = compliant_evidence();
+        match name {
+            "fully_compliant" => {}
+            "target_missing" => evidence.target = NeuronLookup::ConfirmedMissing,
+            "target_unavailable" => evidence.target = NeuronLookup::Unavailable,
+            "wrong_target_id" => evidence.target.as_mut().unwrap().id = 43,
+            "missing_known_neuron" => evidence.target.as_mut().unwrap().known_data = None,
+            "target_hotkeys" => evidence
+                .target
+                .as_mut()
+                .unwrap()
+                .hot_keys
+                .push(Principal::from_slice(&[2])),
+            "not_for_profit" => evidence.target.as_mut().unwrap().not_for_profit = Some(true),
+            "dissolving" => evidence.target.as_mut().unwrap().dissolving = Some(true),
+            "short_dissolve_delay" => {
+                evidence.target.as_mut().unwrap().dissolve_delay_seconds = Some(1)
+            }
+            "stale_voting_power" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .voting_power_refreshed_timestamp_seconds = Some(1)
+            }
+            "voting_power_mismatch" => {
+                evidence.target.as_mut().unwrap().deciding_voting_power = Some(9)
+            }
+            "too_few_managers" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(1, vec![100, 101, 102, 103]);
+            }
+            "too_many_managers" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(1, (100..116).collect());
+            }
+            "duplicate_managers" => evidence
+                .target
+                .as_mut()
+                .unwrap()
+                .followees
+                .get_mut(&1)
+                .unwrap()
+                .push(100),
+            "self_manager" => evidence
+                .target
+                .as_mut()
+                .unwrap()
+                .followees
+                .get_mut(&1)
+                .unwrap()
+                .push(42),
+            "manager_missing" => {
+                evidence
+                    .dependencies
+                    .insert(100, NeuronLookup::ConfirmedMissing);
+            }
+            "manager_unavailable" => {
+                evidence.dependencies.insert(100, NeuronLookup::Unavailable);
+            }
+            "manager_hotkeys" => evidence
+                .dependencies
+                .get_mut(&100)
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .hot_keys
+                .push(Principal::from_slice(&[3])),
+            "incorrect_management_following" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(1, vec![7]);
+            }
+            "alpha_vote_mismatch" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(3, vec![7]);
+            }
+            "omega_reject_mismatch" => {
+                evidence
+                    .dependencies
+                    .get_mut(&100)
+                    .unwrap()
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(4, vec![ALPHA_VOTE_NEURON_ID]);
+            }
+            "committed_missing_delegate" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(4, vec![100, 101]);
+            }
+            "committed_extra_delegate" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .get_mut(&4)
+                    .unwrap()
+                    .push(104);
+            }
+            "non_committed_mismatch" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(17, vec![7]);
+            }
+            "quorum_edge" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(1, vec![100, 101, 102, 103, 104, 105]);
+            }
+            "controller_unavailable" => evidence.controller = None,
+            "controller_module_present" => {
+                evidence.controller.as_mut().unwrap().module_hash = Some(vec![1])
+            }
+            "controller_list_retained" => evidence
+                .controller
+                .as_mut()
+                .unwrap()
+                .controllers
+                .push(Principal::from_slice(&[4])),
+            "unknown_committed_topic" => evidence.unknown_committed_topics = 1,
+            "source_failure" => evidence.source_failures.push(SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::Rejected,
+                message: "bounded rejection".into(),
+                affected_neuron_ids: vec![100],
+            }),
+            "unknown_following_topic" => {
+                evidence
+                    .target
+                    .as_mut()
+                    .unwrap()
+                    .followees
+                    .insert(99, vec![7]);
+            }
+            "contradictory_unavailable_evidence" => {
+                evidence.target.as_mut().unwrap().effective_stake_e8s = None
+            }
+            _ => panic!("unknown differential fixture {name}"),
+        }
+        evidence
+    }
+
+    #[test]
+    fn frontend_differential_fixture_is_current() {
+        let names = [
+            "fully_compliant",
+            "target_missing",
+            "target_unavailable",
+            "wrong_target_id",
+            "missing_known_neuron",
+            "target_hotkeys",
+            "not_for_profit",
+            "dissolving",
+            "short_dissolve_delay",
+            "stale_voting_power",
+            "voting_power_mismatch",
+            "too_few_managers",
+            "too_many_managers",
+            "duplicate_managers",
+            "self_manager",
+            "manager_missing",
+            "manager_unavailable",
+            "manager_hotkeys",
+            "incorrect_management_following",
+            "alpha_vote_mismatch",
+            "omega_reject_mismatch",
+            "committed_missing_delegate",
+            "committed_extra_delegate",
+            "non_committed_mismatch",
+            "quorum_edge",
+            "controller_unavailable",
+            "controller_module_present",
+            "controller_list_retained",
+            "unknown_committed_topic",
+            "source_failure",
+            "unknown_following_topic",
+            "contradictory_unavailable_evidence",
+        ];
+        let fixtures = names
+            .iter()
+            .map(|name| {
+                let report = evaluate(42, &differential_case(name), SOURCE_REVISION);
+                serde_json::json!({
+                    "name": name,
+                    "overall_status": report.overall_status,
+                    "quorum_threshold": report.quorum_threshold,
+                    "rules": report.rules.iter().map(|rule| serde_json::json!({
+                        "rule_id": rule.rule_id,
+                        "status": rule.status,
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect::<Vec<_>>();
+        let generated = format!("{}\n", serde_json::to_string_pretty(&fixtures).unwrap());
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../canisters/dendrite/web/test/fixtures/evaluator.json"
+        );
+        if std::env::var_os("DENDRITE_UPDATE_EVALUATOR_FIXTURE").is_some() {
+            std::fs::create_dir_all(std::path::Path::new(path).parent().unwrap()).unwrap();
+            std::fs::write(path, &generated).unwrap();
+        }
+        assert_eq!(std::fs::read_to_string(path).unwrap(), generated);
+    }
 }

@@ -1,0 +1,5418 @@
+[
+  {
+    "name": "fully_compliant",
+    "overall_status": "Compliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "target_missing",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": null,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "target_unavailable",
+    "overall_status": "Indeterminate",
+    "quorum_threshold": null,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Indeterminate"
+      }
+    ]
+  },
+  {
+    "name": "wrong_target_id",
+    "overall_status": "Compliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "missing_known_neuron",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "target_hotkeys",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "not_for_profit",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "dissolving",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "short_dissolve_delay",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "stale_voting_power",
+    "overall_status": "Compliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "voting_power_mismatch",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "too_few_managers",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "too_many_managers",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 9,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "duplicate_managers",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "self_manager",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 4,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "manager_missing",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "manager_unavailable",
+    "overall_status": "Indeterminate",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "manager_hotkeys",
+    "overall_status": "Compliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "incorrect_management_following",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 1,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "alpha_vote_mismatch",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "omega_reject_mismatch",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "committed_missing_delegate",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "committed_extra_delegate",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "non_committed_mismatch",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "quorum_edge",
+    "overall_status": "Indeterminate",
+    "quorum_threshold": 4,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "controller_unavailable",
+    "overall_status": "Indeterminate",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "controller_module_present",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "controller_list_retained",
+    "overall_status": "NonCompliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Fail"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "unknown_committed_topic",
+    "overall_status": "StandardUpdateRequired",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "StandardUpdateRequired"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "source_failure",
+    "overall_status": "Compliant",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "unknown_following_topic",
+    "overall_status": "StandardUpdateRequired",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "StandardUpdateRequired"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  },
+  {
+    "name": "contradictory_unavailable_evidence",
+    "overall_status": "Indeterminate",
+    "quorum_threshold": 3,
+    "rules": [
+      {
+        "rule_id": "DENDRITE-KNOWN-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-KNOWN-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-LOCK-003",
+        "status": "Indeterminate"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-ACTIVE-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-CONTROL-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-NM-005",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-COMMIT-004",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DEFAULT-003",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-001",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-002",
+        "status": "Pass"
+      },
+      {
+        "rule_id": "DENDRITE-DATA-003",
+        "status": "Pass"
+      }
+    ]
+  }
+]
