@@ -36,20 +36,21 @@ Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
 mainnet.
 
 - Raw Wasm SHA-256:
-  `c77b44945b47497a73510ec28e980fa12b006ac50722e8607be108d5d7c90402`
+  `ff5104dbd9006228118e1b67eae0242dad026b2e487b2f4ac7a97dc65f55a75b`
 - `SHA256SUMS` file SHA-256:
-  `4c24542af7b89760dfbc183156ede8187e4217119fbf8815f95cc0aa4cb0004b`
+  `6ae0db48fa3f89fbcc67102d0c39f46248161bba6a9634737b41a008afb457f9`
 - Frontend tree SHA-256:
-  `0507dd3edf8d4c7d48858c0fa65e2f81c8c00b2313ce8e5fb1fb72cec1cff93c`
+  `d3b8e340c08226d8b00d9c0a4d34b5121aa77669f58cededcaaf581b28ac3956`
 - `asset-manifest.json` SHA-256:
-  `df073e3a12c373aa0d3a6d9fc7fa2e8cf7ddea87c32e37c5f98dbe170469ab56`
+  `e0a51525ad9f32c01b6464d82fb52a5bcfca5e8a1cf6aff10b0a056bfd2f06f0`
 - `build-configuration.txt` SHA-256:
   `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
 
 The candidate embeds the browser-first anonymous Governance query path, explicit
-consensus-verification action, severity-first compliance presentation, and certified
-asset manifest. Rust-to-JavaScript differential fixtures, interface drift, all
-PocketIC scenarios, workspace coverage, frontend coverage, security scans, SBOM
+consensus-verification action, first-verification unavailable/stale distinction,
+bounded target-query diagnostics, severity-first compliance presentation, and
+certified asset manifest. Rust-to-JavaScript differential fixtures, interface drift,
+all PocketIC scenarios, workspace coverage, frontend coverage, security scans, SBOM
 generation, and local clean-build equality passed before the canonical comparison.
 
 ## Canonical Docker evidence — 2026-07-25

@@ -4,6 +4,10 @@
 
 Starting boundary: `d8753c6a351103f00d935931d947a5d2adf1374a`.
 
+- [x] Distinguish unavailable first verification from stale prior consensus evidence,
+  and withhold transaction controls for every pending, unavailable, or stale state.
+- [x] Preserve bounded target-query decode, invalid-response, oversized-response, and
+  rejection classifications through one shared source-failure classifier.
 - [x] Make every new consensus attempt stale the prior result immediately and require a
   newly successful `check_neuron` before restoring authoritative presentation or
   transaction controls.
