@@ -1515,9 +1515,99 @@ mod tests {
             "contradictory_unavailable_evidence" => {
                 evidence.target.as_mut().unwrap().effective_stake_e8s = None
             }
+            "duplicate_unknown_committed" => {
+                evidence.target.as_mut().unwrap().committed_topics = vec![4, 4];
+                evidence.unknown_committed_topics = 1;
+            }
+            "controller_call_failure" => {
+                evidence.controller.as_mut().unwrap().call_succeeded = false;
+            }
+            "invalid_response_failure" => evidence.source_failures.push(SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::InvalidResponse,
+                message: "invalid dependency response".into(),
+                affected_neuron_ids: vec![100, 101],
+            }),
+            "response_too_large_failure" => evidence.source_failures.push(SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::ResponseTooLarge,
+                message: "dependency response exceeded its bound".into(),
+                affected_neuron_ids: vec![102],
+            }),
+            "decode_failure" => evidence.source_failures.push(SourceFailure {
+                method: "list_neurons".into(),
+                kind: SourceFailureKind::DecodeFailed,
+                message: "dependency response could not be decoded".into(),
+                affected_neuron_ids: vec![103],
+            }),
+            "unavailable_dependency_batch" => {
+                evidence.dependencies.insert(100, NeuronLookup::Unavailable);
+                evidence.dependencies.insert(101, NeuronLookup::Unavailable);
+                evidence.source_failures.push(SourceFailure {
+                    method: "list_neurons".into(),
+                    kind: SourceFailureKind::Rejected,
+                    message: "dependency batch rejected".into(),
+                    affected_neuron_ids: vec![100, 101],
+                });
+            }
             _ => panic!("unknown differential fixture {name}"),
         }
         evidence
+    }
+
+    fn canonical_policy_projection(report: &ComplianceReport) -> serde_json::Value {
+        fn canonicalize(value: &mut serde_json::Value, field: Option<&str>) {
+            const DECIMAL_FIELDS: &[&str] = &[
+                "neuron_id",
+                "checked_at_timestamp_seconds",
+                "id",
+                "dissolve_delay_seconds",
+                "effective_stake_e8s",
+                "minted_stake_e8s",
+                "voting_power_refreshed_timestamp_seconds",
+                "potential_voting_power",
+                "deciding_voting_power",
+            ];
+            const DECIMAL_ARRAY_FIELDS: &[&str] = &[
+                "related_neuron_ids",
+                "affected_neuron_ids",
+                "delegate_ids",
+                "followee_ids",
+                "neuron_management_followees",
+            ];
+            if field.is_some_and(|name| DECIMAL_FIELDS.contains(&name)) {
+                if let serde_json::Value::Number(number) = value {
+                    *value = serde_json::Value::String(number.to_string());
+                }
+                return;
+            }
+            if field.is_some_and(|name| DECIMAL_ARRAY_FIELDS.contains(&name)) {
+                if let serde_json::Value::Array(values) = value {
+                    for item in values {
+                        if let serde_json::Value::Number(number) = item {
+                            *item = serde_json::Value::String(number.to_string());
+                        }
+                    }
+                }
+                return;
+            }
+            match value {
+                serde_json::Value::Object(fields) => {
+                    for (name, item) in fields {
+                        canonicalize(item, Some(name));
+                    }
+                }
+                serde_json::Value::Array(values) => {
+                    for item in values {
+                        canonicalize(item, field);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut value = serde_json::to_value(report).expect("serialize policy report");
+        canonicalize(&mut value, None);
+        value
     }
 
     #[test]
@@ -1555,6 +1645,12 @@ mod tests {
             "source_failure",
             "unknown_following_topic",
             "contradictory_unavailable_evidence",
+            "duplicate_unknown_committed",
+            "controller_call_failure",
+            "invalid_response_failure",
+            "response_too_large_failure",
+            "decode_failure",
+            "unavailable_dependency_batch",
         ];
         let fixtures = names
             .iter()
@@ -1562,12 +1658,7 @@ mod tests {
                 let report = evaluate(42, &differential_case(name), SOURCE_REVISION);
                 serde_json::json!({
                     "name": name,
-                    "overall_status": report.overall_status,
-                    "quorum_threshold": report.quorum_threshold,
-                    "rules": report.rules.iter().map(|rule| serde_json::json!({
-                        "rule_id": rule.rule_id,
-                        "status": rule.status,
-                    })).collect::<Vec<_>>(),
+                    "projection": canonical_policy_projection(&report),
                 })
             })
             .collect::<Vec<_>>();

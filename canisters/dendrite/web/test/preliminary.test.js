@@ -21,9 +21,17 @@ import {
 } from "../src/preliminary-evidence.js";
 import { evaluatePreliminary } from "../src/preliminary-evaluator.js";
 import { createApplication } from "../src/app.js";
-import { groupTopics, ruleTitle, shortPrincipal, sortedFindings, variantName } from "../src/compliance-view.js";
+import {
+  groupTopics,
+  preliminaryStatus,
+  ruleTitle,
+  shortPrincipal,
+  sortedFindings,
+  variantName,
+} from "../src/compliance-view.js";
 
 const principal = Principal.fromText("aaaaa-aa");
+const fixturePrincipal = (byte) => Principal.fromUint8Array(Uint8Array.of(byte));
 const topic = (name) => ({ [name]: null });
 const neuron = (id, overrides = {}) => ({
   id: [{ id: BigInt(id) }],
@@ -134,11 +142,43 @@ test("loader caches pending reads, batches sorted dependencies, and retries fail
   } });
   const first = await loader.loadDependencies([3n, 2n, 3n]);
   assert.equal(first.get("2").kind, "Unavailable");
+  assert.equal(first.sourceFailures[0].kind, "Rejected");
+  assert.match(first.sourceFailures[0].message, /temporary/);
+  assert.deepEqual(first.sourceFailures[0].affectedNeuronIds, [2n, 3n]);
   const second = await loader.loadDependencies([2n, 3n]);
   assert.equal(second.get("2").kind, "Found");
   assert.deepEqual(requests, [[2n, 3n], [2n, 3n]]);
   loader.clear();
   assert.equal(loader.cache.size, 0);
+});
+
+test("dependency failures preserve typed bounded batch evidence", async () => {
+  for (const [kind, makeFailure] of [
+    ["Rejected", () => Object.assign(new Error("replica rejected"), { kind: "Rejected" })],
+    ["DecodeFailed", () => new Error("Candid decode failed")],
+    ["InvalidResponse", () => new PreliminaryEvidenceError("InvalidResponse", "bad structure")],
+    ["ResponseTooLarge", () => new PreliminaryEvidenceError("ResponseTooLarge", "too many records")],
+  ]) {
+    const loader = createNeuronLoader({ listNeurons: async () => { throw makeFailure(); } });
+    const loaded = await loader.loadDependencies([1n, 2n]);
+    assert.equal(loaded.sourceFailures[0].kind, kind);
+    assert.deepEqual(loaded.sourceFailures[0].affectedNeuronIds, [1n, 2n]);
+    assert.ok(loaded.sourceFailures[0].message.length <= 512);
+  }
+  let calls = 0;
+  const loader = createNeuronLoader({ listNeurons: async (request) => {
+    calls += 1;
+    if (calls <= 2) throw Object.assign(new Error(`batch ${calls} rejected`), { kind: "Rejected" });
+    return response(request.neuron_ids);
+  } });
+  const ids = Array.from({ length: 51 }, (_, index) => BigInt(index + 1));
+  const failed = await loader.loadDependencies(ids);
+  assert.equal(failed.sourceFailures.length, 2);
+  assert.equal(failed.sourceFailures[0].affectedNeuronIds.length, 50);
+  assert.equal(failed.sourceFailures[1].affectedNeuronIds.length, 1);
+  const retried = await loader.loadDependencies(ids);
+  assert.equal(retried.sourceFailures.length, 0);
+  assert.equal(retried.get("1").kind, "Found");
 });
 
 test("preliminary evaluator never passes controller-only rules", async () => {
@@ -173,7 +213,7 @@ const differentialEvidence = () => {
   return {
     nowSeconds: 1_000_000n,
     target: { kind: "Found", neuron: {
-      id: 42n, controller: principal, knownData: { id: 42n, name: "Dendrite", description: "A compliant target", links: ["https://example.com/dendrite"] },
+      id: 42n, controller: fixturePrincipal(1), knownData: { id: 42n, name: "Dendrite", description: "A compliant target", links: ["https://example.com/dendrite"] },
       hotKeys: [], notForProfit: false, dissolveDelaySeconds: 63_115_200n, dissolving: false,
       effectiveStakeE8s: 100_000_000n, mintedStakeE8s: 100_000_000n, votingPowerRefreshedTimestampSeconds: 999_999n,
       potentialVotingPower: 10n, decidingVotingPower: 10n, committedTopics: [4], followees: following,
@@ -192,7 +232,7 @@ function mutateDifferential(name, evidence) {
     case "target_unavailable": evidence.target = { kind: "Unavailable" }; break;
     case "wrong_target_id": target().id = 43n; break;
     case "missing_known_neuron": target().knownData = undefined; break;
-    case "target_hotkeys": target().hotKeys.push(principal); break;
+    case "target_hotkeys": target().hotKeys.push(fixturePrincipal(2)); break;
     case "not_for_profit": target().notForProfit = true; break;
     case "dissolving": target().dissolving = true; break;
     case "short_dissolve_delay": target().dissolveDelaySeconds = 1n; break;
@@ -204,7 +244,7 @@ function mutateDifferential(name, evidence) {
     case "self_manager": target().followees.get(1).push(42n); break;
     case "manager_missing": evidence.dependencies.set("100", { kind: "ConfirmedMissing" }); break;
     case "manager_unavailable": evidence.dependencies.set("100", { kind: "Unavailable" }); break;
-    case "manager_hotkeys": evidence.dependencies.get("100").neuron.hotKeys.push(principal); break;
+    case "manager_hotkeys": evidence.dependencies.get("100").neuron.hotKeys.push(fixturePrincipal(3)); break;
     case "incorrect_management_following": target().followees.set(1, [7n]); break;
     case "alpha_vote_mismatch": target().followees.set(3, [7n]); break;
     case "omega_reject_mismatch": evidence.dependencies.get("100").neuron.followees.set(4, [ALPHA_VOTE_NEURON_ID]); break;
@@ -214,25 +254,99 @@ function mutateDifferential(name, evidence) {
     case "quorum_edge": target().followees.set(1, [100n, 101n, 102n, 103n, 104n, 105n]); break;
     case "controller_unavailable": evidence.controller = undefined; break;
     case "controller_module_present": evidence.controller.moduleHash = new Uint8Array([1]); break;
-    case "controller_list_retained": evidence.controller.controllers.push(principal); break;
+    case "controller_list_retained": evidence.controller.controllers.push(fixturePrincipal(4)); break;
     case "unknown_committed_topic": evidence.unknownCommittedTopics = 1; break;
     case "source_failure": evidence.sourceFailures.push({ method: "list_neurons", kind: "Rejected", message: "bounded rejection", affectedNeuronIds: [100n] }); break;
     case "unknown_following_topic": target().followees.set(99, [7n]); break;
     case "contradictory_unavailable_evidence": target().effectiveStakeE8s = undefined; break;
+    case "duplicate_unknown_committed": target().committedTopics = [4, 4]; evidence.unknownCommittedTopics = 1; break;
+    case "controller_call_failure": evidence.controller.callSucceeded = false; break;
+    case "invalid_response_failure": evidence.sourceFailures.push({ method: "list_neurons", kind: "InvalidResponse", message: "invalid dependency response", affectedNeuronIds: [100n, 101n] }); break;
+    case "response_too_large_failure": evidence.sourceFailures.push({ method: "list_neurons", kind: "ResponseTooLarge", message: "dependency response exceeded its bound", affectedNeuronIds: [102n] }); break;
+    case "decode_failure": evidence.sourceFailures.push({ method: "list_neurons", kind: "DecodeFailed", message: "dependency response could not be decoded", affectedNeuronIds: [103n] }); break;
+    case "unavailable_dependency_batch":
+      evidence.dependencies.set("100", { kind: "Unavailable" });
+      evidence.dependencies.set("101", { kind: "Unavailable" });
+      evidence.sourceFailures.push({ method: "list_neurons", kind: "Rejected", message: "dependency batch rejected", affectedNeuronIds: [100n, 101n] });
+      break;
     default: throw new Error(`unknown differential fixture ${name}`);
   }
 }
 
+const decimal = (value) => BigInt(value).toString();
+const optionalProjection = (value, project = (item) => item) => value?.length ? project(value[0]) : null;
+const principalProjection = (value) => typeof value?.toText === "function" ? value.toText() : String(value);
+const knownProjection = (known) => ({
+  id: decimal(known.id),
+  name: known.name,
+  description: known.description ?? null,
+  links: [...known.links],
+});
+export function canonicalPolicyProjection(report) {
+  return {
+    standard_version: report.standard_version,
+    neuron_id: decimal(report.neuron_id),
+    checked_at_timestamp_seconds: decimal(report.checked_at_timestamp_seconds),
+    overall_status: variantName(report.overall_status),
+    target: optionalProjection(report.target, (target) => ({
+      neuron_id: decimal(target.neuron_id),
+      known_neuron: optionalProjection(target.known_neuron, knownProjection),
+      controller: optionalProjection(target.controller, principalProjection),
+      hot_keys: target.hot_keys.map(principalProjection),
+      not_for_profit: optionalProjection(target.not_for_profit),
+      dissolve_delay_seconds: optionalProjection(target.dissolve_delay_seconds, decimal),
+      dissolving: optionalProjection(target.dissolving),
+      effective_stake_e8s: optionalProjection(target.effective_stake_e8s, decimal),
+      voting_power_refreshed_timestamp_seconds: optionalProjection(target.voting_power_refreshed_timestamp_seconds, decimal),
+      potential_voting_power: optionalProjection(target.potential_voting_power, decimal),
+      deciding_voting_power: optionalProjection(target.deciding_voting_power, decimal),
+    })),
+    managers: report.managers.map((manager) => ({
+      neuron_id: decimal(manager.neuron_id),
+      evidence_status: variantName(manager.evidence_status),
+      known_neuron: optionalProjection(manager.known_neuron, knownProjection),
+      controller: optionalProjection(manager.controller, principalProjection),
+      hot_keys: manager.hot_keys.map(principalProjection),
+      minted_stake_e8s: optionalProjection(manager.minted_stake_e8s, decimal),
+      neuron_management_followees: manager.neuron_management_followees.map(decimal),
+      omega_ready_topics: [...manager.omega_ready_topics],
+    })),
+    committed_topics: report.committed_topics.map((entry) => ({ topic: entry.topic, delegate_ids: entry.delegate_ids.map(decimal) })),
+    non_committed_topics: report.non_committed_topics.map((entry) => ({ topic: entry.topic, followee_ids: entry.followee_ids.map(decimal) })),
+    controller: optionalProjection(report.controller, (controller) => ({
+      principal: optionalProjection(controller.principal, principalProjection),
+      call_succeeded: controller.call_succeeded,
+      module_hash: optionalProjection(controller.module_hash, (bytes) => [...bytes]),
+      controllers: controller.controllers.map(principalProjection),
+    })),
+    rules: report.rules.map((rule) => ({
+      rule_id: rule.rule_id,
+      status: variantName(rule.status),
+      message: rule.message,
+      observed: optionalProjection(rule.observed),
+      expected: optionalProjection(rule.expected),
+      related_neuron_ids: rule.related_neuron_ids.map(decimal),
+      relevant_topic: optionalProjection(rule.relevant_topic),
+    })),
+    quorum_threshold: optionalProjection(report.quorum_threshold),
+    source_revision: report.source_revision,
+    source_failures: report.source_failures.map((failure) => ({
+      method: failure.method,
+      kind: variantName(failure.kind),
+      message: failure.message,
+      affected_neuron_ids: failure.affected_neuron_ids.map(decimal),
+    })),
+  };
+}
+
 test("browser evaluator matches all deterministic Rust policy fixtures", () => {
   const fixtures = JSON.parse(readFileSync("canisters/dendrite/web/test/fixtures/evaluator.json", "utf8"));
-  assert.equal(fixtures.length, 32);
+  assert.equal(fixtures.length, 38);
   for (const fixture of fixtures) {
     const evidence = differentialEvidence();
     mutateDifferential(fixture.name, evidence);
     const report = evaluatePreliminary(42n, evidence);
-    assert.equal(variantName(report.overall_status), fixture.overall_status, fixture.name);
-    assert.equal(report.quorum_threshold[0], fixture.quorum_threshold ?? undefined, fixture.name);
-    assert.deepEqual(report.rules.map((rule) => ({ rule_id: rule.rule_id, status: variantName(rule.status) })), fixture.rules, fixture.name);
+    assert.deepEqual(canonicalPolicyProjection(report), fixture.projection, fixture.name);
   }
 });
 
@@ -261,17 +375,27 @@ const report = (id = 42n) => ({
   quorum_threshold: [], source_revision: "revision", source_failures: [],
 });
 
-test("route is preliminary-only and explicit verification calls Dendrite once while preserving low-cycle evidence", async () => {
+test("failed re-verification stales consensus, hides controls, retains preliminary, and retry restores trust", async () => {
   const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
   globalThis.document = fakeDocument(root);
   try {
-    let governanceReads = 0, dendriteCalls = 0, lowCycles = true;
+    let governanceReads = 0, dendriteCalls = 0;
+    const outcomes = ["success", "failure", "low-cycles", "success"];
     const app = createApplication({
       root, location, onHashChange: () => {},
       governanceActorFactory: async () => ({ list_neurons: async () => { governanceReads += 1; } }),
       preliminaryAnalyzerFactory: () => ({ analyze: async () => { governanceReads += 1; return report(); }, clear() {} }),
-      actorFactory: async () => ({ check_neuron: async () => { dendriteCalls += 1; return lowCycles ? { Err: { LowCycles: null } } : { Ok: { ...report(), overall_status: { NonCompliant: null }, controller: [{ call_succeeded: true, module_hash: [], controllers: [], principal: [] }] } }; } }),
-      authSession: { configuration: { derivationOrigin: "https://dendrite.example" }, restore: async () => null },
+      actorFactory: async () => ({ check_neuron: async () => {
+        const outcome = outcomes[dendriteCalls++];
+        if (outcome === "failure") throw new Error("verification transport unavailable");
+        if (outcome === "low-cycles") return { Err: { LowCycles: null } };
+        return { Ok: { ...report(), overall_status: { NonCompliant: null }, controller: [{ call_succeeded: true, module_hash: [], controllers: [], principal: [] }] } };
+      } }),
+      nnsActorFactory: async () => ({}),
+      authSession: {
+        configuration: { derivationOrigin: "https://dendrite.example" },
+        restore: async () => ({ principal: { toText: () => "aaaaa-aa" }, signingIdentity: {} }),
+      },
     });
     await app.start();
     assert.equal(governanceReads, 1);
@@ -279,12 +403,26 @@ test("route is preliminary-only and explicit verification calls Dendrite once wh
     assert.match(JSON.stringify(root), /Preliminary/);
     await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
     assert.equal(dendriteCalls, 1);
-    assert.match(JSON.stringify(root), /Preliminary analysis remains available/);
-    assert.match(JSON.stringify(root), /Preliminary/);
-    lowCycles = false;
+    assert.match(JSON.stringify(root), /Consensus verified/);
+    assert.match(JSON.stringify(root), /Manage through NNS Governance/);
+
     await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
     assert.equal(dendriteCalls, 2);
+    assert.doesNotMatch(JSON.stringify(root), /Consensus verified/);
+    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
+    assert.match(JSON.stringify(root), /verification transport unavailable/);
+    assert.match(JSON.stringify(root), /Preliminary/);
+
+    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    assert.equal(dendriteCalls, 3);
+    assert.doesNotMatch(JSON.stringify(root), /Consensus verified/);
+    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
+    assert.match(JSON.stringify(root), /Preliminary analysis remains available/);
+
+    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    assert.equal(dendriteCalls, 4);
     assert.match(JSON.stringify(root), /Consensus verified/);
+    assert.match(JSON.stringify(root), /Manage through NNS Governance/);
   } finally {
     globalThis.document = prior;
   }
@@ -295,9 +433,19 @@ test("presentation helpers order severity, group topics, shorten principals, and
     { status: { Warning: null } }, { status: { Fail: null } }, { status: { Indeterminate: null } }, { status: { StandardUpdateRequired: null } },
   ]);
   assert.deepEqual(findings.map((item) => variantName(item.status)), ["Fail", "StandardUpdateRequired", "Indeterminate", "Warning"]);
-  assert.equal(groupTopics({ committed_topics: [{ topic: 4, delegate_ids: [1n] }, { topic: 5, delegate_ids: [1n] }], non_committed_topics: [] })[0].topics.length, 2);
+  assert.equal(groupTopics({ committed_topics: [{ topic: 4, delegate_ids: [2n, 1n] }, { topic: 5, delegate_ids: [1n, 2n] }], non_committed_topics: [] })[0].topics.length, 2);
+  assert.equal(groupTopics({ committed_topics: [{ topic: 4, delegate_ids: [1n, 1n] }, { topic: 5, delegate_ids: [1n] }], non_committed_topics: [] }).length, 2);
   assert.match(shortPrincipal("aaaaa-bbbbb-ccccc-ddddd"), /…/);
   assert.equal(ruleTitle("UNKNOWN-RULE"), "Technical check: UNKNOWN-RULE");
+});
+
+test("preliminary headline excludes only expected controller uncertainty", () => {
+  const controller = ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]
+    .map((rule_id) => ({ rule_id, status: { Indeterminate: null }, message: "mandatory evidence was unavailable" }));
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Pass: null }, message: "ok" }] }), "No public-configuration blockers found");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Fail: null }, message: "bad" }] }), "Preliminary issues found");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Indeterminate: null }, message: "unknown" }] }), "Preliminary analysis incomplete");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { StandardUpdateRequired: null }, message: "future" }] }), "Standard update required");
 });
 
 test("preliminary production modules use no persistent browser storage", () => {
