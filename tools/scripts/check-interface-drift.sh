@@ -16,6 +16,20 @@ curl --fail --silent --show-error \
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance.subset.did
 didc check "$tmp_dir/governance.did" candid/nns-governance/governance-transaction.subset.did
 
+# Preliminary browser analysis has a distinct generated query-only actor. It
+# retains the query annotation and must never acquire transaction methods.
+tools/scripts/generate-governance-read-idl.sh \
+  candid/nns-governance/governance.subset.did \
+  "$tmp_dir/generated-governance-read-idl.js"
+cmp "$tmp_dir/generated-governance-read-idl.js" \
+  src/declarations/nns-governance-read/nns-governance-read.did.js
+grep -q "\['query'\]" src/declarations/nns-governance-read/nns-governance-read.did.js
+if grep -Eq 'manage_neuron|list_proposals|get_network_economics_parameters' \
+  src/declarations/nns-governance-read/nns-governance-read.did.js; then
+  echo 'mutation or transaction read entered the anonymous Governance declaration' >&2
+  exit 1
+fi
+
 # The reviewed transaction Candid is the sole production actor type source. The
 # generator performs one explicit transformation: replicated reads lose `query`.
 tools/scripts/generate-transaction-idl.sh \

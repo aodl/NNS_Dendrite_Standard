@@ -13,7 +13,7 @@ import { createAuthenticatedNnsActor } from "../src/nns-actor.js";
 import { ACCEPTED_CONNECTION_ORIGINS, normalizeAlternativeOrigins, resolveBuildConfiguration } from "../build-config.mjs";
 import { checkLive } from "../src/live-check.js";
 import { clear, element, safeHttpsLink } from "../src/dom.js";
-import { boundedAuthenticationError, createApplication } from "../src/app.js";
+import { boundedAuthenticationError, createApplication as createBrowserApplication } from "../src/app.js";
 
 const publicAssetHash = () => {
   const hash = createHash("sha256");
@@ -34,6 +34,7 @@ test("malformed IDs fail closed", () => { for (const id of ["", "0", "01", "+1",
 const configuredPrincipal = "rrkah-fqaaa-aaaaa-aaaaq-cai";
 const productionEnvironment={DENDRITE_CANISTER_ID:configuredPrincipal,DENDRITE_DERIVATION_ORIGIN:"https://dendrite.example"};
 const signedOutAuth=()=>({configuration:{derivationOrigin:"https://dendrite.example"},restore:async()=>null,signIn:async()=>{throw new Error("not configured");},signOut:async()=>{}});
+const createApplication=(options)=>{let cached;const actorFactory=()=>{if(cached)return cached;try{cached=Promise.resolve(options.actorFactory());}catch(error){cached=Promise.reject(error);}cached.catch(()=>{cached=undefined;});return cached;};return createBrowserApplication({...options,actorFactory,preliminaryAnalyzerFactory:()=>({analyze:async(id)=>checkLive(await actorFactory(),id),clear(){}}),governanceActorFactory:async()=>({}),trustInjectedPreliminaryForTests:true});};
 test("build-time canister configuration is independent of the page hostname", () => { const prior=globalThis.location;globalThis.location={hostname:"custom.example"};try{assert.equal(validatedCanisterId(configuredPrincipal), configuredPrincipal);assert.equal(resolveBuildConfiguration(productionEnvironment).apiHost,"https://icp-api.io");assert.throws(() => validatedCanisterId("not a principal"));}finally{globalThis.location=prior;} });
 test("missing build-time canister configuration fails",()=>{assert.throws(()=>validatedCanisterId());assert.throws(()=>validatedCanisterId(7));assert.throws(()=>resolveBuildConfiguration({}));});
 test("runtime configuration rejects missing host and root-key policy",()=>{assert.throws(()=>runtimeConfiguration({canisterId:configuredPrincipal,fetchRootKey:false}));assert.throws(()=>runtimeConfiguration({canisterId:configuredPrincipal,host:"https://icp-api.io"}));});

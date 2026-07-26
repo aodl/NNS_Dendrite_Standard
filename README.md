@@ -3,20 +3,24 @@
 ## Overview
 
 Dendrite is one stateless Rust canister that serves a certified frontend and performs
-anonymous, live NNS Dendrite Standard verification. Its public application methods are
-only update `check_neuron` and query `http_request`.
+anonymous, live NNS Dendrite Standard verification. Ordinary browsing first evaluates
+strictly validated public Governance evidence in browser memory; an explicit
+`Verify on-chain` action obtains the authoritative consensus report. Its public
+application methods remain only update `check_neuron` and query `http_request`.
 
-The reserved production canister is empty. Production identifiers and configuration
-have one authoritative source in [deployment](docs/operations/deployment.md); only a
-completed [production record](docs/operations/production-record.md) may supersede the
-empty-canister statement.
+Production identifiers and configuration have one authoritative source in
+[deployment](docs/operations/deployment.md). Factual lifecycle evidence is retained in
+the [production record](docs/operations/production-record.md).
 
 ## Trust model
 
 Dendrite stores no application state, cache, report, transaction history, or proposal
-history. Internet Identity sessions and Governance-only delegations remain in the
-browser and are never sent to Dendrite. Privileged mutations go directly from the
-browser to fixed NNS Governance. See [security](docs/security.md).
+history. The browser preliminary loader has only a route-scoped in-memory promise
+cache. Its anonymous query agent has a fixed Governance destination, verifies query
+signatures, and does not fetch the root key in production. Internet Identity sessions
+and Governance-only delegations remain in the browser and are never sent to Dendrite.
+Privileged mutations go directly from the browser to fixed NNS Governance and still
+require a fresh authoritative Dendrite preflight. See [security](docs/security.md).
 
 ## Production deployment
 

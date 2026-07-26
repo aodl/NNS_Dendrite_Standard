@@ -1,5 +1,42 @@
 # Aggressive simplification implementation plan
 
+## Browser-first analysis and presentation release candidate
+
+Starting boundary: reviewed release `5be98b8a8bbc51828faba655c302580a9f1086fb`
+plus preserved local production evidence `b12963b01905b7cc76d4d76a18ace593fb3ce36a`.
+The production canister, public Candid API, Rust evaluator semantics, transaction final
+preflight, and stateless security model remain unchanged.
+
+- [x] Derive a separate minimal anonymous `list_neurons` declaration from the pinned
+  Governance interface, add semantic/generated drift checks, and prove its fixed
+  destination, production agent policy, anonymous identity, and complete request shape.
+- [x] Add strict whole-batch browser validation, canonical BigInt-safe normalisation,
+  a bounded in-memory promise loader, and target-first dependency collection matching
+  the Rust graph derivation without persistence or recursive expansion.
+- [x] Port the standard evaluator to a focused browser module, force management-canister
+  rules to indeterminate for preliminary evidence, and prove policy equivalence against
+  deterministic Rust-generated JSON fixtures.
+- [x] Replace the single report state with route-owned preliminary and consensus view
+  models; make navigation query Governance only, add explicit on-chain verification,
+  preserve preliminary evidence across bounded verifier failures, and retain an
+  independent authoritative `check_neuron` transaction preflight.
+- [x] Replace the raw table-first page with a severity-first header, textual verification
+  badges, metric cards, attention findings, collapsed passes, manager cards, grouped
+  topics, and collapsed technical evidence using a small accessible responsive design
+  system.
+- [x] Update only the consolidated architecture, security, testing, README, plan, and
+  reproducibility documentation; run every frontend, Rust, PocketIC, interface,
+  security, SBOM, documentation, asset, and reproducibility gate.
+- [x] Produce two byte-identical clean canonical Docker exports, bind the reviewed
+  candidate hashes only after equality, and record the candidate without pushing or
+  making any mainnet, controller, cycles, browser-gate, or NNS write.
+
+NNX reference audit: `aodl/NNX@e2d1f6a8e443d0cf3c5b0ca1f8b5db42450251bf`
+was used only for the focused query-agent, in-memory loader, warning/metric hierarchy,
+topic grouping/followee-tree, and short-copyable-principal patterns named in the task.
+No NNX branding, shell, broad data services, recursive guarantee analysis, or base CSS
+is copied.
+
 ## Final explicit-neuron reward-receiver lookup correction
 
 Starting boundary: `08ece6700d67752be9a5c87c8471ccc5dafc3f4c`. Preserve the

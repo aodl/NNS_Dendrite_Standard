@@ -13,12 +13,30 @@ The frontend creates text-safe DOM nodes, validates HTTPS links, never uses dyna
 validated build-time canister principal, a fixed API origin, no root-key fetching,
 strict CSP, and no third-party runtime content.
 
+Preliminary analysis adds a separate anonymous query boundary. Its generated actor
+exposes only `list_neurons`, fixes Governance as the destination, explicitly requests
+only public full neurons for bounded IDs, and verifies query signatures. Every response
+batch is rejected atomically for unexpected/duplicate IDs, invalid paging, duplicate
+topic keys, collection or string bound violations, invalid topic variants, contradictory
+stake arithmetic, or inconsistent target timestamps. The in-memory promise cache is
+route-scoped, never uses browser storage, and evicts failed entries. Because browsers
+cannot call management-canister `canister_info`, preliminary controller rules are
+always indeterminate and blackholing is never claimed.
+
 Internet Identity introduces a browser-only boundary. Delegations target only fixed NNS
 Governance and are never logged, rendered, serialized to Dendrite, or sent to the
 canister. Every mutation requires fresh authority evidence, an immutable exact review,
 explicit confirmation, strict response validation, and no automatic retry. Ambiguous
 outcomes block another mutation until acknowledged; this coordination and the single
 current receipt are bounded, heap-only, and lost on reload.
+
+Only a current consensus report enables privileged controls. The transaction pipeline
+does not trust that report as final authority: immediately before mutation it still
+performs its own Dendrite `check_neuron` update and revalidates the reviewed request.
+`LowCycles`, rate limiting, concurrency, duplicate-in-flight, transport, or decode
+failure affects only consensus state; preliminary evidence remains visible and no NNS
+mutation is sent after a failed final preflight. Successful mutation invalidates both
+reports and is explicitly presented as not yet consensus verified.
 
 Controller blackholing is proven only by successful `canister_info`, no Wasm, and no
 controllers. A failed lookup is indeterminate. Dendrite's own controller can replace

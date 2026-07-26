@@ -6,12 +6,12 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 
 | Layer | Command | Network | Writes state? | Automated or manual | Purpose | Expected evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Frontend unit | `npm test` | None | Files in temp only | Automated | UI, identity, transaction rules | 103+ passing tests |
+| Frontend unit | `npm test` | None | Files in temp only | Automated | Preliminary query/validation/evaluator/state/UI, identity, transaction rules | Passing tests |
 | Frontend coverage | `npm run test:coverage` | None | Coverage output | Automated | 85% thresholds | Coverage summary |
 | Rust unit/workspace | `cargo test --workspace --locked` | None | Build files | Automated | Rules and collector | Passing tests |
 | Complete suite/PocketIC | `cargo xtask test` | Local PocketIC | Local only | Automated | Live graphs, rejection, certified HTTP/upgrade | Passing scenarios |
 | Rust coverage | `cargo xtask coverage` | None | Coverage output | Automated | Workspace >85%, engine >95% | Coverage summary |
-| Interface drift | `tools/scripts/check-interface-drift.sh` | Pinned GitHub source | No IC state | Automated | Anonymous and transaction Candid semantics; generated IDL equality | Pinned revision pass |
+| Interface drift | `tools/scripts/check-interface-drift.sh` | Pinned GitHub source | No IC state | Automated | Canister read subset, separate anonymous browser query declaration, transaction Candid semantics, generated IDL equality | Pinned revision pass |
 | Certified HTTP/alternatives | `cargo xtask test` | PocketIC | Local only | Automated | Headers and exact well-known bytes | Assertions pass |
 | Production asset identity | `npm test` | None | Temp only | Automated | Checked-in assets unchanged by tests | Tree hash equality |
 | Dependency reachability | `tools/scripts/check-production-dependencies.sh` | Registry metadata | No IC state | Automated | Exclude PocketIC packages from Wasm | Tree report |
@@ -26,6 +26,21 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 | Local II popup | Gate 1 with labelled local origin | Local | Browser session only | Manual | Popup mechanics | Signed local evidence |
 | Final-origin II | Gate 1 | Mainnet HTTP/II | Browser session only | Manual | Production principal/origin | Signed gate |
 | Controlled transaction | Gate 2 | Controlled NNS context | Yes, explicitly controlled | Manual | Full browser-to-NNS flow | Signed gate |
+
+The Rust unit suite deterministically regenerates
+`canisters/dendrite/web/test/fixtures/evaluator.json`. Its 32 cases record Rust overall
+status, quorum and every rule status with stable names and timestamps. Frontend tests
+apply the same named mutations to BigInt-safe browser evidence and require exact
+policy-field equality. The cases cover compliant, missing/unavailable/contradictory
+evidence, target posture, manager cardinality and availability, anchor/default/committed
+following, quorum, controller evidence, source failures, and standard-update semantics.
+
+Frontend state tests separately prove that route entry calls Governance without calling
+Dendrite, controller-dependent preliminary rules cannot pass, explicit verification
+calls Dendrite once, bounded verifier errors retain preliminary evidence, and
+authenticated transaction controls require a current authoritative report. Existing
+transaction tests continue to prove that final preflight independently invokes
+`check_neuron` and a failed preflight sends no Governance mutation.
 
 ### Troubleshooting
 
