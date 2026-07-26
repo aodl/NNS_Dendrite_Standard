@@ -4,11 +4,7 @@ import { Actor, HttpAgent } from "@dfinity/agent";
 import { idlFactory } from "./dendrite.did.js";
 export { idlFactory } from "./dendrite.did.js";
 
-/* CANISTER_ID is replaced by webpack based on node environment
- * Note: canister environment variable will be standardized as
- * process.env.CANISTER_ID_<CANISTER_NAME_UPPERCASE>
- * beginning in dfx 0.15.0
- */
+/* The canister ID is supplied explicitly by the configured build environment. */
 export const canisterId =
   process.env.CANISTER_ID_DENDRITE;
 

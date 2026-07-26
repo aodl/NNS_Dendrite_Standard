@@ -4,13 +4,13 @@
 
 This is the sole executable `icp-cli` 1.2.0 procedure for installing or upgrading the exact
 reviewed prebuilt artifact. It never creates a canister, changes controllers, tops up
-cycles, retries, or supports `reinstall`. `dfx` 0.27.0 remains local/PocketIC support
-only. The reserved production canister is currently empty.
+cycles, retries, or supports `reinstall`. PocketIC supplies the automated local
+canister environment; the repository has no dfx project configuration.
 
 ## Prerequisites
 
 Use Rust 1.94.1, Node 24.15.0, npm 11.12.1, `icp-cli` 1.2.0, Docker 28.0.1,
-Docker buildx 0.21.1, and local-only dfx 0.27.0. Require a clean reviewed commit, the
+Docker buildx 0.21.1, and PocketIC 15.0.0. Require a clean reviewed commit, the
 tracked mapping, a production controller identity selected in `icp-cli`, adequate
 cycles, Docker daemon/buildx access, and all automated gates. `codex_local` is
 local-only and must never be the production identity.

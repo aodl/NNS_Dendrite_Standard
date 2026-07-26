@@ -27,8 +27,8 @@ require a fresh authoritative Dendrite preflight. See [security](docs/security.m
 `icp-cli` is the sole production lifecycle CLI. Release source verification, guarded
 deployment, final-origin identity testing, and controlled transaction testing are
 separate phases. The latter two are independently signable
-[operator gates](docs/operations/operator-gates.md). `dfx` remains local-test tooling
-only; `codex_local` must never be used as the production identity.
+[operator gates](docs/operations/operator-gates.md). PocketIC is the automated local
+canister environment; no repository-local dfx project configuration is used.
 
 ## Source verification
 

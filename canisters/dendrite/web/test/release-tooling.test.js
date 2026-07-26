@@ -48,6 +48,13 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 
+test("repository contains no dfx project configuration", () => {
+  for (const path of ["dfx.json", "canister_ids.json", ".dfx"]) {
+    assert.equal(existsSync(path), false, `${path} must not exist`);
+  }
+  assert.equal(existsSync("tools/scripts/deploy-local.sh"), false);
+});
+
 test("production frontend manifest names existing generated assets", () => {
   const manifest = JSON.parse(readFileSync("canisters/dendrite/public/asset-manifest.json"));
   for (const path of Object.values(manifest)) {

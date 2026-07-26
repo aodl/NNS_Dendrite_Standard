@@ -290,7 +290,8 @@ result cached, stale, or refreshed.
 All dynamic content uses constructed text nodes or `textContent`; never `innerHTML`.
 Validate HTTPS links, preserve keyboard access and responsive status/error rendering,
 and never convert an NNS ID through JavaScript `number`. `DENDRITE_CANISTER_ID` is a
-mandatory build input (with `CANISTER_ID_DENDRITE` accepted from `dfx`) and is validated
+mandatory build input (with `CANISTER_ID_DENDRITE` accepted as an explicit
+environment input) and is validated
 with `Principal.fromText`; it never comes from a hostname. Production accepts only
 `https://icp-api.io`, root-key fetching defaults off, and production builds reject
 root-key fetching. Local mode accepts only `http://127.0.0.1:4943` and

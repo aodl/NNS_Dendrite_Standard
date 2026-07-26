@@ -13,6 +13,7 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 | Rust coverage | `cargo xtask coverage` | None | Coverage output | Automated | Workspace >85%, engine >95% | Coverage summary |
 | Interface drift | `tools/scripts/check-interface-drift.sh` | Pinned GitHub source | No IC state | Automated | Canister read subset, separate anonymous browser query declaration, transaction Candid semantics, generated IDL equality | Pinned revision pass |
 | Certified HTTP/alternatives | `cargo xtask test` | PocketIC | Local only | Automated | Headers and exact well-known bytes | Assertions pass |
+| Built browser smoke | `tools/scripts/browser-smoke.sh dist/release/frontend` | Anonymous public Governance query | Read-only | Manual/conditional | Real Chromium desktop/mobile route; never clicks verification | Pass, or explicit engine-unavailable result |
 | Production asset identity | `npm test` | None | Temp only | Automated | Checked-in assets unchanged by tests | Tree hash equality |
 | Dependency reachability | `tools/scripts/check-production-dependencies.sh` | Registry metadata | No IC state | Automated | Exclude PocketIC packages from Wasm | Tree report |
 | Security scan | `cargo xtask security-scan` | Public registries/GitHub | No IC state | Automated | Advisories, policy, drift, secrets | No unapproved finding |
@@ -26,6 +27,12 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 | Local II popup | Gate 1 with labelled local origin | Local | Browser session only | Manual | Popup mechanics | Signed local evidence |
 | Final-origin II | Gate 1 | Mainnet HTTP/II | Browser session only | Manual | Production principal/origin | Signed gate |
 | Controlled transaction | Gate 2 | Controlled NNS context | Yes, explicitly controlled | Manual | Full browser-to-NNS flow | Signed gate |
+
+The browser smoke script uses an installed Chromium-family engine without adding a
+browser framework. If no supported engine is installed, it exits with status 2 and
+prints the deterministic preview command and neuron route. That result is `UNRUN`, not
+a pass. The procedure never invokes Internet Identity, `Verify on-chain`, or an NNS
+mutation.
 
 The Rust unit suite deterministically regenerates
 `canisters/dendrite/web/test/fixtures/evaluator.json`. Its 32 cases record Rust overall
