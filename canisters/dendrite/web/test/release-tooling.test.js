@@ -44,7 +44,7 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   const yaml = readFileSync("icp.yaml", "utf8");
   assert.match(yaml, /type: "@dfinity\/prebuilt@v2\.0\.0"/);
   assert.match(yaml, /path: dist\/release\/dendrite\.wasm/);
-  assert.match(yaml, /sha256: 1291a51cc26bcdd1ea387f6509aeef3f9c39e19f04f58495576f842873aa371a/);
+  assert.match(yaml, /sha256: 5b1a3f617d00149c903b1f6822117112316417dc8261e695adfde5269551a2cc/);
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 
@@ -207,7 +207,7 @@ test("guarded dry-run reaches no lifecycle write", () => {
     writeFileSync(
       join(fixture, "tools/scripts/mainnet-deploy.sh"),
       readFileSync(join(fixture, "tools/scripts/mainnet-deploy.sh"), "utf8")
-        .replace("1291a51cc26bcdd1ea387f6509aeef3f9c39e19f04f58495576f842873aa371a", hash),
+        .replace("5b1a3f617d00149c903b1f6822117112316417dc8261e695adfde5269551a2cc", hash),
     );
     const log = join(fixture, "icp.log");
     writeFileSync(join(fixture, "bin/icp"), `#!/bin/sh

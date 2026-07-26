@@ -27,6 +27,31 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Browser-first upgrade candidate — 2026-07-26
+
+Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
+`dendrite-canonical` `docker-container` builder. Two clean `--no-cache`
+`linux/amd64` exports were byte-identical, including their deterministic
+`SHA256SUMS`. This candidate has not been installed or otherwise submitted to
+mainnet.
+
+- Raw Wasm SHA-256:
+  `5b1a3f617d00149c903b1f6822117112316417dc8261e695adfde5269551a2cc`
+- `SHA256SUMS` file SHA-256:
+  `a3eb4c0afd5706d9343db450bd77bbb19c3a5b2052109a36fba1bdb1e7721651`
+- Frontend tree SHA-256:
+  `6aa36f627a0930a99dede9a44bfe075c58ae776939d8c8209c27726c5df17318`
+- `asset-manifest.json` SHA-256:
+  `10b3bfeed4c11cafc0d9592575814de5e82ddf4bc8c13cb9264878646917fba2`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+
+The candidate embeds the browser-first anonymous Governance query path, explicit
+consensus-verification action, severity-first compliance presentation, and certified
+asset manifest. Rust-to-JavaScript differential fixtures, interface drift, all
+PocketIC scenarios, workspace coverage, frontend coverage, security scans, SBOM
+generation, and local clean-build equality passed before the canonical comparison.
+
 ## Canonical Docker evidence — 2026-07-25
 
 Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
