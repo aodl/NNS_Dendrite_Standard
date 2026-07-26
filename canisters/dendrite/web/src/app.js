@@ -460,8 +460,12 @@ export function createApplication({
     const generation = routeGeneration;
     const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
     if (!ownsRoute() || consensusLoading) return;
+    const hadConsensus = Boolean(
+      currentConsensusReport
+      && currentConsensusNeuronId === id,
+    );
     consensusLoading = true;
-    consensusStale = true;
+    consensusStale = hadConsensus;
     consensusError = undefined;
     renderCurrent();
     try {

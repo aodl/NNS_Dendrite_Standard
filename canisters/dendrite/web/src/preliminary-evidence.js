@@ -50,6 +50,25 @@ export class PreliminaryEvidenceError extends Error {
   }
 }
 
+const SOURCE_FAILURE_KINDS = new Set(["Rejected", "DecodeFailed", "InvalidResponse", "ResponseTooLarge"]);
+
+function classifySourceFailure(error, affectedNeuronIds) {
+  if (error instanceof PreliminaryEvidenceError) return new PreliminaryEvidenceError(
+    SOURCE_FAILURE_KINDS.has(error.kind) ? error.kind : "Rejected",
+    error.message,
+    error.affectedNeuronIds.length ? error.affectedNeuronIds : affectedNeuronIds,
+  );
+  const message = String(error?.message ?? "Governance query failed").slice(0, 512);
+  const kind = error?.kind === "DecodeFailed" || /\b(?:decode|decoding|candid)\b/i.test(message)
+    ? "DecodeFailed"
+    : error?.kind === "InvalidResponse" || /\b(?:invalid|malformed|unexpected|contradictory)\b.*\bresponse\b|\bresponse\b.*\b(?:invalid|malformed|unexpected|contradictory)\b/i.test(message)
+      ? "InvalidResponse"
+      : error?.kind === "ResponseTooLarge" || /\b(?:oversized|too large|response size)\b|\bresponse\b.*\b(?:exceeds?|exceeded)\b.*\bbound\b/i.test(message)
+        ? "ResponseTooLarge"
+        : "Rejected";
+  return new PreliminaryEvidenceError(kind, message, affectedNeuronIds);
+}
+
 export function listNeuronsRequest(ids) {
   const requested = ids.map(BigInt);
   if (requested.length === 0 || requested.length > LIMITS.requested || requested.some((id) => id === 0n)) {
@@ -205,19 +224,6 @@ export function validateListNeuronsBatch(requestedIds, response, { target = fals
 
 export function createNeuronLoader({ listNeurons }) {
   const cache = new Map();
-  const typedFailure = (error, ids) => {
-    if (error instanceof PreliminaryEvidenceError) return new PreliminaryEvidenceError(
-      ["Rejected", "DecodeFailed", "InvalidResponse", "ResponseTooLarge"].includes(error.kind) ? error.kind : "Rejected",
-      error.message,
-      error.affectedNeuronIds.length ? error.affectedNeuronIds : ids,
-    );
-    const message = String(error?.message ?? "Governance query failed").slice(0, 512);
-    const kind = error?.kind === "ResponseTooLarge" ? "ResponseTooLarge"
-      : error?.kind === "InvalidResponse" ? "InvalidResponse"
-        : error?.kind === "DecodeFailed" || /decode|candid/i.test(message) ? "DecodeFailed"
-          : "Rejected";
-    return new PreliminaryEvidenceError(kind, message, ids);
-  };
   async function fetchBatch(ids, target = false) {
     const requested = [...new Map(ids.map((id) => [idKey(id), BigInt(id)])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     const response = await listNeurons(listNeuronsRequest(requested));
@@ -231,7 +237,9 @@ export function createNeuronLoader({ listNeurons }) {
         cache.set(key, Promise.resolve(lookup));
         return { lookup, retrievedAtTimestampSeconds: batch.infos.get(key)?.retrievedAtTimestampSeconds ?? 0n, unknownCommittedTopics: batch.unknownCommittedTopics };
       }).catch((error) => { cache.delete(key); throw error; });
-      cache.set(key, pending.then((result) => result.lookup));
+      const cachedLookup = pending.then((result) => result.lookup);
+      cachedLookup.catch(() => {});
+      cache.set(key, cachedLookup);
       return pending;
     }
     return { lookup: await cache.get(key), retrievedAtTimestampSeconds: 0n, unknownCommittedTopics: 0 };
@@ -254,7 +262,7 @@ export function createNeuronLoader({ listNeurons }) {
       try {
         await pending;
       } catch (error) {
-        const failure = typedFailure(error, batchIds);
+        const failure = classifySourceFailure(error, batchIds);
         if (sourceFailures.length < LIMITS.sourceFailures) sourceFailures.push({
           method: "list_neurons",
           kind: failure.kind,
@@ -317,7 +325,7 @@ export async function collectPreliminaryEvidence(neuronId, loader) {
       unknownCommittedTopics: target.unknownCommittedTopics,
     };
   } catch (error) {
-    const failure = error instanceof PreliminaryEvidenceError ? error : new PreliminaryEvidenceError("Rejected", error?.message ?? "Governance query failed", [targetId]);
+    const failure = classifySourceFailure(error, [targetId]);
     return {
       nowSeconds: 0n,
       target: { kind: "Unavailable" },
@@ -325,9 +333,9 @@ export async function collectPreliminaryEvidence(neuronId, loader) {
       controller: undefined,
       sourceFailures: [{
         method: "list_neurons",
-        kind: failure.kind === "ResponseTooLarge" ? "ResponseTooLarge" : failure.kind === "InvalidResponse" ? "InvalidResponse" : "Rejected",
+        kind: failure.kind,
         message: failure.message,
-        affectedNeuronIds: failure.affectedNeuronIds,
+        affectedNeuronIds: [targetId],
       }],
       unknownCommittedTopics: 0,
     };

@@ -181,6 +181,26 @@ test("dependency failures preserve typed bounded batch evidence", async () => {
   assert.equal(retried.get("1").kind, "Found");
 });
 
+test("target failures preserve bounded source-failure classification and target identity", async () => {
+  const targetId = 42n;
+  for (const [kind, message, makeFailure] of [
+    ["Rejected", "replica rejected the query", () => Object.assign(new Error("replica rejected the query"), { kind: "Rejected" })],
+    ["DecodeFailed", "Candid decoding failed at field neuron_infos", () => new Error("Candid decoding failed at field neuron_infos")],
+    ["InvalidResponse", "malformed Governance response", () => new Error("malformed Governance response")],
+    ["ResponseTooLarge", "Governance response exceeded its size bound", () => new Error("Governance response exceeded its size bound")],
+    ["Rejected", "generic transport failure", () => new Error("generic transport failure")],
+  ]) {
+    const loader = createNeuronLoader({ listNeurons: async () => { throw makeFailure(); } });
+    const evidence = await collectPreliminaryEvidence(targetId, loader);
+    assert.equal(evidence.target.kind, "Unavailable");
+    assert.equal(evidence.sourceFailures.length, 1);
+    assert.equal(evidence.sourceFailures[0].method, "list_neurons");
+    assert.equal(evidence.sourceFailures[0].kind, kind);
+    assert.equal(evidence.sourceFailures[0].message, message);
+    assert.deepEqual(evidence.sourceFailures[0].affectedNeuronIds, [targetId]);
+  }
+});
+
 test("preliminary evaluator never passes controller-only rules", async () => {
   const target = neuron(42n, {
     followees: [
@@ -375,12 +395,12 @@ const report = (id = 42n) => ({
   quorum_threshold: [], source_revision: "revision", source_failures: [],
 });
 
-test("failed re-verification stales consensus, hides controls, retains preliminary, and retry restores trust", async () => {
+test("first verification unavailable differs from stale re-verification and controls require current consensus", async () => {
   const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
   globalThis.document = fakeDocument(root);
   try {
     let governanceReads = 0, dendriteCalls = 0;
-    const outcomes = ["success", "failure", "low-cycles", "success"];
+    const outcomes = ["failure", "low-cycles", "success", "failure", "success"];
     const app = createApplication({
       root, location, onHashChange: () => {},
       governanceActorFactory: async () => ({ list_neurons: async () => { governanceReads += 1; } }),
@@ -401,26 +421,52 @@ test("failed re-verification stales consensus, hides controls, retains prelimina
     assert.equal(governanceReads, 1);
     assert.equal(dendriteCalls, 0);
     assert.match(JSON.stringify(root), /Preliminary/);
-    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
+
+    const firstFailure = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (dendriteCalls < 1) await Promise.resolve();
     assert.equal(dendriteCalls, 1);
+    assert.match(JSON.stringify(root), /Verifying on-chain…/);
+    assert.match(JSON.stringify(root), /Preliminary/);
+    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Consensus unavailable|Manage through NNS Governance/);
+    await firstFailure;
+    assert.match(JSON.stringify(root), /Consensus unavailable|verification transport unavailable/);
+    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Consensus verified|Manage through NNS Governance/);
+
+    const lowCycles = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (dendriteCalls < 2) await Promise.resolve();
+    assert.equal(dendriteCalls, 2);
+    assert.match(JSON.stringify(root), /Verifying on-chain…|Preliminary/);
+    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
+    await lowCycles;
+    assert.match(JSON.stringify(root), /Consensus unavailable|Preliminary analysis remains available/);
+    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
+
+    const firstSuccess = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (dendriteCalls < 3) await Promise.resolve();
+    assert.equal(dendriteCalls, 3);
+    assert.match(JSON.stringify(root), /Verifying on-chain…|Preliminary/);
+    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
+    await firstSuccess;
     assert.match(JSON.stringify(root), /Consensus verified/);
     assert.match(JSON.stringify(root), /Manage through NNS Governance/);
 
-    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    assert.equal(dendriteCalls, 2);
-    assert.doesNotMatch(JSON.stringify(root), /Consensus verified/);
-    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
-    assert.match(JSON.stringify(root), /verification transport unavailable/);
-    assert.match(JSON.stringify(root), /Preliminary/);
-
-    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    assert.equal(dendriteCalls, 3);
-    assert.doesNotMatch(JSON.stringify(root), /Consensus verified/);
-    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
-    assert.match(JSON.stringify(root), /Preliminary analysis remains available/);
-
-    await findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    const failedReverification = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (dendriteCalls < 4) await Promise.resolve();
     assert.equal(dendriteCalls, 4);
+    assert.match(JSON.stringify(root), /Verification stale|Verifying on-chain…/);
+    assert.match(JSON.stringify(root), /Preliminary/);
+    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
+    await failedReverification;
+    assert.match(JSON.stringify(root), /Verification stale|verification transport unavailable/);
+    assert.doesNotMatch(JSON.stringify(root), /Consensus verified|Manage through NNS Governance/);
+
+    const successfulRetry = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (dendriteCalls < 5) await Promise.resolve();
+    assert.equal(dendriteCalls, 5);
+    assert.match(JSON.stringify(root), /Verification stale|Verifying on-chain…/);
+    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
+    await successfulRetry;
     assert.match(JSON.stringify(root), /Consensus verified/);
     assert.match(JSON.stringify(root), /Manage through NNS Governance/);
   } finally {
