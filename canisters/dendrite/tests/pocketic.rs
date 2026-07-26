@@ -234,6 +234,30 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
         Some("same-origin")
     );
 
+    let manifest_request = HttpRequest {
+        url: "/asset-manifest.json".into(),
+        ..request.clone()
+    };
+    let reply = pic
+        .query_call(
+            canister,
+            Principal::anonymous(),
+            "http_request",
+            Encode!(&manifest_request).unwrap(),
+        )
+        .unwrap();
+    let manifest = Decode!(&reply, HttpResponse).unwrap();
+    assert_eq!(manifest.status_code, 200);
+    assert_eq!(
+        header(&manifest, "content-type"),
+        Some("application/json; charset=utf-8")
+    );
+    assert!(
+        std::str::from_utf8(&manifest.body)
+            .unwrap()
+            .contains("\"app.js\"")
+    );
+
     let well_known_request = HttpRequest {
         url: "/.well-known/ii-alternative-origins".into(),
         ..request.clone()

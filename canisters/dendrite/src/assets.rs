@@ -65,6 +65,7 @@ fn embedded_files(dir: &'static Dir<'static>) -> Vec<&'static File<'static>> {
 fn allowed_path(path: &str) -> bool {
     path == "index.html"
         || path == "404.html"
+        || path == "asset-manifest.json"
         || path == ".well-known/ii-alternative-origins"
         || path.starts_with("generated/")
 }
@@ -100,6 +101,14 @@ fn configs() -> Vec<AssetConfig> {
                 scope: "/".into(),
                 status_code: Some(StatusCode::NOT_FOUND),
             }],
+            aliased_by: vec![],
+            encodings: vec![],
+        },
+        AssetConfig::File {
+            path: "asset-manifest.json".into(),
+            content_type: Some("application/json; charset=utf-8".into()),
+            headers: no_cache.clone(),
+            fallback_for: vec![],
             aliased_by: vec![],
             encodings: vec![],
         },
@@ -157,20 +166,21 @@ mod tests {
             .collect();
         assert!(paths.iter().any(|path| path == "index.html"));
         assert!(paths.iter().any(|path| path == "404.html"));
+        assert!(paths.iter().any(|path| path == "asset-manifest.json"));
         assert!(
             paths
                 .iter()
                 .any(|path| path == ".well-known/ii-alternative-origins")
         );
         assert!(paths.iter().any(|path| path.starts_with("generated/")));
-        assert!(!allowed_path("asset-manifest.json"));
-        assert_eq!(assets().len(), paths.len() - 1);
+        assert!(allowed_path("asset-manifest.json"));
+        assert_eq!(assets().len(), paths.len());
     }
 
     #[test]
     fn policies_cover_html_well_known_and_hashed_assets() {
         let configs = configs();
-        assert_eq!(configs.len(), 5);
+        assert_eq!(configs.len(), 6);
         let rendered = format!("{configs:?}");
         for expected in [
             "no-cache",
