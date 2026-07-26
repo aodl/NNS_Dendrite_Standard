@@ -105,7 +105,12 @@ function finish(neuronId, evidence, managers, topics, quorum, rules) {
     non_committed_topics: target ? RECOGNISED_TOPICS
       .filter((topic) => topic !== 1 && !topics.includes(topic))
       .map((topic) => ({ topic, followee_ids: target.followees.get(topic) ?? [] })) : [],
-    controller: [],
+    controller: option(evidence.controller && {
+      principal: option(target?.controller),
+      call_succeeded: evidence.controller.callSucceeded,
+      module_hash: option(evidence.controller.moduleHash),
+      controllers: evidence.controller.controllers,
+    }),
     rules,
     quorum_threshold: option(quorum),
     source_revision: SOURCE_REVISION,
@@ -165,9 +170,9 @@ export function evaluatePreliminary(neuronId, evidence) {
   const control2 = rule("DENDRITE-CONTROL-002", controller?.callSucceeded === true && controller.moduleHash === undefined, "controller canister has no Wasm");
   const control3 = rule("DENDRITE-CONTROL-003", controller?.callSucceeded === true && controller.controllers.length === 0, "controller canister has no controllers");
   if (target.controller !== undefined && controller?.callSucceeded !== true) {
-    setStatus(control1, "Indeterminate", `${control1.message}; requires on-chain verification`);
-    setStatus(control2, "Indeterminate", `${control2.message}; requires on-chain verification`);
-    setStatus(control3, "Indeterminate", `${control3.message}; requires on-chain verification`);
+    setStatus(control1, "Indeterminate", `${control1.message}; mandatory evidence was unavailable`);
+    setStatus(control2, "Indeterminate", `${control2.message}; mandatory evidence was unavailable`);
+    setStatus(control3, "Indeterminate", `${control3.message}; mandatory evidence was unavailable`);
   }
   rules.push(control1, control2, control3);
   rules.push(rule("DENDRITE-CONTROL-004", target.hotKeys.length === 0, "target has no hotkeys"));

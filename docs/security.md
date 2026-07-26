@@ -2,6 +2,16 @@
 
 ## Threat boundaries
 
+Starting a consensus verification immediately stales any older authoritative report.
+Pending or failed verification cannot retain transaction controls or a
+`Consensus verified` label; only a newly successful Dendrite update restores that
+trust state. Browser-only controller rules remain indeterminate and are separated from
+the public-posture headline without being inferred as passing.
+
+Dependency query failures retain their bounded typed failure kind, message, and exact
+requested IDs. Invalid batches are rejected atomically, failed promise-cache entries
+remain retryable, and no analysis cache is persisted.
+
 All neuron fields, strings, URLs, principals, errors, routes, IDs, and upstream
 collections are untrusted. Typed clients enforce bounds and reject unexpected or
 duplicate records before map construction. Successful omission is factual evidence;

@@ -330,7 +330,10 @@ export function createApplication({
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (match && currentView === "report" && currentPreliminaryReport && currentPreliminaryNeuronId === match[1]) {
       const id = match[1];
-      const hasConsensus = currentConsensusReport && currentConsensusNeuronId === id;
+      const hasConsensus = currentConsensusReport
+        && currentConsensusNeuronId === id
+        && !consensusStale
+        && !consensusError;
       renderReport(root, {
         verificationKind: hasConsensus ? "Consensus" : "Preliminary",
         report: hasConsensus ? currentConsensusReport : currentPreliminaryReport,
@@ -458,6 +461,7 @@ export function createApplication({
     const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
     if (!ownsRoute() || consensusLoading) return;
     consensusLoading = true;
+    consensusStale = true;
     consensusError = undefined;
     renderCurrent();
     try {
@@ -466,6 +470,7 @@ export function createApplication({
       currentConsensusReport = report;
       currentConsensusNeuronId = id;
       consensusStale = false;
+      consensusError = undefined;
     } catch (error) {
       if (!ownsRoute()) return;
       consensusError = errorMessage(error);

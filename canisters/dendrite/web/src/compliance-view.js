@@ -181,8 +181,9 @@ function renderManagers(report, copyText) {
 export function groupTopics(report) {
   const groups = new Map();
   const add = (kind, topic, values) => {
-    const key = `${kind}:${values.map(String).join(",")}`;
-    const group = groups.get(key) ?? { kind, values, topics: [] };
+    const normalized = [...values].map(BigInt).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+    const key = `${kind}:${normalized.map(String).join(",")}`;
+    const group = groups.get(key) ?? { kind, values: normalized, topics: [] };
     group.topics.push(topic);
     groups.set(key, group);
   };
@@ -205,10 +206,22 @@ function renderTopics(report) {
   return list;
 }
 
-function preliminaryStatus(report) {
-  const statuses = new Set(report.rules.map((rule) => variantName(rule.status)));
+export const PRELIMINARY_CONTROLLER_RULES = Object.freeze(new Set([
+  "DENDRITE-CONTROL-001",
+  "DENDRITE-CONTROL-002",
+  "DENDRITE-CONTROL-003",
+]));
+
+export function preliminaryStatus(report) {
+  const publicRules = report.rules.filter((rule) => !(
+    PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id)
+    && variantName(rule.status) === "Indeterminate"
+    && /mandatory evidence was unavailable|requires on-chain verification/i.test(rule.message)
+  ));
+  const statuses = new Set(publicRules.map((rule) => variantName(rule.status)));
   if (statuses.has("Fail")) return "Preliminary issues found";
-  if (statuses.has("StandardUpdateRequired") || statuses.has("Indeterminate")) return "Preliminary analysis incomplete";
+  if (statuses.has("StandardUpdateRequired")) return "Standard update required";
+  if (statuses.has("Indeterminate")) return "Preliminary analysis incomplete";
   return "No public-configuration blockers found";
 }
 
@@ -254,7 +267,17 @@ export function renderReport(root, viewModel, options = {}) {
   if (error) root.append(element("p", error, "verification-warning"));
   const exactStatus = variantName(report.overall_status);
   root.append(element("h2", verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report), `main-status status-${exactStatus.toLowerCase()}`));
-  if (verificationKind === "Preliminary") root.append(element("p", "Controller blackhole evidence requires consensus verification and is never inferred from browser-only data.", "muted"));
+  if (verificationKind === "Preliminary") {
+    const controllerRules = report.rules.filter((rule) => PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id)
+      && variantName(rule.status) === "Indeterminate");
+    root.append(
+      element("p", "Controller blackhole checks require on-chain verification.", "muted"),
+      details(`Requires on-chain verification (${controllerRules.length})`, [
+        element("p", `${controllerRules.length} checks require consensus verification`),
+        ...controllerRules.map(renderFinding),
+      ], "consensus-required"),
+    );
+  }
 
   const metrics = document.createElement("dl");
   metrics.className = "metrics";
@@ -272,7 +295,9 @@ export function renderReport(root, viewModel, options = {}) {
   );
   root.append(metrics);
 
-  const findings = sortedFindings(report.rules);
+  const findings = sortedFindings(verificationKind === "Preliminary"
+    ? report.rules.filter((rule) => !PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id))
+    : report.rules);
   root.append(element("h2", findings.length ? "Needs attention" : "No findings requiring attention"));
   const attention = document.createElement("section");
   attention.className = "attention";

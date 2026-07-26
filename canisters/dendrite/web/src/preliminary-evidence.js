@@ -205,6 +205,19 @@ export function validateListNeuronsBatch(requestedIds, response, { target = fals
 
 export function createNeuronLoader({ listNeurons }) {
   const cache = new Map();
+  const typedFailure = (error, ids) => {
+    if (error instanceof PreliminaryEvidenceError) return new PreliminaryEvidenceError(
+      ["Rejected", "DecodeFailed", "InvalidResponse", "ResponseTooLarge"].includes(error.kind) ? error.kind : "Rejected",
+      error.message,
+      error.affectedNeuronIds.length ? error.affectedNeuronIds : ids,
+    );
+    const message = String(error?.message ?? "Governance query failed").slice(0, 512);
+    const kind = error?.kind === "ResponseTooLarge" ? "ResponseTooLarge"
+      : error?.kind === "InvalidResponse" ? "InvalidResponse"
+        : error?.kind === "DecodeFailed" || /decode|candid/i.test(message) ? "DecodeFailed"
+          : "Rejected";
+    return new PreliminaryEvidenceError(kind, message, ids);
+  };
   async function fetchBatch(ids, target = false) {
     const requested = [...new Map(ids.map((id) => [idKey(id), BigInt(id)])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     const response = await listNeurons(listNeuronsRequest(requested));
@@ -226,6 +239,7 @@ export function createNeuronLoader({ listNeurons }) {
   async function loadDependencies(ids) {
     const unique = [...new Map(ids.map((id) => [idKey(id), BigInt(id)])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     const missing = unique.filter((id) => !cache.has(idKey(id)));
+    const sourceFailures = [];
     for (let offset = 0; offset < missing.length; offset += LIMITS.requested) {
       const batchIds = missing.slice(offset, offset + LIMITS.requested);
       const pending = fetchBatch(batchIds, false);
@@ -237,7 +251,17 @@ export function createNeuronLoader({ listNeurons }) {
         );
         cache.set(key, entry);
       }
-      try { await pending; } catch { /* individual entries resolve to unavailable and are evicted */ }
+      try {
+        await pending;
+      } catch (error) {
+        const failure = typedFailure(error, batchIds);
+        if (sourceFailures.length < LIMITS.sourceFailures) sourceFailures.push({
+          method: "list_neurons",
+          kind: failure.kind,
+          message: failure.message,
+          affectedNeuronIds: failure.affectedNeuronIds.slice(0, LIMITS.requested),
+        });
+      }
     }
     const result = new Map();
     for (const id of unique) {
@@ -251,6 +275,10 @@ export function createNeuronLoader({ listNeurons }) {
         result.set(key, { kind: "Unavailable" });
       }
     }
+    Object.defineProperty(result, "sourceFailures", {
+      value: Object.freeze(sourceFailures),
+      enumerable: false,
+    });
     return result;
   }
   return Object.freeze({ loadTarget, loadDependencies, clear: () => cache.clear(), cache });
@@ -280,18 +308,12 @@ export async function collectPreliminaryEvidence(neuronId, loader) {
       unknownCommittedTopics: target.unknownCommittedTopics,
     };
     const dependencies = await loader.loadDependencies(deriveDependencyIds(target.lookup.neuron));
-    const unavailable = [...dependencies.entries()].filter(([, lookup]) => lookup.kind === "Unavailable").map(([id]) => BigInt(id));
     return {
       nowSeconds: target.retrievedAtTimestampSeconds,
       target: target.lookup,
       dependencies,
       controller: undefined,
-      sourceFailures: unavailable.length ? [{
-        method: "list_neurons",
-        kind: "Rejected",
-        message: "one or more dependency batches were unavailable",
-        affectedNeuronIds: unavailable.slice(0, LIMITS.requested),
-      }] : [],
+      sourceFailures: [...(dependencies.sourceFailures ?? [])].slice(0, LIMITS.sourceFailures),
       unknownCommittedTopics: target.unknownCommittedTopics,
     };
   } catch (error) {
