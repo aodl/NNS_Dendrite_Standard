@@ -55,6 +55,13 @@ Dendrite requests, zero update endpoints, zero unexpected destinations, no conso
 page errors, and no material horizontal overflow. The Verify action was present and
 was not activated.
 
+The guarded anonymous `upgrade` dry-run at commit
+`1f96a7c6836aa8546f072b7439ea67456443ad57` verified every release checksum and the
+candidate binding, read the installed module status, tolerated the expected
+controller-only settings rejection, printed the exact intended upgrade command, and
+exited successfully with `dry-run complete; no write performed`. It made no lifecycle
+write.
+
 ## Historical browser-first upgrade candidate — 2026-07-26
 
 Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
