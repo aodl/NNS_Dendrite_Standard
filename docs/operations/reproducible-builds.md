@@ -27,6 +27,34 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Trust-state-hardening upgrade candidate — 2026-07-27
+
+Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
+`dendrite-canonical` `docker-container` builder. Two forced-clean `--no-cache`
+`linux/amd64` exports had identical file sets, byte-identical files, and identical
+deterministic `SHA256SUMS`. This candidate has not been installed or submitted to
+mainnet.
+
+- Raw Wasm SHA-256:
+  `e2b621207262360035803d45c3a6e144116219751c5391c517e51b625eb28a02`
+- `SHA256SUMS` file SHA-256:
+  `1b0c49a189f7ea06f98634a6d14659738671929ce8610d6eb6159203d13f5477`
+- Frontend tree SHA-256:
+  `1b878e17e09ae3d7cbda1c87e6198469c64d5a073ee6a8dbf3144cd431f20b90`
+- `asset-manifest.json` SHA-256:
+  `10236d6fd0ed398f1006ef5ca382e9a6f06329ad31ca0ebae00eeac49e23d528`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- SBOM manifest SHA-256:
+  `7c37d5db77dca574ba004121a23c89029c97641e2e35722be4112e934c69d374`
+
+The exact canonical frontend export passed the executed Chrome 144.0.7559.96 gate in
+the digest-pinned Puppeteer 24.36.0 image. Desktop and narrow-mobile routes produced
+four anonymous Governance query requests, query-signature `read_state` traffic, zero
+Dendrite requests, zero update endpoints, zero unexpected destinations, no console or
+page errors, and no material horizontal overflow. The Verify action was present and
+was not activated.
+
 ## Historical browser-first upgrade candidate — 2026-07-26
 
 Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed

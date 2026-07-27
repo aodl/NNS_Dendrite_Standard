@@ -54,6 +54,12 @@ authenticated transaction controls require a current authoritative report. Exist
 transaction tests continue to prove that final preflight independently invokes
 `check_neuron` and a failed preflight sends no Governance mutation.
 
+The 2026-07-27 candidate ran 129 frontend tests and 59 Rust unit tests plus 3 PocketIC
+scenarios. Workspace Rust line coverage was 91.44% and rule-engine line coverage was
+98.35%; frontend coverage was 97.57% lines, 87.48% branches, and 92.23% functions.
+All 38 Rust/browser policy fixtures matched exactly. The executed Chromium evidence is
+bounded non-release output under `dist/browser-qualification`.
+
 ### Troubleshooting
 
 - Missing ID/origin or malformed alternative JSON: export every exact build input.
