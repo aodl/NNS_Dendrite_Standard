@@ -21,6 +21,9 @@ signatures, and does not fetch the root key in production. Internet Identity ses
 and Governance-only delegations remain in the browser and are never sent to Dendrite.
 Privileged mutations go directly from the browser to fixed NNS Governance and still
 require a fresh authoritative Dendrite preflight. See [security](docs/security.md).
+Preliminary and consensus work is owned by explicit route-generation operations:
+navigation, refresh, replacement, and transaction settlement cannot publish stale
+completions or strand a loading state.
 
 ## Production deployment
 

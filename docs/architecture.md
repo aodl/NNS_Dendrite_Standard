@@ -42,10 +42,21 @@ management-canister `canister_info`; therefore controller blackhole rules remain
 indeterminate until explicit consensus verification. Preliminary evidence never enables
 transaction controls and never satisfies transaction final preflight.
 
+Each preliminary load and consensus verification has a unique operation owner bound to
+the route generation and canonical neuron ID. Route changes, landing transitions,
+preliminary refreshes, replacement checks, and potentially executed mutations revoke
+older owners and release their loading state. Only the current owner may publish a
+report, error, trust label, route transition, or loading completion. Repeated Verify
+activation while the current owner is pending does not create a second authoritative
+request.
+
 Internet Identity and privileged operations run only in the browser. The at-most
 eight-hour delegation targets NNS Governance, never Dendrite. The browser compares its
 principal with live manager evidence locally and sends reviewed typed mutations
 directly to Governance. It never constructs an authenticated Dendrite actor.
+Once the update boundary may have been crossed, an unknown transaction outcome
+immediately stales the context's authoritative evidence while retaining preliminary
+evidence, request digest, and the explicit no-retry acknowledgement lock.
 
 The certified frontend binds served bytes to installed Wasm. It does not prove browser
 integrity, operator intent, or controller policy. Dendrite's application controller is

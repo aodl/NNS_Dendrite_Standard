@@ -7,6 +7,8 @@ Pending or failed verification cannot retain transaction controls or a
 `Consensus verified` label; only a newly successful Dendrite update restores that
 trust state. Browser-only controller rules remain indeterminate and are separated from
 the public-posture headline without being inferred as passing.
+Explicit operation ownership also prevents an old success, old failure, or old
+`finally` block from mutating a replacement route or clearing its loading state.
 
 Dependency query failures retain their bounded typed failure kind, message, and exact
 requested IDs. Invalid batches are rejected atomically, failed promise-cache entries
@@ -39,6 +41,12 @@ canister. Every mutation requires fresh authority evidence, an immutable exact r
 explicit confirmation, strict response validation, and no automatic retry. Ambiguous
 outcomes block another mutation until acknowledged; this coordination and the single
 current receipt are bounded, heap-only, and lost on reload.
+Crossing the NNS update boundary with no conclusive response immediately marks the
+context's prior authoritative report stale and removes mutation controls. Preliminary
+evidence stays visible. A later successful `check_neuron` may establish newly observed
+current evidence, but it does not clear the unresolved-outcome lock; acknowledgement
+clears only that lock and never fabricates a verification. Known Governance rejection
+and final-preflight failure remain non-ambiguous and do not take this path.
 
 Only a current consensus report enables privileged controls. The transaction pipeline
 does not trust that report as final authority: immediately before mutation it still

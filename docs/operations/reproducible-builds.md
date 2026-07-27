@@ -27,13 +27,17 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
-## Browser-first upgrade candidate — 2026-07-26
+## Historical browser-first upgrade candidate — 2026-07-26
 
 Docker Engine 28.0.1 and Buildx 0.21.1 used the reviewed
 `dendrite-canonical` `docker-container` builder. Two clean `--no-cache`
 `linux/amd64` exports were byte-identical, including their deterministic
 `SHA256SUMS`. This candidate has not been installed or otherwise submitted to
 mainnet.
+
+This `ff5104…` candidate is preserved as historical evidence and was superseded by the
+2026-07-27 trust-state-hardening candidate after source changes. It is not the current
+release candidate.
 
 - Raw Wasm SHA-256:
   `ff5104dbd9006228118e1b67eae0242dad026b2e487b2f4ac7a97dc65f55a75b`
