@@ -6,22 +6,11 @@ frontend=${1:-dist/release/frontend}
   echo "usage: tools/scripts/browser-smoke.sh [built-frontend-directory]" >&2
   exit 1
 }
-
-browser=${DENDRITE_BROWSER_BIN:-}
-if [ -z "$browser" ]; then
-  for candidate in chromium chromium-browser google-chrome google-chrome-stable; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      browser=$(command -v "$candidate")
-      break
-    fi
-  done
-fi
-if [ -z "$browser" ]; then
-  echo "browser smoke UNRUN: no supported Chromium browser engine is installed" >&2
-  echo "manual preview: python3 -m http.server 4173 --directory $frontend" >&2
-  echo "then open: http://127.0.0.1:4173/#/neuron/2947465672511369" >&2
-  exit 2
-fi
+image='ghcr.io/puppeteer/puppeteer:24.36.0@sha256:60273620ab047d273d77f8535cd3adaffa9c138e3b38ba7934d8934a7b5d3c92'
+evidence=${DENDRITE_BROWSER_EVIDENCE_DIR:-dist/browser-qualification}
+repository=$(pwd)
+case "$frontend" in /*) frontend_absolute=$frontend;; *) frontend_absolute=$repository/$frontend;; esac
+case "$evidence" in /*) evidence_absolute=$evidence;; *) evidence_absolute=$repository/$evidence;; esac
 
 temporary=$(mktemp -d)
 server_pid=
@@ -36,38 +25,20 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory "$frontend" \
 server_pid=$!
 for _attempt in 1 2 3 4 5; do
   curl --fail --silent http://127.0.0.1:4173/ >/dev/null && break
+  sleep 1
 done
 curl --fail --silent http://127.0.0.1:4173/ >/dev/null
-
-run_viewport() {
-  size=$1
-  output=$2
-  "$browser" \
-    --headless \
-    --disable-gpu \
-    --no-first-run \
-    --no-default-browser-check \
-    --user-data-dir="$temporary/profile-$size" \
-    --window-size="$size" \
-    --virtual-time-budget=15000 \
-    --dump-dom \
-    "http://127.0.0.1:4173/#/neuron/2947465672511369" \
-    >"$output" 2>"$output.stderr"
-  grep -q 'Verify on-chain' "$output"
-  grep -Eq 'Preliminary|No public-configuration blockers found|Preliminary analysis incomplete|Preliminary issues found|Standard update required' "$output"
-  ! grep -Eq 'Uncaught|ReferenceError|TypeError:' "$output.stderr"
-}
-
-run_viewport 1440,1000 "$temporary/desktop.html"
-run_viewport 390,844 "$temporary/mobile.html"
-
-manifest="$frontend/asset-manifest.json"
-app=$(sed -n 's/.*"app.js":[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest")
-styles=$(sed -n 's/.*"styles.css":[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest")
-[ -n "$app" ] && [ -f "$frontend/$app" ]
-[ -n "$styles" ] && [ -f "$frontend/$styles" ]
-grep -q 'Loading public NNS evidence' "$frontend/$app"
-grep -q 'Verify on-chain' "$frontend/$app"
-
-echo "browser smoke passed in desktop and narrow mobile Chromium viewports"
-echo "ordinary route loading rendered preliminary evidence without invoking Verify on-chain"
+mkdir -p "$evidence_absolute"
+chmod 0777 "$evidence_absolute"
+docker run --rm --network host \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
+  -e DENDRITE_BROWSER_FRONTEND=/frontend \
+  -e DENDRITE_BROWSER_EVIDENCE=/evidence \
+  -e DENDRITE_BROWSER_IMAGE="$image" \
+  -v "$repository:/workspace:ro" \
+  -v "$frontend_absolute:/frontend:ro" \
+  -v "$evidence_absolute:/evidence" \
+  -w /workspace \
+  "$image" \
+  node tools/scripts/browser-qualification.mjs

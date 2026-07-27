@@ -86,8 +86,44 @@ export function createApplication({
   let consensusError;
   let currentView = "unselected";
   let routeGeneration = 0;
+  let operationSequence = 0;
+  let preliminaryOperation;
+  let consensusOperation;
   let currentTransactionReceipt;
   let currentTransactionNotices;
+
+  const newOperation = (kind, neuronId, generation) => Object.freeze({
+    kind,
+    neuronId,
+    generation,
+    id: ++operationSequence,
+  });
+  const ownsOperation = (owner, current) => current === owner
+    && owner.generation === routeGeneration
+    && location.hash === `#/neuron/${owner.neuronId}`;
+  function invalidatePreliminaryOperation() {
+    preliminaryOperation = undefined;
+    preliminaryLoading = false;
+    root.removeAttribute("aria-busy");
+  }
+  function invalidateConsensusOperation() {
+    consensusOperation = undefined;
+    consensusLoading = false;
+  }
+  function invalidateUnsubmittedWork() {
+    transactionPipeline.discardUnsubmittedReview();
+  }
+  function invalidateAuthoritativeEvidence(neuronId) {
+    invalidateConsensusOperation();
+    if (currentConsensusNeuronId === neuronId && currentConsensusReport) consensusStale = true;
+    consensusError = undefined;
+    invalidateUnsubmittedWork();
+  }
+  function supersedeRouteOperations() {
+    invalidatePreliminaryOperation();
+    invalidateConsensusOperation();
+    invalidateUnsubmittedWork();
+  }
 
   function transactionNotices() {
     const notices = document.createElement("section");
@@ -394,7 +430,7 @@ export function createApplication({
 
   function landing(generation = ++routeGeneration) {
     if (generation !== routeGeneration) return;
-    transactionPipeline.discardUnsubmittedReview();
+    supersedeRouteOperations();
     preliminaryAnalyzer?.clear();
     currentPreliminaryReport = undefined;
     currentPreliminaryNeuronId = undefined;
@@ -407,14 +443,15 @@ export function createApplication({
   }
 
   async function loadNeuron(id, generation = ++routeGeneration) {
-    transactionPipeline.discardUnsubmittedReview();
+    supersedeRouteOperations();
     preliminaryAnalyzer?.clear();
     currentConsensusReport = undefined;
     currentConsensusNeuronId = undefined;
     consensusError = undefined;
     consensusStale = false;
-    const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
-    if (!ownsRoute()) return;
+    const owner = newOperation("preliminary", id, generation);
+    preliminaryOperation = owner;
+    if (!ownsOperation(owner, preliminaryOperation)) return;
     currentView = "loading";
     preliminaryLoading = true;
     preliminaryError = undefined;
@@ -427,7 +464,7 @@ export function createApplication({
       const report = await (trustInjectedPreliminaryForTests
         ? preliminaryAnalyzer.analyze(id)
         : (await analyzer()).analyze(id));
-      if (!ownsRoute()) return;
+      if (!ownsOperation(owner, preliminaryOperation)) return;
       currentPreliminaryReport = report;
       currentPreliminaryNeuronId = id;
       if (trustInjectedPreliminaryForTests) {
@@ -438,7 +475,7 @@ export function createApplication({
       preliminaryLoading = false;
       renderCurrent();
     } catch (error) {
-      if (!ownsRoute()) return;
+      if (!ownsOperation(owner, preliminaryOperation)) return;
       currentPreliminaryReport = undefined;
       currentPreliminaryNeuronId = undefined;
       preliminaryError = errorMessage(error);
@@ -451,15 +488,21 @@ export function createApplication({
       retry.addEventListener("click", () => loadNeuron(id));
       root.append(retry, resources());
     } finally {
-      preliminaryLoading = false;
-      if (ownsRoute()) root.removeAttribute("aria-busy");
+      if (preliminaryOperation === owner) {
+        preliminaryOperation = undefined;
+        preliminaryLoading = false;
+        root.removeAttribute("aria-busy");
+      }
     }
   }
 
   async function verifyConsensus(id) {
     const generation = routeGeneration;
-    const ownsRoute = () => generation === routeGeneration && location.hash === `#/neuron/${id}`;
-    if (!ownsRoute() || consensusLoading) return;
+    if (location.hash !== `#/neuron/${id}`) return;
+    if (consensusOperation?.generation === generation && consensusOperation.neuronId === id) return;
+    invalidateConsensusOperation();
+    const owner = newOperation("consensus", id, generation);
+    consensusOperation = owner;
     const hadConsensus = Boolean(
       currentConsensusReport
       && currentConsensusNeuronId === id,
@@ -470,18 +513,19 @@ export function createApplication({
     renderCurrent();
     try {
       const report = await checkLive(await actor(), id);
-      if (!ownsRoute()) return;
+      if (!ownsOperation(owner, consensusOperation)) return;
       currentConsensusReport = report;
       currentConsensusNeuronId = id;
       consensusStale = false;
       consensusError = undefined;
     } catch (error) {
-      if (!ownsRoute()) return;
+      if (!ownsOperation(owner, consensusOperation)) return;
       consensusError = errorMessage(error);
     } finally {
-      if (ownsRoute()) {
+      if (consensusOperation === owner) {
+        consensusOperation = undefined;
         consensusLoading = false;
-        renderCurrent();
+        if (owner.generation === routeGeneration && location.hash === `#/neuron/${id}`) renderCurrent();
       }
     }
   }
@@ -511,6 +555,10 @@ export function createApplication({
         ? { ...common, proposalId: outcome.result.proposalId }
         : { ...common, message: boundedReceiptField(outcome.message, MAX_RECEIPT_MESSAGE_LENGTH) });
     }
+    const contextId = review?.dendriteContextNeuronId?.toString();
+    if (transactionPipeline.state === "outcome-unknown" && contextId) {
+      invalidateAuthoritativeEvidence(contextId);
+    }
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (!match) {
       refreshTransactionNotices();
@@ -518,6 +566,7 @@ export function createApplication({
     }
     const id = formatNeuronId(parseNeuronId(match[1]));
     if (outcome?.kind === "Success" && review?.dendriteContextNeuronId.toString() === id) {
+      supersedeRouteOperations();
       currentPreliminaryReport = undefined;
       currentPreliminaryNeuronId = undefined;
       currentConsensusReport = undefined;

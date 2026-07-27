@@ -394,6 +394,104 @@ const report = (id = 42n) => ({
   controller: [], rules: [{ rule_id: "DENDRITE-CONTROL-001", status: { Indeterminate: null }, message: "requires on-chain verification", observed: [], expected: [], related_neuron_ids: [], relevant_topic: [] }],
   quorum_threshold: [], source_revision: "revision", source_failures: [],
 });
+const deferred = () => {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+};
+
+test("operation owners make preliminary and consensus completion order race-safe", async () => {
+  const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
+  globalThis.document = fakeDocument(root);
+  try {
+    const preliminary = [], consensus = [];
+    const app = createApplication({
+      root, location, onHashChange: () => {},
+      governanceActorFactory: async () => ({}),
+      preliminaryAnalyzerFactory: () => ({
+        analyze: async () => { const pending = deferred(); preliminary.push(pending); return pending.promise; },
+        clear() {},
+      }),
+      actorFactory: async () => ({ check_neuron: async () => {
+        const pending = deferred(); consensus.push(pending); return pending.promise;
+      } }),
+      authSession: { configuration: { derivationOrigin: "https://dendrite.example" }, restore: async () => null },
+    });
+    const initial = app.start();
+    while (!preliminary[0]) await Promise.resolve();
+    preliminary[0].resolve(report());
+    await initial;
+
+    const oldVerification = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (!consensus[0]) await Promise.resolve();
+    await findNode(root, (node) => node.textContent === "Verifying on-chain…").dispatch("click");
+    assert.equal(consensus.length, 1, "repeated activation must reuse the owned request");
+    const refresh = findNode(root, (node) => node.textContent === "Refresh preliminary").dispatch("click");
+    while (!preliminary[1]) await Promise.resolve();
+    assert.doesNotMatch(JSON.stringify(root), /Verifying on-chain…/);
+    preliminary[1].resolve({ ...report(), standard_version: "fresh-preliminary" });
+    await refresh;
+    consensus[0].resolve({ Ok: { ...report(), standard_version: "obsolete-consensus" } });
+    await oldVerification;
+    assert.match(JSON.stringify(root), /fresh-preliminary/);
+    assert.doesNotMatch(JSON.stringify(root), /obsolete-consensus|Consensus verified|Verifying on-chain…/);
+
+    const replacement = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (!consensus[1]) await Promise.resolve();
+    consensus[1].resolve({ Ok: { ...report(), standard_version: "current-consensus" } });
+    await replacement;
+    assert.match(JSON.stringify(root), /current-consensus|Consensus verified/);
+  } finally { globalThis.document = prior; }
+});
+
+test("route, landing, and replacement operations reject old success and failure completions", async () => {
+  const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
+  globalThis.document = fakeDocument(root);
+  try {
+    const preliminary = [], consensus = [];
+    const app = createApplication({
+      root, location, onHashChange: () => {},
+      governanceActorFactory: async () => ({}),
+      preliminaryAnalyzerFactory: () => ({
+        analyze: async (id) => { const pending = deferred(); preliminary.push({ id, ...pending }); return pending.promise; },
+        clear() {},
+      }),
+      actorFactory: async () => ({ check_neuron: async () => {
+        const pending = deferred(); consensus.push(pending); return pending.promise;
+      } }),
+      authSession: { configuration: { derivationOrigin: "https://dendrite.example" }, restore: async () => null },
+    });
+    const initial = app.start();
+    while (!preliminary[0]) await Promise.resolve();
+    preliminary[0].resolve(report());
+    await initial;
+    const obsoleteSuccess = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (!consensus[0]) await Promise.resolve();
+    location.hash = "#/neuron/43";
+    const other = app.route();
+    while (!preliminary[1]) await Promise.resolve();
+    preliminary[1].resolve({ ...report(43n), standard_version: "neuron-43" });
+    await other;
+    consensus[0].resolve({ Ok: { ...report(), standard_version: "old-success" } });
+    await obsoleteSuccess;
+    assert.match(JSON.stringify(root), /neuron-43/);
+    assert.doesNotMatch(JSON.stringify(root), /old-success|Verifying on-chain…/);
+
+    const obsoleteFailure = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
+    while (!consensus[1]) await Promise.resolve();
+    location.hash = "";
+    await app.route();
+    location.hash = "#/neuron/43";
+    const back = app.route();
+    while (!preliminary[2]) await Promise.resolve();
+    preliminary[2].resolve({ ...report(43n), standard_version: "landing-back" });
+    await back;
+    consensus[1].reject(new Error("old failure"));
+    await obsoleteFailure;
+    assert.match(JSON.stringify(root), /landing-back/);
+    assert.doesNotMatch(JSON.stringify(root), /old failure|Verifying on-chain…/);
+  } finally { globalThis.document = prior; }
+});
 
 test("first verification unavailable differs from stale re-verification and controls require current consensus", async () => {
   const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };

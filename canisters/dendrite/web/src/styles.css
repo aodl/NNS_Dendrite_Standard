@@ -117,6 +117,10 @@ details {
 summary { cursor: pointer; font-weight: 800; }
 .manager-card dl { display: grid; gap: .5rem; }
 .topic-group ul { columns: 2; padding-left: 1.25rem; }
+.neuron-chips, .topic-statuses { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.neuron-chip { display: inline-flex; max-width: 100%; align-items: center; gap: .25rem; padding: .2rem; border: 1px solid var(--border); border-radius: .55rem; }
+.neuron-chip .copy-button { min-height: 2rem; padding: .2rem .45rem; }
+.topic-warning { flex-basis: 100%; margin: 0 0 .4rem; overflow-wrap: anywhere; }
 .technical-evidence pre { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: var(--surface); }
 caption { padding: .5rem; text-align: left; font-weight: 800; }

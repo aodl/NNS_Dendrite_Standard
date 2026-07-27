@@ -191,16 +191,58 @@ export function groupTopics(report) {
   for (const topic of report.non_committed_topics) add("Followees", topic.topic, topic.followee_ids);
   return [...groups.values()];
 }
-function renderTopics(report) {
+const shortNeuronId = (value) => {
+  const id = String(value);
+  return id.length <= 12 ? id : `${id.slice(0, 6)}…${id.slice(-5)}`;
+};
+function renderTopics(report, copyText) {
   const list = document.createElement("div");
   list.className = "topic-groups";
   for (const group of groupTopics(report)) {
     const card = document.createElement("article");
     card.className = "topic-group";
-    card.append(element("h3", `${group.kind}: ${ids(group.values)}`), element("p", `${group.topics.length} topic${group.topics.length === 1 ? "" : "s"}`));
+    const noun = group.kind === "Delegates" ? "delegate" : "followee";
+    card.append(
+      element("h3", `${group.values.length} ${noun}${group.values.length === 1 ? "" : "s"}`),
+      element("p", `${group.topics.length} topic${group.topics.length === 1 ? "" : "s"} share this configuration`, "muted"),
+    );
     const labels = document.createElement("ul");
     for (const topic of group.topics) labels.append(element("li", topicLabel(topic)));
-    card.append(labels, details(`${group.kind} path`, [element("p", ids(group.values))]));
+    const chips = document.createElement("div");
+    chips.className = "neuron-chips";
+    for (const value of group.values) {
+      const id = String(value);
+      const chip = document.createElement("span");
+      chip.className = "neuron-chip";
+      const link = safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`);
+      link.title = id;
+      link.setAttribute("aria-label", `Neuron ${id}`);
+      chip.append(link, copyButton(id, "Copy", copyText));
+      chips.append(chip);
+    }
+    const topicSet = new Set(group.topics);
+    const relevant = report.rules.filter((rule) => rule.relevant_topic?.length
+      && topicSet.has(rule.relevant_topic[0])
+      && variantName(rule.status) !== "Pass");
+    const statuses = document.createElement("div");
+    statuses.className = "topic-statuses";
+    if (!relevant.length) statuses.append(badge("No topic findings", "pass"));
+    else for (const rule of relevant) {
+      const status = variantName(rule.status);
+      statuses.append(
+        badge(status, status.toLowerCase()),
+        element("p", `${ruleTitle(rule.rule_id)}: ${rule.message}`, "topic-warning"),
+      );
+    }
+    card.append(
+      labels,
+      chips,
+      statuses,
+      details("Complete IDs and topic paths", [
+        element("p", `${group.kind}: ${ids(group.values)}`),
+        element("p", `Topics: ${group.topics.map(topicLabel).join(" · ")}`),
+      ]),
+    );
     list.append(card);
   }
   return list;
@@ -307,7 +349,7 @@ export function renderReport(root, viewModel, options = {}) {
   root.append(details(`Passed checks (${passed.length})`, passed.map((item) => element("p", `${ruleTitle(item.rule_id)} — ${item.message}`)), "passed-checks"));
 
   root.append(element("h2", "Managers"), renderManagers(report, options.copyText));
-  root.append(element("h2", "Topic configurations"), renderTopics(report));
+  root.append(element("h2", "Topic configurations"), renderTopics(report, options.copyText));
 
   const metadata = [
     element("p", `Standard: ${report.standard_version}`),
