@@ -57,7 +57,7 @@ try {
     await page.waitForSelector(".badge-preliminary", { timeout: 5_000 });
     const text = await page.$eval("main", (node) => node.innerText);
     assert.match(text, /Preliminary/);
-    assert.match(text, /Requires on-chain verification/);
+    assert.match(text, /Requires verification/);
     assert.match(text, /Verify on-chain/);
     assert.doesNotMatch(text, /Consensus verified/);
     assert.doesNotMatch(text, /Controller blackhole\s+Confirmed/);
