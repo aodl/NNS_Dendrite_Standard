@@ -31,7 +31,8 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 The Chromium gate uses `puppeteer-core` only as a development dependency and runs
 Chrome 144.0.7559.96 from the digest-pinned
 `ghcr.io/puppeteer/puppeteer:24.36.0` image. It serves the exact production export,
-executes 1440×1000 and 390×844 viewports, captures bounded JSON evidence and
+executes 1440×1000, a 720×500 viewport at 2× device scale for the 200% zoom
+qualification, and 390×844 viewports, captures bounded JSON evidence and
 screenshots under `dist/browser-qualification`, fails on page/console errors or
 material page overflow, and keyboard-focuses the copy, refresh, and Verify controls.
 It also proves the full rules view precedes managers and delegation, expands a rule by

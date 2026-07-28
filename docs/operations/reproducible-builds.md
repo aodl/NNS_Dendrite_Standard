@@ -48,13 +48,14 @@ mainnet. It supersedes, without deleting, the historical trust-state candidate b
 - SBOM manifest SHA-256:
   `be5ba61c762bd244ff88acf635a2408c643f8bf1abb79b7131df0e646b2ae52a`
 - Executed Chromium evidence SHA-256:
-  `e2d2ea197734b0cd03ecd256c31e7bc1df80c2343f3d2a206f50b17011c7f300`
+  `e636a58c615e7f818fc378aa531bd435c1eb24c71b1ef451b073bde0fd83c770`
 
-The exact canonical frontend export passed Chrome 144.0.7559.96 at 1440×1000 and
-390×844. It verified canonical rule ordering above managers and delegation, keyboard
+The exact canonical frontend export passed Chrome 144.0.7559.96 at 1440×1000,
+720×500 with 2× device scale for 200% zoom qualification, and 390×844. It verified
+canonical rule ordering above managers and delegation, keyboard
 rule expansion, attention filtering, preliminary controller uncertainty, route-stable
 section navigation, every lower disclosure, and post-interaction overflow. The run
-recorded four anonymous Governance query requests, zero Dendrite requests, zero
+recorded six anonymous Governance query requests, zero Dendrite requests, zero
 interaction-triggered requests, zero update endpoints, zero unexpected destinations,
 and no console or page errors. The Verify action was present and not activated.
 

@@ -33,10 +33,15 @@ const results = [];
 try {
   for (const scenario of [
     { name: "desktop", width: 1440, height: 1000 },
+    { name: "desktop-200-percent", width: 720, height: 500, deviceScaleFactor: 2 },
     { name: "mobile", width: 390, height: 844 },
   ]) {
     const page = await browser.newPage();
-    await page.setViewport({ width: scenario.width, height: scenario.height, deviceScaleFactor: 1 });
+    await page.setViewport({
+      width: scenario.width,
+      height: scenario.height,
+      deviceScaleFactor: scenario.deviceScaleFactor ?? 1,
+    });
     const consoleErrors = [], pageErrors = [], requests = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
