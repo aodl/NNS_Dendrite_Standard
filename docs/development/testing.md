@@ -66,7 +66,7 @@ preflight sends no Governance mutation.
 
 The 2026-07-28 candidate ran 135 frontend tests and 56 Rust unit tests plus 3 PocketIC
 scenarios. Workspace Rust line coverage was 91.44% and rule-engine line coverage was
-98.35%; frontend coverage was 97.34% lines, 88.24% branches, and 92.86% functions.
+98.35%; frontend coverage was 97.22% lines, 88.19% branches, and 92.64% functions.
 All 38 Rust/browser policy fixtures matched exactly. The executed Chromium evidence is
 bounded non-release output under `dist/browser-qualification`.
 
