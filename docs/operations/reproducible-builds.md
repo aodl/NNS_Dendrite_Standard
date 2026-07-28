@@ -58,6 +58,12 @@ recorded four anonymous Governance query requests, zero Dendrite requests, zero
 interaction-triggered requests, zero update endpoints, zero unexpected destinations,
 and no console or page errors. The Verify action was present and not activated.
 
+The guarded anonymous `upgrade` dry-run at commit
+`fd79b3ced63619b8b4477cc2919a8aa8fb7d8e42` verified the candidate binding and every
+release checksum, observed the installed module, tolerated the expected anonymous
+controller-settings rejection, printed the exact intended upgrade command, and exited
+with `dry-run complete; no write performed`. It made no lifecycle write.
+
 ## Trust-state-hardening upgrade candidate — 2026-07-27
 
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
