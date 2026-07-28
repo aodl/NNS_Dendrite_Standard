@@ -49,6 +49,64 @@ export const RULE_TITLES = Object.freeze({
   "DENDRITE-DATA-003": "Unavailable evidence is fail-closed",
 });
 export const ruleTitle = (id) => RULE_TITLES[id] ?? `Technical check: ${id}`;
+export const RULE_DESCRIPTIONS = Object.freeze({
+  "DENDRITE-KNOWN-001": "The target must be returned as a full public neuron.",
+  "DENDRITE-KNOWN-002": "The target must contain valid known-neuron metadata.",
+  "DENDRITE-KNOWN-003": "The target must commit to at least one concrete topic.",
+  "DENDRITE-KNOWN-004": "Committed topics must be distinct, recognised concrete topics.",
+  "DENDRITE-LOCK-001": "The target must remain locked and not be dissolving.",
+  "DENDRITE-LOCK-002": "The dissolve delay must equal the standard maximum.",
+  "DENDRITE-LOCK-003": "The target must have positive effective stake.",
+  "DENDRITE-ACTIVE-001": "Voting power must have been refreshed within six nominal months.",
+  "DENDRITE-ACTIVE-002": "Positive deciding voting power must equal potential voting power.",
+  "DENDRITE-CONTROL-001": "The target controller must be inspectable as a canister.",
+  "DENDRITE-CONTROL-002": "The controller canister must have no installed Wasm module.",
+  "DENDRITE-CONTROL-003": "The controller canister must have no controllers.",
+  "DENDRITE-CONTROL-004": "The target raw hotkey list must be empty.",
+  "DENDRITE-CONTROL-005": "The target must not be marked not-for-profit.",
+  "DENDRITE-NM-001": "Neuron Management must contain between five and fifteen managers.",
+  "DENDRITE-NM-002": "The raw manager identifiers must be distinct.",
+  "DENDRITE-NM-003": "The target must not list itself as a manager.",
+  "DENDRITE-NM-004": "Every manager must be a full public known neuron.",
+  "DENDRITE-NM-005": "The alpha-vote and omega-reject anchors must both be known.",
+  "DENDRITE-COMMIT-001": "Each committed topic must have at least three delegates.",
+  "DENDRITE-COMMIT-002": "Each committed topic's raw delegate identifiers must be distinct.",
+  "DENDRITE-COMMIT-003": "Every committed delegate must also be a known manager.",
+  "DENDRITE-COMMIT-004": "Every committed delegate must follow only omega-reject on that topic.",
+  "DENDRITE-DEFAULT-001": "Every recognised uncommitted concrete topic must follow only alpha-vote.",
+  "DENDRITE-DEFAULT-002": "CatchAll must follow only alpha-vote.",
+  "DENDRITE-DEFAULT-003": "Every non-empty following topic code must be recognised by the standard.",
+  "DENDRITE-DATA-001": "Every required lookup must end as found or confirmed missing.",
+  "DENDRITE-DATA-002": "The report must include its standard, source, timestamp, and bounded failures.",
+  "DENDRITE-DATA-003": "No rule may pass when evidence required by that rule is unavailable.",
+});
+export const ruleDescription = (id) => RULE_DESCRIPTIONS[id]
+  ?? "This rule is not yet described by this interface; inspect its report message and raw evidence.";
+
+export const RULE_GROUPS = Object.freeze([
+  ["Target and committed topics", "DENDRITE-KNOWN-"],
+  ["Locked and active posture", "DENDRITE-LOCK-", "DENDRITE-ACTIVE-"],
+  ["Controller and target settings", "DENDRITE-CONTROL-"],
+  ["Neuron Management managers", "DENDRITE-NM-"],
+  ["Committed delegation", "DENDRITE-COMMIT-"],
+  ["Non-committed following", "DENDRITE-DEFAULT-"],
+  ["Evidence integrity", "DENDRITE-DATA-"],
+]);
+
+const STATUS_PRESENTATION = Object.freeze({
+  Pass: { label: "Pass", icon: "✓", kind: "pass" },
+  Fail: { label: "Fail", icon: "×", kind: "fail" },
+  Indeterminate: { label: "Indeterminate", icon: "?", kind: "indeterminate" },
+  Warning: { label: "Warning", icon: "!", kind: "warning" },
+  StandardUpdateRequired: { label: "Standard update required", icon: "↻", kind: "standardupdaterequired" },
+});
+export const statusPresentation = (status, verificationKind = "Consensus", ruleId = "") => {
+  if (status === "Indeterminate" && verificationKind === "Preliminary"
+    && PRELIMINARY_CONTROLLER_RULES.has(ruleId)) {
+    return { ...STATUS_PRESENTATION.Indeterminate, label: "Requires verification" };
+  }
+  return STATUS_PRESENTATION[status] ?? { label: status, icon: "?", kind: "indeterminate" };
+};
 
 export function errorMessage(error) {
   const generic = "Live check failed.";
@@ -195,6 +253,214 @@ const shortNeuronId = (value) => {
   const id = String(value);
   return id.length <= 12 ? id : `${id.slice(0, 6)}…${id.slice(-5)}`;
 };
+
+const attentionStatus = (status) => status !== "Pass";
+const canonicalGroup = (ruleId) => RULE_GROUPS.find(([, ...prefixes]) =>
+  prefixes.some((prefix) => ruleId.startsWith(prefix)))?.[0] ?? "Additional rules";
+export function canonicalRules(rules) {
+  const positions = new Map(Object.keys(RULE_TITLES).map((id, index) => [id, index]));
+  return [...rules].sort((left, right) => {
+    const leftPosition = positions.get(left.rule_id) ?? Number.MAX_SAFE_INTEGER;
+    const rightPosition = positions.get(right.rule_id) ?? Number.MAX_SAFE_INTEGER;
+    return leftPosition - rightPosition || left.rule_id.localeCompare(right.rule_id);
+  });
+}
+function disclosureButton(label, region, expanded = false, className = "") {
+  const button = element("button", label, className);
+  button.type = "button";
+  button.setAttribute("aria-expanded", String(expanded));
+  button.setAttribute("aria-controls", region.id);
+  region.hidden = !expanded;
+  button.addEventListener("click", () => {
+    const open = button.attributes?.["aria-expanded"] === "true"
+      || button.getAttribute?.("aria-expanded") === "true";
+    button.setAttribute("aria-expanded", String(!open));
+    region.hidden = open;
+  });
+  return button;
+}
+let disclosureSequence = 0;
+const disclosureId = (prefix) => `${prefix}-${++disclosureSequence}`;
+function statusNode(rule, verificationKind) {
+  const presentation = statusPresentation(variantName(rule.status), verificationKind, rule.rule_id);
+  const node = document.createElement("span");
+  node.className = `rule-status badge badge-${presentation.kind}`;
+  const icon = element("span", presentation.icon, "status-icon");
+  icon.setAttribute("aria-hidden", "true");
+  node.append(icon, element("span", presentation.label));
+  return node;
+}
+function relatedNeuronChip(value, copyText) {
+  const id = String(value);
+  const chip = document.createElement("span");
+  chip.className = "neuron-chip";
+  const link = document.createElement("a");
+  link.href = `#/neuron/${id}`;
+  link.textContent = shortNeuronId(id);
+  link.title = id;
+  link.setAttribute("aria-label", `Open Dendrite report for neuron ${id}`);
+  chip.append(link, copyButton(id, "Copy", copyText));
+  return chip;
+}
+function ruleDetails(rule, verificationKind, copyText) {
+  const region = document.createElement("div");
+  region.id = disclosureId("rule-detail");
+  region.className = "rule-detail";
+  region.setAttribute("role", "region");
+  region.setAttribute("aria-label", `${ruleTitle(rule.rule_id)} details`);
+  region.append(
+    element("p", ruleDescription(rule.rule_id), "rule-explanation"),
+    element("p", rule.message, "rule-message"),
+  );
+  const facts = document.createElement("dl");
+  if (rule.observed?.length) facts.append(metric("Observed value", rule.observed[0]));
+  if (rule.expected?.length) facts.append(metric("Expected value", rule.expected[0]));
+  if (rule.relevant_topic?.length) facts.append(metric("Relevant topic", topicLabel(rule.relevant_topic[0])));
+  if (rule.related_neuron_ids.length) {
+    const chips = document.createElement("div");
+    chips.className = "neuron-chips";
+    for (const id of rule.related_neuron_ids) chips.append(relatedNeuronChip(id, copyText));
+    facts.append(metric("Related neurons", chips));
+  }
+  const source = verificationKind === "Consensus"
+    ? "Live consensus-backed Dendrite report"
+    : "Preliminary browser query; controller evidence requires consensus verification";
+  facts.append(
+    metric("Evidence source", source),
+    metric("Technical rule ID", element("code", rule.rule_id)),
+  );
+  region.append(facts);
+  if (rule.observed?.length || rule.expected?.length || rule.related_neuron_ids.length) {
+    region.append(details("Complete raw values", [element("pre", safeJson({
+      observed: rule.observed,
+      expected: rule.expected,
+      relevant_topic: rule.relevant_topic,
+      related_neuron_ids: rule.related_neuron_ids,
+    }))]));
+  }
+  return region;
+}
+function renderRuleRow(rule, verificationKind, copyText) {
+  const status = variantName(rule.status);
+  const row = document.createElement("li");
+  row.className = `rule-row rule-${status.toLowerCase()}`;
+  row.dataset && (row.dataset.status = status);
+  row.setAttribute("data-status", status);
+  const region = ruleDetails(rule, verificationKind, copyText);
+  const heading = document.createElement("div");
+  heading.className = "rule-row-heading";
+  const toggle = disclosureButton("Show details", region, false, "rule-toggle");
+  toggle.setAttribute("aria-label", `Show details for ${ruleTitle(rule.rule_id)}`);
+  const summary = document.createElement("div");
+  summary.className = "rule-summary";
+  summary.append(element("h4", ruleTitle(rule.rule_id)));
+  if (attentionStatus(status)) summary.append(element("p", rule.message, "rule-reason"));
+  heading.append(toggle, summary, statusNode(rule, verificationKind));
+  toggle.addEventListener("click", () => {
+    const expanded = toggle.attributes?.["aria-expanded"] === "true"
+      || toggle.getAttribute?.("aria-expanded") === "true";
+    toggle.textContent = expanded ? "Hide details" : "Show details";
+    toggle.setAttribute("aria-label", `${expanded ? "Hide" : "Show"} details for ${ruleTitle(rule.rule_id)}`);
+  });
+  row.append(heading, region);
+  return row;
+}
+function renderRules(report, verificationKind, copyText) {
+  const section = document.createElement("section");
+  section.id = "rules";
+  section.className = "rules-section";
+  section.append(element("h2", "Standard rules"));
+  const controls = document.createElement("div");
+  controls.className = "rule-controls";
+  controls.setAttribute("aria-label", "Filter and expand standard rules");
+  const count = element("p", "", "rule-count");
+  count.setAttribute("aria-live", "polite");
+  const list = document.createElement("div");
+  list.className = "rule-groups";
+  const rows = [];
+  let currentGroup;
+  let groupList;
+  for (const rule of canonicalRules(report.rules)) {
+    const group = canonicalGroup(rule.rule_id);
+    if (group !== currentGroup) {
+      const groupSection = document.createElement("section");
+      groupSection.className = "rule-group";
+      groupSection.append(element("h3", group));
+      groupList = document.createElement("ul");
+      groupList.className = "rule-list";
+      groupSection.append(groupList);
+      list.append(groupSection);
+      currentGroup = group;
+    }
+    const row = renderRuleRow(rule, verificationKind, copyText);
+    rows.push({ rule, row });
+    groupList.append(row);
+  }
+  let active = "All";
+  const filters = [
+    ["All", () => true],
+    ["Needs attention", (status) => attentionStatus(status)],
+    ["Failed", (status) => status === "Fail"],
+    ["Passed", (status) => status === "Pass"],
+  ];
+  const apply = (label, predicate) => {
+    active = label;
+    let visible = 0;
+    for (const { rule, row } of rows) {
+      row.hidden = !predicate(variantName(rule.status));
+      if (!row.hidden) visible += 1;
+    }
+    for (const button of filterButtons) button.setAttribute("aria-pressed", String(button.textContent === active));
+    count.textContent = `${active} filter · ${visible} of ${rows.length} rules visible`;
+  };
+  const filterButtons = filters.map(([label, predicate]) => {
+    const button = element("button", label, "secondary rule-filter");
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(label === active));
+    button.addEventListener("click", () => apply(label, predicate));
+    controls.append(button);
+    return button;
+  });
+  const setExpanded = (predicate, expanded) => {
+    for (const { rule, row } of rows) {
+      if (!predicate(variantName(rule.status))) continue;
+      const toggle = row.children[0].children[0];
+      const current = toggle.attributes?.["aria-expanded"] === "true"
+        || toggle.getAttribute?.("aria-expanded") === "true";
+      if (current !== expanded) {
+        if (typeof toggle.dispatch === "function") toggle.dispatch("click");
+        else toggle.click();
+      }
+    }
+  };
+  const expandAttention = element("button", "Expand attention", "secondary");
+  expandAttention.type = "button";
+  expandAttention.addEventListener("click", () => setExpanded(attentionStatus, true));
+  const collapseAll = element("button", "Collapse all", "secondary");
+  collapseAll.type = "button";
+  collapseAll.addEventListener("click", () => setExpanded(() => true, false));
+  controls.append(expandAttention, collapseAll);
+  section.append(controls, count, list);
+  apply("All", () => true);
+  return section;
+}
+
+function expandableSection(id, title, summary, content, expanded = false, importance = "") {
+  const section = document.createElement("section");
+  section.id = id;
+  section.className = `page-section ${importance}`.trim();
+  const region = document.createElement("div");
+  region.id = disclosureId(`${id}-content`);
+  region.className = "section-content";
+  region.setAttribute("role", "region");
+  region.setAttribute("aria-label", title);
+  region.append(...content);
+  const heading = document.createElement("h2");
+  const button = disclosureButton(`${title} — ${summary}`, region, expanded, "section-toggle");
+  heading.append(button);
+  section.append(heading, region);
+  return section;
+}
 function renderTopics(report, copyText) {
   const list = document.createElement("div");
   list.className = "topic-groups";
@@ -308,18 +574,46 @@ export function renderReport(root, viewModel, options = {}) {
   root.append(header);
   if (error) root.append(element("p", error, "verification-warning"));
   const exactStatus = variantName(report.overall_status);
-  root.append(element("h2", verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report), `main-status status-${exactStatus.toLowerCase()}`));
-  if (verificationKind === "Preliminary") {
-    const controllerRules = report.rules.filter((rule) => PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id)
-      && variantName(rule.status) === "Indeterminate");
-    root.append(
-      element("p", "Controller blackhole checks require on-chain verification.", "muted"),
-      details(`Requires on-chain verification (${controllerRules.length})`, [
-        element("p", `${controllerRules.length} checks require consensus verification`),
-        ...controllerRules.map(renderFinding),
-      ], "consensus-required"),
-    );
+  const overview = document.createElement("section");
+  overview.id = "overview";
+  overview.className = "overview";
+  const overallHeading = verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report);
+  const counts = new Map();
+  for (const rule of report.rules) {
+    const presentation = statusPresentation(variantName(rule.status), verificationKind, rule.rule_id);
+    counts.set(presentation.label, (counts.get(presentation.label) ?? 0) + 1);
   }
+  const countOrder = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"];
+  const countText = countOrder.filter((label) => counts.has(label))
+    .map((label) => `${counts.get(label)} ${label.toLowerCase()}`).join(" · ");
+  overview.append(
+    element("h2", overallHeading, `main-status status-${exactStatus.toLowerCase()}`),
+    element("p", countText, "status-counts"),
+  );
+  if (verificationKind === "Preliminary") {
+    overview.append(element("p", "Preliminary public evidence is not a compliant verdict. Controller blackhole rules require a current consensus verification.", "verification-warning"));
+  }
+  root.append(overview);
+
+  const navigation = document.createElement("nav");
+  navigation.className = "section-navigation";
+  navigation.setAttribute("aria-label", "Neuron report sections");
+  for (const [label, id] of [
+    ["Overview", "overview"], ["Rules", "rules"], ["Characteristics", "characteristics"],
+    ["Managers", "managers"], ["Delegation", "delegation"], ["Evidence", "evidence"],
+  ]) {
+    const link = document.createElement("a");
+    link.href = `#${id}`;
+    link.textContent = label;
+    link.addEventListener("click", (event) => {
+      const target = document.getElementById?.(id);
+      if (!target?.scrollIntoView) return;
+      event.preventDefault();
+      target.scrollIntoView();
+    });
+    navigation.append(link);
+  }
+  root.append(navigation, renderRules(report, verificationKind, options.copyText));
 
   const metrics = document.createElement("dl");
   metrics.className = "metrics";
@@ -335,21 +629,36 @@ export function renderReport(root, viewModel, options = {}) {
     metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Requires on-chain verification"),
     metric("Verification level", verificationKind === "Consensus" ? "Consensus verified" : "Preliminary"),
   );
-  root.append(metrics);
+  root.append(expandableSection("characteristics", "Key characteristics", `${metrics.children.length} metrics`, [metrics]));
 
-  const findings = sortedFindings(verificationKind === "Preliminary"
-    ? report.rules.filter((rule) => !PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id))
-    : report.rules);
-  root.append(element("h2", findings.length ? "Needs attention" : "No findings requiring attention"));
-  const attention = document.createElement("section");
-  attention.className = "attention";
-  for (const finding of findings) attention.append(renderFinding(finding));
-  root.append(attention);
-  const passed = report.rules.filter((rule) => variantName(rule.status) === "Pass");
-  root.append(details(`Passed checks (${passed.length})`, passed.map((item) => element("p", `${ruleTitle(item.rule_id)} — ${item.message}`)), "passed-checks"));
+  const managerStatuses = report.managers.map((manager) => variantName(manager.evidence_status));
+  const managersUnavailable = managerStatuses.some((status) => status === "Unavailable");
+  const managersMissing = managerStatuses.some((status) => status === "ConfirmedMissing");
+  const managerSummary = !report.managers.length
+    ? "none found"
+    : managersUnavailable
+      ? `${report.managers.length} listed, evidence unavailable`
+      : managersMissing
+        ? `${report.managers.length} listed, missing evidence`
+        : `${report.managers.length} found, evidence available`;
+  const managerContent = report.managers.length
+    ? [renderManagers(report, options.copyText)]
+    : [element("p", "No manager evidence is available in this report.", "empty-state")];
+  root.append(expandableSection("managers", "Managers", managerSummary, managerContent, false,
+    managersUnavailable || managersMissing ? "section-important" : ""));
 
-  root.append(element("h2", "Managers"), renderManagers(report, options.copyText));
-  root.append(element("h2", "Topic configurations"), renderTopics(report, options.copyText));
+  const topicGroups = groupTopics(report);
+  const topicCount = new Set([
+    ...report.committed_topics.map((topic) => topic.topic),
+    ...report.non_committed_topics.map((topic) => topic.topic),
+  ]).size;
+  const delegationSummary = topicCount
+    ? `${topicGroups.length} configurations across ${topicCount} topics`
+    : "no topic configurations";
+  root.append(expandableSection("delegation", "Topic delegation", delegationSummary,
+    topicCount ? [renderTopics(report, options.copyText)] : [
+      element("p", "No topic delegation evidence is present in this report.", "empty-state"),
+    ]));
 
   const metadata = [
     element("p", `Standard: ${report.standard_version}`),
@@ -366,7 +675,6 @@ export function renderReport(root, viewModel, options = {}) {
   const technical = document.createElement("section");
   technical.className = "technical-evidence";
   technical.append(
-    element("h2", "Technical evidence"),
     details("Verification metadata", metadata),
     details("Raw target evidence", [element("pre", safeJson(target ?? null))]),
     details("Controller blackhole evidence", [...controllerTechnical, element("pre", safeJson(controller ?? null))]),
@@ -374,5 +682,10 @@ export function renderReport(root, viewModel, options = {}) {
     details(`Source failures (${report.source_failures.length})`, [element("pre", safeJson(report.source_failures))]),
     details("Raw report", [element("pre", safeJson(report))]),
   );
-  root.append(technical);
+  const evidenceImportance = report.source_failures.length ? "section-important" : "";
+  root.append(expandableSection("evidence", "Technical evidence",
+    report.source_failures.length
+      ? `report, sources and raw values · ${report.source_failures.length} source failures`
+      : "report, sources and raw values",
+    [technical], false, evidenceImportance));
 }

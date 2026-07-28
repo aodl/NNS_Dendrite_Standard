@@ -8,6 +8,13 @@ strictly validated public Governance evidence in browser memory; an explicit
 `Verify on-chain` action obtains the authoritative consensus report. Its public
 application methods remain only update `check_neuron` and query `http_request`.
 
+The neuron page is rules-first: after its compact identity and trust-state summary it
+shows every Standard rule in canonical order with visible text and a decorative status
+symbol. Filters and disclosures are memory-only. Characteristics, managers, topic
+delegation, and complete technical evidence follow as expandable sections; preliminary
+controller uncertainty is labelled `Requires verification`, never inferred as pass or
+failure.
+
 Production identifiers and configuration have one authoritative source in
 [deployment](docs/operations/deployment.md). Factual lifecycle evidence is retained in
 the [production record](docs/operations/production-record.md).

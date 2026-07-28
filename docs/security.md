@@ -25,6 +25,15 @@ The frontend creates text-safe DOM nodes, validates HTTPS links, never uses dyna
 validated build-time canister principal, a fixed API origin, no root-key fetching,
 strict CSP, and no third-party runtime content.
 
+The rules interface preserves policy status as visible text; check, cross, question,
+warning, and update symbols are decorative and hidden from assistive technology.
+Native buttons expose `aria-expanded` and controlled regions, section links retain
+visible focus, and shortened related-neuron IDs retain full accessible labels and copy
+values. Responsive rows wrap status and long titles without page overflow, touch
+targets remain at least 44 CSS pixels, and motion is disabled when reduced motion is
+requested. Filtering, disclosure, and section navigation issue no network request and
+persist no preference.
+
 Preliminary analysis adds a separate anonymous query boundary. Its generated actor
 exposes only `list_neurons`, fixes Governance as the destination, explicitly requests
 only public full neurons for bounded IDs, and verifies query signatures. Every response

@@ -34,10 +34,15 @@ Chrome 144.0.7559.96 from the digest-pinned
 executes 1440×1000 and 390×844 viewports, captures bounded JSON evidence and
 screenshots under `dist/browser-qualification`, fails on page/console errors or
 material page overflow, and keyboard-focuses the copy, refresh, and Verify controls.
+It also proves the full rules view precedes managers and delegation, expands a rule by
+keyboard, applies the attention filter, rejects preliminary controller passes, follows
+section navigation without changing the neuron route, opens every lower disclosure at
+both widths, and repeats overflow checks after interaction.
 Network assertions require the fixed Governance canister's v3 `query` endpoint (plus
 query-signature `read_state`), anonymous headers, no update endpoint, no unexpected
-canister, and zero Dendrite requests. The procedure never invokes Internet Identity,
-clicks `Verify on-chain`, or sends an NNS mutation.
+canister, and zero Dendrite requests. Rendering, filtering, rule/section expansion and
+section navigation must add zero requests. The procedure never invokes Internet
+Identity, clicks `Verify on-chain`, or sends an NNS mutation.
 
 The Rust unit suite deterministically regenerates
 `canisters/dendrite/web/test/fixtures/evaluator.json`. Its 32 cases record Rust overall
@@ -47,12 +52,17 @@ policy-field equality. The cases cover compliant, missing/unavailable/contradict
 evidence, target posture, manager cardinality and availability, anchor/default/committed
 following, quorum, controller evidence, source failures, and standard-update semantics.
 
-Frontend state tests separately prove that route entry calls Governance without calling
-Dendrite, controller-dependent preliminary rules cannot pass, explicit verification
-calls Dendrite once, bounded verifier errors retain preliminary evidence, and
-authenticated transaction controls require a current authoritative report. Existing
-transaction tests continue to prove that final preflight independently invokes
-`check_neuron` and a failed preflight sends no Governance mutation.
+Frontend state and presentation tests separately prove that every rule occurs once in
+canonical order; all policy statuses have icon and text; unknown IDs fall back safely;
+rule details, values, topics, local neuron links, copy controls, filters, bulk
+disclosures, section summaries, empty/unavailable states, and accessible expansion
+attributes behave without mutating the report. They also prove that route entry calls
+Governance without calling Dendrite, controller-dependent preliminary rules cannot
+pass, explicit verification calls Dendrite once, bounded verifier errors retain
+preliminary evidence, route races remain suppressed, and authenticated transaction
+controls require a current authoritative report. Existing transaction tests continue
+to prove that final preflight independently invokes `check_neuron` and a failed
+preflight sends no Governance mutation.
 
 The 2026-07-27 candidate ran 129 frontend tests and 59 Rust unit tests plus 3 PocketIC
 scenarios. Workspace Rust line coverage was 91.44% and rule-engine line coverage was

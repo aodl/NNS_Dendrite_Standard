@@ -61,6 +61,42 @@ try {
     assert.match(text, /Verify on-chain/);
     assert.doesNotMatch(text, /Consensus verified/);
     assert.doesNotMatch(text, /Controller blackhole\s+Confirmed/);
+    const hierarchy = await page.evaluate(() => ({
+      rules: document.querySelector("#rules")?.getBoundingClientRect().top,
+      managers: document.querySelector("#managers")?.getBoundingClientRect().top,
+      delegation: document.querySelector("#delegation")?.getBoundingClientRect().top,
+      ruleCount: document.querySelectorAll(".rule-row").length,
+    }));
+    assert(hierarchy.ruleCount > 0, "complete rules view is missing");
+    assert(hierarchy.rules < hierarchy.managers && hierarchy.managers < hierarchy.delegation,
+      `unexpected section hierarchy: ${JSON.stringify(hierarchy)}`);
+    const initialRequestCount = requests.length;
+    const routeBeforeNavigation = page.url();
+    await page.focus(".rule-toggle");
+    await page.keyboard.press("Enter");
+    assert.equal(await page.$eval(".rule-toggle", (node) => node.getAttribute("aria-expanded")), "true");
+    await page.click(".rule-filter:nth-of-type(2)");
+    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /Needs attention filter/);
+    assert(await page.$$eval(".rule-row:not([hidden])", (nodes) => nodes.length) > 0);
+    const preliminaryControllers = await page.$$eval(".rule-row", (nodes) => nodes
+      .filter((node) => /Controller canister/.test(node.textContent))
+      .map((node) => node.textContent));
+    assert(preliminaryControllers.length >= 3);
+    for (const controllerText of preliminaryControllers) {
+      assert.match(controllerText, /Requires verification/);
+      assert.doesNotMatch(controllerText, /\bPass\b/);
+    }
+    await page.click('.section-navigation a[href="#rules"]');
+    assert.equal(page.url(), routeBeforeNavigation, "section navigation changed the neuron route");
+    assert(Math.abs(await page.$eval("#rules", (node) => node.getBoundingClientRect().top)) < 100);
+    for (const id of ["characteristics", "managers", "delegation", "evidence"]) {
+      const selector = `#${id} .section-toggle`;
+      assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "false");
+      await page.click(selector);
+      assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "true");
+    }
+    assert.equal(requests.length, initialRequestCount,
+      "rendering, filtering, expansion, or section navigation triggered a network request");
     const overflow = await page.evaluate(() => ({
       document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       body: document.body.scrollWidth - document.body.clientWidth,
@@ -87,6 +123,8 @@ try {
       consoleErrors: bounded(consoleErrors),
       pageErrors: bounded(pageErrors),
       overflow,
+      hierarchy,
+      interactionRequests: requests.length - initialRequestCount,
       focusEvidence: bounded(focusEvidence.map((entry) => JSON.stringify(entry)), 80),
       canisterRequests: requests,
       screenshot: `${scenario.name}.png`,
@@ -128,6 +166,12 @@ const evidence = {
     unexpectedCanisterDestinations: 0,
     verifyActionAutomaticallyActivated: false,
     assetManifestContentAddressesVerified: true,
+    rulesBeforeManagersAndDelegation: true,
+    keyboardRuleExpansion: true,
+    attentionFiltering: true,
+    preliminaryControllerPasses: 0,
+    sectionNavigationRouteChanges: 0,
+    interactionNetworkRequests: 0,
   },
   scenarios: results,
 };

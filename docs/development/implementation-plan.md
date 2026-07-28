@@ -1,5 +1,24 @@
 # Aggressive simplification implementation plan
 
+## Rules-first neuron information architecture
+
+Starting boundary: completed trust-state candidate `20c6aff`.
+
+- [x] Make every `ComplianceReport` rule the primary post-verdict interface in
+  canonical Standard order, with reviewed titles/descriptions and an unknown-ID
+  fallback.
+- [x] Preserve all five policy states while presenting preliminary controller
+  indeterminacy as `Requires verification`; pair visible status text with
+  assistive-technology-hidden symbols.
+- [x] Add memory-only filters, accessible rule disclosures, local related-neuron
+  routes/copy controls, exact human evidence, and complete raw technical evidence.
+- [x] Order characteristics, managers, delegation, and technical evidence as
+  expandable sections with evidence-derived summaries and semantic in-page navigation.
+- [x] Qualify desktop/mobile wrapping, keyboard use, focus, expansion, filtering,
+  route stability, zero interaction requests, and zero ordinary Dendrite requests.
+- [ ] Regenerate the final candidate and record the complete release,
+  reproducibility, security, SBOM, Chromium, and guarded no-write evidence.
+
 ## Browser-first trust-state correction
 
 Starting boundary: `d8753c6a351103f00d935931d947a5d2adf1374a`.
