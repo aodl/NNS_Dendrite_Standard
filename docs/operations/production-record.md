@@ -1,9 +1,34 @@
 # Production record
 
-**Status: INSTALLED — read-only application verification is incomplete.**
+**Status: UPGRADED — module and public certified assets verified.**
 
 Only an operator-supplied real deployment result may change this into completed
 evidence. Never include private identity or authentication material.
+
+## Rules-first upgrade — 2026-07-28
+
+| Field | Recorded value |
+| --- | --- |
+| Release Git commit | `8582e64` |
+| Lifecycle client | `dfx 0.27.0` |
+| Operator identity | `codex_local` |
+| Deployment mode | `upgrade` |
+| Exact upgrade command | `DFX_IDENTITY=codex_local DFX_WARNING=-mainnet_plaintext_identity dfx canister install hp4av-oiaaa-aaaar-qcaha-cai --network ic --mode upgrade --wasm dist/release/dendrite.wasm` |
+| Controllers before and after | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae`, `zkkkd-i34qc-367ln-e2u7o-ezznu-dkfqh-gtfvz-cviph-6qa4v-evtfs-wqe` |
+| Cycles balance before | `5_428_266_033_775` |
+| Cycles balance after | `5_406_247_854_072` |
+| Freezing threshold before and after | `7_776_000` seconds |
+| Previous module hash | `e2b621207262360035803d45c3a6e144116219751c5391c517e51b625eb28a02` |
+| Installed module hash | `da0b1892880866e941b1c7461c0672ccc80d44a6b93fcb4727e63f26b4d36d0e` |
+| Release `SHA256SUMS` hash | `249064631886d6244e35a467792339dc18e5158632b0e769d443bbddde0a8559` |
+| Asset-manifest hash | `eeb605c876ba3aa74348f2dff3b1b210015f4d001b2d322383924c1f537bfb8b` |
+| Generated application hash | `6fbb6d8d0eeb471ad86be18fc8dd27db8cb0d16f62ce1aad7103fc7a457b35fc` |
+| Generated stylesheet hash | `59eb7b4de6930a5126bf23b216a545a091dae5e9ef0617a418a5ba374286bcb4` |
+| Deployment verification timestamp | `2026-07-28T19:37:34Z` |
+| Verification | Module hash matched; `/`, `/asset-manifest.json`, both generated assets, and `/.well-known/ii-alternative-origins` returned HTTP 200 with IC certification and byte-matched the candidate |
+| Notes | The consolidated anonymous verifier could not read controller-only settings, as expected. Direct public HTTP verification completed. No controller, freezing threshold, authentication configuration, or other setting changed; no cycle top-up or NNS mutation occurred. |
+
+## Initial installation — 2026-07-26
 
 | Field | Recorded value |
 | --- | --- |
