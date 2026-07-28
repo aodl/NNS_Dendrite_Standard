@@ -27,6 +27,37 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Rules-first neuron-page upgrade candidate — 2026-07-28
+
+Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
+`dendrite-canonical` `docker-container` builder. Two forced-clean `--no-cache`
+`linux/amd64` exports had identical file sets, byte-identical files, and identical
+deterministic `SHA256SUMS`. This candidate has not been installed or submitted to
+mainnet. It supersedes, without deleting, the historical trust-state candidate below.
+
+- Raw Wasm SHA-256:
+  `da0b1892880866e941b1c7461c0672ccc80d44a6b93fcb4727e63f26b4d36d0e`
+- `SHA256SUMS` file SHA-256:
+  `249064631886d6244e35a467792339dc18e5158632b0e769d443bbddde0a8559`
+- Frontend tree SHA-256:
+  `a1901e741fb423e3ae52d14e6a122b6124ffcf3f7592d48cb0e05dfa4050f1e1`
+- `asset-manifest.json` SHA-256:
+  `eeb605c876ba3aa74348f2dff3b1b210015f4d001b2d322383924c1f537bfb8b`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- SBOM manifest SHA-256:
+  `be5ba61c762bd244ff88acf635a2408c643f8bf1abb79b7131df0e646b2ae52a`
+- Executed Chromium evidence SHA-256:
+  `e2d2ea197734b0cd03ecd256c31e7bc1df80c2343f3d2a206f50b17011c7f300`
+
+The exact canonical frontend export passed Chrome 144.0.7559.96 at 1440×1000 and
+390×844. It verified canonical rule ordering above managers and delegation, keyboard
+rule expansion, attention filtering, preliminary controller uncertainty, route-stable
+section navigation, every lower disclosure, and post-interaction overflow. The run
+recorded four anonymous Governance query requests, zero Dendrite requests, zero
+interaction-triggered requests, zero update endpoints, zero unexpected destinations,
+and no console or page errors. The Verify action was present and not activated.
+
 ## Trust-state-hardening upgrade candidate — 2026-07-27
 
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
@@ -34,6 +65,9 @@ Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
 `linux/amd64` exports had identical file sets, byte-identical files, and identical
 deterministic `SHA256SUMS`. This candidate has not been installed or submitted to
 mainnet.
+
+This `e2b621…` candidate is preserved as historical evidence and is superseded by the
+2026-07-28 rules-first candidate. It is not the current release candidate.
 
 - Raw Wasm SHA-256:
   `e2b621207262360035803d45c3a6e144116219751c5391c517e51b625eb28a02`

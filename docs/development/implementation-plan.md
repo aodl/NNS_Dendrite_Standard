@@ -16,7 +16,7 @@ Starting boundary: completed trust-state candidate `20c6aff`.
   expandable sections with evidence-derived summaries and semantic in-page navigation.
 - [x] Qualify desktop/mobile wrapping, keyboard use, focus, expansion, filtering,
   route stability, zero interaction requests, and zero ordinary Dendrite requests.
-- [ ] Regenerate the final candidate and record the complete release,
+- [x] Regenerate the final candidate and record the complete release,
   reproducibility, security, SBOM, Chromium, and guarded no-write evidence.
 
 ## Browser-first trust-state correction
