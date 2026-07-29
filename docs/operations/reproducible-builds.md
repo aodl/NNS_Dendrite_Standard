@@ -41,7 +41,7 @@ analysis adds only anonymous Governance `query`/signature `read_state` and certi
 `read_state` to the exact query-reported controller.
 
 - Raw Wasm SHA-256:
-  `8a983e2a7dfff14e7b7547b0c6d946740d06cc160922e8bb702aa0fc92eaf6d7`
+  `8fec1ba048185e9020b815d0dadc499b5305550ff7f27f314885b2acc17278cd`
 - Frontend tree SHA-256:
   `eb53158bec323ddbe3932c25ce53aa328cd628c10429e07ddb87a1f8fef553dc`
 - Asset manifest SHA-256:
