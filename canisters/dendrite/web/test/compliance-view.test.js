@@ -352,7 +352,40 @@ test("preliminary controller uncertainty is verification-required and never pass
   assert.ok(byText(row, "Requires verification").length);
   assert.equal(byText(row, "Pass").length, 0);
   assert.equal(byText(row, "Fail").length, 0);
-  assert.ok(byText(root, "Preliminary public evidence is not a compliant verdict. Controller blackhole rules require a current consensus verification.").length);
+  assert.ok(byText(root, "Consensus verification is required before management actions.").length);
+});
+
+test("live and consensus provenance appears once without per-rule trust warnings", () => {
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  try {
+    const live = new FakeNode("main");
+    renderReport(live, {
+      report: report(),
+      verificationKind: "Preliminary",
+      provenance: {
+        controllerEvidence: {
+          kind: "certified-system-state",
+          canisterId: "aaaaa-aa",
+          certificateTime: "2026-07-29T00:00:00.000Z",
+        },
+      },
+    });
+    const visibleText = (root) => walk(root, (node) => typeof node.textContent === "string")
+      .map((node) => node.textContent).join("\n");
+    const liveText = visibleText(live);
+    assert.match(liveText, /Neuron data: replica-signed NNS Governance query/);
+    assert.match(liveText, /Controller state: IC-certified/);
+    assert.match(liveText, /Evaluation: browser/);
+    assert.equal((liveText.match(/Controller state: IC-certified/g) ?? []).length, 1);
+    assert.doesNotMatch(liveText, /Preliminary browser query; controller evidence requires consensus verification/);
+
+    const consensus = new FakeNode("main");
+    renderReport(consensus, { report: report(), verificationKind: "Consensus" });
+    assert.match(visibleText(consensus), /replicated Dendrite verification/);
+  } finally {
+    globalThis.document = prior;
+  }
 });
 
 test("header action hierarchy and flat section structure are accessible", () => {
@@ -362,7 +395,7 @@ test("header action hierarchy and flat section structure are accessible", () => 
   });
   assert.equal(walk(preliminary, (node) => node.className?.includes?.("button-primary")).length, 1);
   assert.ok(byText(preliminary, "Verify on-chain")[0].className.includes("button-primary"));
-  assert.ok(byText(preliminary, "Refresh preliminary")[0].className.includes("button-quiet"));
+  assert.ok(byText(preliminary, "Refresh live analysis")[0].className.includes("button-quiet"));
   assert.equal(walk(preliminary, (node) => node.className === "section-navigation").length, 0);
   const consensus = render("Consensus", { onVerifyConsensus() {} });
   assert.equal(walk(consensus, (node) => node.className?.includes?.("button-primary")).length, 0);

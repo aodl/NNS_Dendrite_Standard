@@ -287,7 +287,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -1082,7 +1082,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -1757,7 +1757,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -2425,7 +2425,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -3102,7 +3102,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -3777,7 +3777,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -4452,7 +4452,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -5127,7 +5127,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -5802,7 +5802,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -6462,7 +6462,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -7246,7 +7246,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -7949,7 +7949,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -8635,7 +8635,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -9304,7 +9304,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -9972,7 +9972,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -10649,7 +10649,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -11253,7 +11253,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -11924,7 +11924,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -12597,7 +12597,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -13271,7 +13271,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -13943,7 +13943,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -14622,7 +14622,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -15307,7 +15307,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -15978,7 +15978,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info; mandatory evidence was unavailable",
+          "message": "controller canister state is available; mandatory evidence was unavailable",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -16655,7 +16655,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -17332,7 +17332,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -18007,7 +18007,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -18682,7 +18682,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -19366,7 +19366,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -20041,7 +20041,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -20724,7 +20724,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -21399,7 +21399,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info; mandatory evidence was unavailable",
+          "message": "controller canister state is available; mandatory evidence was unavailable",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -22074,7 +22074,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -22759,7 +22759,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -23443,7 +23443,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -24113,7 +24113,7 @@
         },
         {
           "expected": null,
-          "message": "controller resolves through canister_info",
+          "message": "controller canister state is available",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,

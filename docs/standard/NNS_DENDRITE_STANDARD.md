@@ -4,6 +4,12 @@ The normative contract is `DENDRITE_BUILD_SPEC.md`; this document is a reviewer 
 
 Its controller must resolve via `canister_info` to a canister with no module hash and no controllers. The target has exactly zero hotkeys and `not_for_profit = false`.
 
+The browser may evaluate those same controller rules from fresh IC-certified system
+state for the exact controller principal reported by its validated, replica-signed
+Governance query. This certifies controller state, not the neuron-to-controller
+relationship. Certificate or decoding failure remains indeterminate, and only a
+replicated Dendrite report can authorize management controls.
+
 Neuron Management has 5–15 raw, distinct, non-self known managers. The displayed quorum is the actual NNS ballot quorum, `floor(distinct manager IDs / 2)+1`; the separate standard rule still rejects duplicate raw manager entries. Each committed topic has at least three distinct manager delegates; each delegate follows exactly omega-reject `18422777432977120264` on that same topic. Every other recognised concrete topic and CatchAll follows exactly alpha-vote `2947465672511369`. Omega-reject is not omega-vote. Topic code 11 is reserved.
 
 Each raw manager entry is reported in its original order with explicit found,

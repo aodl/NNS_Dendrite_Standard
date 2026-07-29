@@ -282,10 +282,11 @@ caching. Responses have correct MIME types, CSP, `X-Content-Type-Options`, refer
 permissions policies, frame restrictions, and HSTS where appropriate. No second asset
 canister or unrelated routing/compression/social-image machinery exists.
 
-The frontend validates a canonical non-zero decimal `u64`, calls
-`check_neuron(BigInt(id))`, shows loading, renders the complete live report or a typed
-error, and offers `Check again`, which makes another live update call. It never labels a
-result cached, stale, or refreshed.
+The frontend validates a canonical non-zero decimal `u64`. Browser live analysis uses
+replica-signed Governance queries and fresh IC-certified controller system state.
+Explicit consensus verification calls `check_neuron(BigInt(id))`; it remains the only
+report that can authorize management controls. Refresh performs a new live analysis
+and invalidates prior consensus evidence. No result is labelled cached.
 
 All dynamic content uses constructed text nodes or `textContent`; never `innerHTML`.
 Validate HTTPS links, preserve keyboard access and responsive status/error rendering,

@@ -267,7 +267,7 @@ pub fn evaluate(
         now,
         "DENDRITE-CONTROL-001",
         target.controller.is_some() && ce.is_some_and(|x| x.call_succeeded),
-        "controller resolves through canister_info",
+        "controller canister state is available",
     ));
     out.push(rule(
         now,

@@ -219,6 +219,42 @@ test("preliminary evaluator never passes controller-only rules", async () => {
   assert.notEqual(variantName(report.overall_status), "Compliant");
 });
 
+test("certified controller evidence drives live controller pass and fail semantics", async () => {
+  const target = neuron(42n, {
+    followees: [
+      [0, { followees: [{ id: ALPHA_VOTE_NEURON_ID }] }],
+      [1, { followees: [10n, 11n, 12n, 13n, 14n].map((id) => ({ id })) }],
+      [4, { followees: [10n, 11n, 12n].map((id) => ({ id })) }],
+    ],
+    known_neuron_data: [{ name: "Target", description: [], links: [[]], committed_topics: [[[topic("Governance")]]] }],
+  });
+  const governance = { list_neurons: async (request) => response(request.neuron_ids, request.neuron_ids.map((id) => id === 42n ? target : neuron(id, { known_neuron_data: [{ name: `Known ${id}`, description: [], links: [[]], committed_topics: [] }], followees: [[4, { followees: [{ id: OMEGA_REJECT_NEURON_ID }] }]] }))) };
+  const collect = (controller) => collectPreliminaryEvidence(
+    42n,
+    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request) }),
+    { read: async (principal) => {
+      assert.equal(principal.toText(), target.controller[0].toText());
+      return controller;
+    } },
+  );
+  for (const [controller, statuses] of [
+    [{ callSucceeded: true, moduleHash: undefined, controllers: [], certificateTime: "2026-01-01T00:00:00.000Z" }, ["Pass", "Pass", "Pass"]],
+    [{ callSucceeded: true, moduleHash: new Uint8Array(32), controllers: [], certificateTime: "2026-01-01T00:00:00.000Z" }, ["Pass", "Fail", "Pass"]],
+    [{ callSucceeded: true, moduleHash: undefined, controllers: [fixturePrincipal(2)], certificateTime: "2026-01-01T00:00:00.000Z" }, ["Pass", "Pass", "Fail"]],
+  ]) {
+    const report = evaluatePreliminary(42n, await collect(controller));
+    assert.deepEqual(report.rules.filter((rule) => rule.rule_id.startsWith("DENDRITE-CONTROL-0"))
+      .slice(0, 3).map((rule) => variantName(rule.status)), statuses);
+  }
+  const unavailable = evaluatePreliminary(42n, await collectPreliminaryEvidence(
+    42n,
+    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request) }),
+    { read: async () => { throw new Error("stale certificate"); } },
+  ));
+  assert.deepEqual(unavailable.rules.filter((rule) => ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"].includes(rule.rule_id))
+    .map((rule) => variantName(rule.status)), ["Indeterminate", "Indeterminate", "Indeterminate"]);
+});
+
 const differentialEvidence = () => {
   const managers = [100n, 101n, 102n, 103n, 104n];
   const following = new Map([[1, [...managers]], [4, [100n, 101n, 102n]]]);
@@ -426,7 +462,7 @@ test("operation owners make preliminary and consensus completion order race-safe
     while (!consensus[0]) await Promise.resolve();
     await findNode(root, (node) => node.textContent === "Verifying on-chain…").dispatch("click");
     assert.equal(consensus.length, 1, "repeated activation must reuse the owned request");
-    const refresh = findNode(root, (node) => node.textContent === "Refresh preliminary").dispatch("click");
+    const refresh = findNode(root, (node) => node.textContent === "Refresh live analysis").dispatch("click");
     while (!preliminary[1]) await Promise.resolve();
     assert.doesNotMatch(JSON.stringify(root), /Verifying on-chain…/);
     preliminary[1].resolve({ ...report(), standard_version: "fresh-preliminary" });
@@ -518,14 +554,14 @@ test("first verification unavailable differs from stale re-verification and cont
     await app.start();
     assert.equal(governanceReads, 1);
     assert.equal(dendriteCalls, 0);
-    assert.match(JSON.stringify(root), /Preliminary/);
+    assert.match(JSON.stringify(root), /Live analysis/);
     assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
 
     const firstFailure = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
     while (dendriteCalls < 1) await Promise.resolve();
     assert.equal(dendriteCalls, 1);
     assert.match(JSON.stringify(root), /Verifying on-chain…/);
-    assert.match(JSON.stringify(root), /Preliminary/);
+    assert.match(JSON.stringify(root), /Live analysis/);
     assert.doesNotMatch(JSON.stringify(root), /Verification stale|Consensus unavailable|Manage through NNS Governance/);
     await firstFailure;
     assert.match(JSON.stringify(root), /Consensus unavailable|verification transport unavailable/);
@@ -534,7 +570,7 @@ test("first verification unavailable differs from stale re-verification and cont
     const lowCycles = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
     while (dendriteCalls < 2) await Promise.resolve();
     assert.equal(dendriteCalls, 2);
-    assert.match(JSON.stringify(root), /Verifying on-chain…|Preliminary/);
+    assert.match(JSON.stringify(root), /Verifying on-chain…|Live analysis/);
     assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
     await lowCycles;
     assert.match(JSON.stringify(root), /Consensus unavailable|Preliminary analysis remains available/);
@@ -543,7 +579,7 @@ test("first verification unavailable differs from stale re-verification and cont
     const firstSuccess = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
     while (dendriteCalls < 3) await Promise.resolve();
     assert.equal(dendriteCalls, 3);
-    assert.match(JSON.stringify(root), /Verifying on-chain…|Preliminary/);
+    assert.match(JSON.stringify(root), /Verifying on-chain…|Live analysis/);
     assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
     await firstSuccess;
     assert.match(JSON.stringify(root), /Consensus verified/);
@@ -553,7 +589,7 @@ test("first verification unavailable differs from stale re-verification and cont
     while (dendriteCalls < 4) await Promise.resolve();
     assert.equal(dendriteCalls, 4);
     assert.match(JSON.stringify(root), /Verification stale|Verifying on-chain…/);
-    assert.match(JSON.stringify(root), /Preliminary/);
+    assert.match(JSON.stringify(root), /Live analysis/);
     assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
     await failedReverification;
     assert.match(JSON.stringify(root), /Verification stale|verification transport unavailable/);
@@ -586,9 +622,9 @@ test("presentation helpers order severity, group topics, shorten principals, and
 test("preliminary headline excludes only expected controller uncertainty", () => {
   const controller = ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]
     .map((rule_id) => ({ rule_id, status: { Indeterminate: null }, message: "mandatory evidence was unavailable" }));
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Pass: null }, message: "ok" }] }), "No public-configuration blockers found");
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Fail: null }, message: "bad" }] }), "Preliminary issues found");
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Indeterminate: null }, message: "unknown" }] }), "Preliminary analysis incomplete");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Pass: null }, message: "ok" }] }), "Live analysis incomplete");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Fail: null }, message: "bad" }] }), "Issues found on live evidence");
+  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Indeterminate: null }, message: "unknown" }] }), "Live analysis incomplete");
   assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { StandardUpdateRequired: null }, message: "future" }] }), "Standard update required");
 });
 

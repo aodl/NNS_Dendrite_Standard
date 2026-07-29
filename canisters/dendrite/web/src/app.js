@@ -76,6 +76,7 @@ export function createApplication({
     : undefined;
   let recoverableAuthenticationError;
   let currentPreliminaryReport;
+  let currentPreliminaryProvenance;
   let currentPreliminaryNeuronId;
   let currentConsensusReport;
   let currentConsensusNeuronId;
@@ -375,6 +376,11 @@ export function createApplication({
         report: hasConsensus ? currentConsensusReport : currentPreliminaryReport,
         verifiedAt: hasConsensus ? currentConsensusReport.checked_at_timestamp_seconds : undefined,
         controllerEvidenceAvailable: Boolean(hasConsensus),
+        provenance: hasConsensus ? {
+          governanceEvidence: { kind: "replicated-dendrite-verification" },
+          controllerEvidence: { kind: "replicated-dendrite-verification" },
+          evaluation: { kind: "replicated-dendrite-verifier" },
+        } : currentPreliminaryProvenance,
         stale: consensusStale,
         error: consensusError,
       }, {
@@ -433,6 +439,7 @@ export function createApplication({
     supersedeRouteOperations();
     preliminaryAnalyzer?.clear();
     currentPreliminaryReport = undefined;
+    currentPreliminaryProvenance = undefined;
     currentPreliminaryNeuronId = undefined;
     currentConsensusReport = undefined;
     currentConsensusNeuronId = undefined;
@@ -461,11 +468,13 @@ export function createApplication({
     appendTransactionNotices();
     try {
       if (trustInjectedPreliminaryForTests) preliminaryAnalyzer ??= preliminaryAnalyzerFactory();
-      const report = await (trustInjectedPreliminaryForTests
+      const analyzed = await (trustInjectedPreliminaryForTests
         ? preliminaryAnalyzer.analyze(id)
         : (await analyzer()).analyze(id));
       if (!ownsOperation(owner, preliminaryOperation)) return;
+      const report = analyzed?.report ?? analyzed;
       currentPreliminaryReport = report;
+      currentPreliminaryProvenance = analyzed?.provenance;
       currentPreliminaryNeuronId = id;
       if (trustInjectedPreliminaryForTests) {
         currentConsensusReport = report;
@@ -477,6 +486,7 @@ export function createApplication({
     } catch (error) {
       if (!ownsOperation(owner, preliminaryOperation)) return;
       currentPreliminaryReport = undefined;
+      currentPreliminaryProvenance = undefined;
       currentPreliminaryNeuronId = undefined;
       preliminaryError = errorMessage(error);
       currentView = "error";

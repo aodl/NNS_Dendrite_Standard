@@ -70,9 +70,10 @@ canonical order; all policy statuses have icon and text; unknown IDs fall back s
 rule details, values, topics, local neuron links, copy controls, filters, bulk
 disclosures, section summaries, empty/unavailable states, and accessible expansion
 attributes behave without mutating the report. They also prove that route entry calls
-Governance without calling Dendrite, controller-dependent preliminary rules cannot
-pass, explicit verification calls Dendrite once, bounded verifier errors retain
-preliminary evidence, route races remain suppressed, and authenticated transaction
+Governance and the query-reported controller without calling Dendrite, controller
+certificate failures remain indeterminate, valid certified state drives controller
+pass/fail results, explicit verification calls Dendrite once, bounded verifier errors
+retain live evidence, route races remain suppressed, and authenticated transaction
 controls require a current authoritative report. Existing transaction tests continue
 to prove that final preflight independently invokes `check_neuron` and a failed
 preflight sends no Governance mutation.

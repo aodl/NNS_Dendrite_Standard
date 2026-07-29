@@ -303,7 +303,7 @@ export function deriveDependencyIds(target) {
   return unique;
 }
 
-export async function collectPreliminaryEvidence(neuronId, loader) {
+export async function collectPreliminaryEvidence(neuronId, loader, controllerReader) {
   const targetId = BigInt(neuronId);
   try {
     const target = await loader.loadTarget(targetId);
@@ -314,15 +314,42 @@ export async function collectPreliminaryEvidence(neuronId, loader) {
       controller: undefined,
       sourceFailures: [],
       unknownCommittedTopics: target.unknownCommittedTopics,
+      controllerProvenance: { kind: "unavailable", reason: "Target controller was unavailable." },
     };
+    let controller;
+    let controllerProvenance;
+    const targetController = target.lookup.neuron.controller;
+    if (targetController !== undefined && controllerReader) {
+      try {
+        controller = await controllerReader.read(targetController);
+        controllerProvenance = {
+          kind: "certified-system-state",
+          canisterId: targetController.toText(),
+          certificateTime: controller.certificateTime,
+        };
+      } catch (error) {
+        controllerProvenance = {
+          kind: "unavailable",
+          reason: String(error?.message ?? "Certified controller state was unavailable.").slice(0, 512),
+        };
+      }
+    } else {
+      controllerProvenance = {
+        kind: "unavailable",
+        reason: targetController === undefined
+          ? "The Governance response did not contain a target controller."
+          : "The certified controller-state reader was unavailable.",
+      };
+    }
     const dependencies = await loader.loadDependencies(deriveDependencyIds(target.lookup.neuron));
     return {
       nowSeconds: target.retrievedAtTimestampSeconds,
       target: target.lookup,
       dependencies,
-      controller: undefined,
+      controller,
       sourceFailures: [...(dependencies.sourceFailures ?? [])].slice(0, LIMITS.sourceFailures),
       unknownCommittedTopics: target.unknownCommittedTopics,
+      controllerProvenance,
     };
   } catch (error) {
     const failure = classifySourceFailure(error, [targetId]);
@@ -338,6 +365,7 @@ export async function collectPreliminaryEvidence(neuronId, loader) {
         affectedNeuronIds: [targetId],
       }],
       unknownCommittedTopics: 0,
+      controllerProvenance: { kind: "unavailable", reason: "Target Governance evidence was unavailable." },
     };
   }
 }

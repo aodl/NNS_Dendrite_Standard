@@ -1,6 +1,9 @@
 # Operator gates
 
 Both gates are independent and **UNRUN**. Automated tests do not satisfy them.
+Certified controller evidence in live browser analysis does not satisfy either gate and
+does not enable management controls; a current replicated Dendrite verification and
+final transaction preflight remain mandatory.
 
 ## Gate 1 — Final-origin Internet Identity
 

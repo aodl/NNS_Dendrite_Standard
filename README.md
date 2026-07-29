@@ -13,8 +13,8 @@ and always-visible characteristics lead into a semantic table containing one exp
 row per distinct Standard rule. Its only rule-toolbar control is `Attention only`.
 Managers and topic delegation are single-level lower disclosures; technical evidence
 uses independent one-level disclosures without an outer accordion. All interaction
-state is memory-only. Preliminary controller uncertainty is labelled
-`Requires verification`, never inferred as pass or failure.
+state is memory-only. Certified controller state can produce live pass/fail results;
+invalid, stale, malformed, or unavailable certification remains indeterminate.
 
 Production identifiers and configuration have one authoritative source in
 [deployment](docs/operations/deployment.md). Factual lifecycle evidence is retained in
@@ -23,13 +23,14 @@ the [production record](docs/operations/production-record.md).
 ## Trust model
 
 Dendrite stores no application state, cache, report, transaction history, or proposal
-history. The browser preliminary loader has only a route-scoped in-memory promise
-cache. Its anonymous query agent has a fixed Governance destination, verifies query
-signatures, and does not fetch the root key in production. Internet Identity sessions
+history. The browser live-analysis loaders have only route-scoped in-memory promise
+caches. The anonymous Governance query agent verifies query signatures; the controller
+reader verifies fresh IC certificates for the exact controller principal returned by
+that query. Neither fetches the root key in production. Internet Identity sessions
 and Governance-only delegations remain in the browser and are never sent to Dendrite.
 Privileged mutations go directly from the browser to fixed NNS Governance and still
 require a fresh authoritative Dendrite preflight. See [security](docs/security.md).
-Preliminary and consensus work is owned by explicit route-generation operations:
+Live-analysis and consensus work is owned by explicit route-generation operations:
 navigation, refresh, replacement, and transaction settlement cannot publish stale
 completions or strand a loading state.
 

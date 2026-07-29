@@ -37,15 +37,18 @@ high-contrast perimeter, and reduced-motion and forced-colour modes are supporte
 Filtering, disclosure, and copy interaction issue no network request and persist no
 preference.
 
-Preliminary analysis adds a separate anonymous query boundary. Its generated actor
+Live analysis adds separate anonymous read boundaries. Its generated actor
 exposes only `list_neurons`, fixes Governance as the destination, explicitly requests
 only public full neurons for bounded IDs, and verifies query signatures. Every response
 batch is rejected atomically for unexpected/duplicate IDs, invalid paging, duplicate
 topic keys, collection or string bound violations, invalid topic variants, contradictory
 stake arithmetic, or inconsistent target timestamps. The in-memory promise cache is
 route-scoped, never uses browser storage, and evicts failed entries. Because browsers
-cannot call management-canister `canister_info`, preliminary controller rules are
-always indeterminate and blackholing is never claimed.
+does not call management-canister `canister_info`. It performs only `read_state` for
+the exact controller returned by validated Governance evidence. Controller rules can
+pass or fail only after signature, freshness, effective-ID, delegation/range, exact
+CBOR, controller bound, principal length, and module-hash status validation. Failure is
+indeterminate and yields no partially trusted result.
 
 Internet Identity introduces a browser-only boundary. Delegations target only fixed NNS
 Governance and are never logged, rendered, serialized to Dendrite, or sent to the
@@ -68,8 +71,11 @@ failure affects only consensus state; preliminary evidence remains visible and n
 mutation is sent after a failed final preflight. Successful mutation invalidates both
 reports and is explicitly presented as not yet consensus verified.
 
-Controller blackholing is proven only by successful `canister_info`, no Wasm, and no
-controllers. A failed lookup is indeterminate. Dendrite's own controller can replace
+Replicated controller blackholing is proven only by successful `canister_info`, no Wasm,
+and no controllers. Browser live analysis requires certified empty controllers and
+certified module-hash absence. The neuron-to-controller relationship is replica-signed
+Governance query evidence, not certified system-state evidence. A failed lookup is
+indeterminate. Dendrite's own controller can replace
 both verifier code and the transaction-signing frontend and therefore remains an
 explicit operator trust boundary. Other boundaries are the certified frontend, browser
 runtime, Internet Identity, NNS Governance, management-canister reads, target and

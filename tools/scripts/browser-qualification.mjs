@@ -73,11 +73,12 @@ try {
         { timeout: 5_000 }, scenario.pageScaleFactor);
     }
     const text = await page.$eval("main", (node) => node.innerText);
-    assert.match(text, /Preliminary/);
-    assert.match(text, /Requires verification/);
+    assert.match(text, /Live analysis/);
     assert.match(text, /Verify on-chain/);
     assert.doesNotMatch(text, /Consensus verified/);
-    assert.doesNotMatch(text, /Controller blackhole\s+Confirmed/);
+    const controllerPrincipal = await page.$eval("#evidence", (node) =>
+      node.textContent.match(/Controller principal: ([a-z0-9-]+)/)?.[1]);
+    assert(controllerPrincipal, `${scenario.name} omitted bounded controller provenance`);
     const hierarchy = await page.evaluate(() => ({
       rules: document.querySelector("#rules")?.getBoundingClientRect().top,
       managers: document.querySelector("#managers")?.getBoundingClientRect().top,
@@ -182,8 +183,7 @@ try {
       .map((node) => node.textContent));
     assert(preliminaryControllers.length >= 3);
     for (const controllerText of preliminaryControllers) {
-      assert.match(controllerText, /Requires verification/);
-      assert.doesNotMatch(controllerText, /\bPass\b/);
+      assert.match(controllerText, /\b(?:Pass|Fail|Requires verification)\b/);
     }
     for (const id of ["managers", "delegation"]) {
       const selector = `#${id} .section-toggle`;
@@ -302,7 +302,7 @@ try {
         `unexpected page scale: ${measurements.pageScale}`);
     }
     const focusEvidence = [];
-    const requiredFocus = new Set(["Copy neuron ID", "Refresh preliminary", "Verify on-chain"]);
+    const requiredFocus = new Set(["Copy neuron ID", "Refresh live analysis", "Verify on-chain"]);
     for (let index = 0; index < 200 && requiredFocus.size; index += 1) {
       await page.keyboard.press("Tab");
       const focused = await page.evaluate(() => ({
@@ -319,6 +319,13 @@ try {
     await page.screenshot({ path: join(evidenceDirectory, `${scenario.name}.png`), fullPage: true });
     assert.equal(pageErrors.length, 0, pageErrors.join("\n"));
     assert.equal(consoleErrors.length, 0, consoleErrors.join("\n"));
+    const interactionRequests = requests.length - initialRequestCount;
+    assert.equal(interactionRequests, 0,
+      "rendering, filtering, copying, disclosure, or section interaction triggered a request");
+    await page.click(".action-refresh");
+    await page.waitForNetworkIdle({ idleTime: 1_000, timeout: 45_000 });
+    const refreshRequests = requests.length - initialRequestCount;
+    assert(refreshRequests >= 3, `${scenario.name} refresh did not perform a new live analysis`);
     results.push({
       ...scenario,
       consoleErrors: bounded(consoleErrors),
@@ -329,9 +336,11 @@ try {
       presentation,
       defaultSummary,
       defaultInstances,
-      interactionRequests: requests.length - initialRequestCount,
+      interactionRequests,
+      refreshRequests,
       focusEvidence: bounded(focusEvidence.map((entry) => JSON.stringify(entry)), 80),
       canisterRequests: requests,
+      controllerPrincipal,
       screenshot: `${scenario.name}.png`,
     });
     await context.close();
@@ -342,12 +351,17 @@ try {
     assert(scenarioReadStates.length >= 1,
       `${scenario.name} made no signature-verification read_state request: ${JSON.stringify(requests)}`);
     for (const request of requests) {
-      assert.match(request.url, new RegExp(`/api/v3/canister/${governanceCanister}/(?:query|read_state)$`));
+      assert.match(request.url, new RegExp(`/api/v3/canister/(?:${governanceCanister}|${controllerPrincipal})/(?:query|read_state)$`));
       assert(!request.url.includes(dendriteCanister), `${scenario.name} contacted Dendrite`);
       assert(!/\/call$/.test(request.url), `${scenario.name} invoked an update endpoint`);
+      if (request.url.includes(controllerPrincipal)) {
+        assert.match(request.url, /\/read_state$/, `${scenario.name} sent a non-read_state controller request`);
+      }
     }
-    assert.equal(requests.length - initialRequestCount, 0,
-      `${scenario.name} interactions triggered network requests`);
+    assert(requests.some((request) => request.url.includes(controllerPrincipal)),
+      `${scenario.name} made no certified controller read`);
+    assert(requests.length > initialRequestCount,
+      `${scenario.name} refresh did not trigger a new live analysis`);
   }
 } finally {
   await browser.close();
@@ -358,7 +372,11 @@ const requests = capturedRequests.filter((request) => request.method === "POST" 
 if (requests.length < 2) process.stderr.write(`${JSON.stringify(results, null, 2)}\n`);
 assert(requests.length >= 2, "each viewport must perform an ordinary Governance read");
 for (const request of capturedRequests) {
-  assert.match(request.url, new RegExp(`/api/v3/canister/${governanceCanister}/(?:query|read_state)$`));
+  assert(
+    new RegExp(`/api/v3/canister/${governanceCanister}/(?:query|read_state)$`).test(request.url)
+      || results.some((result) => request.url.includes(`/canister/${result.controllerPrincipal}/read_state`)),
+    `unexpected canister request: ${request.url}`,
+  );
   assert(!request.url.includes(dendriteCanister));
 }
 for (const request of requests) {

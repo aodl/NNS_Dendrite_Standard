@@ -430,11 +430,7 @@ function ruleDetails(rule, verificationKind, copyText, announcer) {
     }
     facts.append(metric("Related neurons", chips));
   }
-  const source = verificationKind === "Consensus"
-    ? "live consensus result from the Dendrite verifier"
-    : "Preliminary browser query; controller evidence requires consensus verification";
   facts.append(
-    metric("Evidence source", source),
     metric("Technical rule ID", element("code", rule.rule_id)),
   );
   region.append(facts);
@@ -742,21 +738,16 @@ export const PRELIMINARY_CONTROLLER_RULES = Object.freeze(new Set([
 ]));
 
 export function preliminaryStatus(report) {
-  const publicRules = report.rules.filter((rule) => !(
-    PRELIMINARY_CONTROLLER_RULES.has(rule.rule_id)
-    && variantName(rule.status) === "Indeterminate"
-    && /mandatory evidence was unavailable|requires on-chain verification/i.test(rule.message)
-  ));
-  const statuses = new Set(publicRules.map((rule) => variantName(rule.status)));
-  if (statuses.has("Fail")) return "Preliminary issues found";
+  const statuses = new Set(report.rules.map((rule) => variantName(rule.status)));
+  if (statuses.has("Fail")) return "Issues found on live evidence";
   if (statuses.has("StandardUpdateRequired")) return "Standard update required";
-  if (statuses.has("Indeterminate")) return "Preliminary analysis incomplete";
-  return "No public-configuration blockers found";
+  if (statuses.has("Indeterminate")) return "Live analysis incomplete";
+  return "Meets the Standard on live evidence";
 }
 
 export function renderReport(root, viewModel, options = {}) {
   clear(root);
-  const { report, verificationKind, stale = false, error } = viewModel.report ? viewModel : {
+  const { report, verificationKind, stale = false, error, provenance } = viewModel.report ? viewModel : {
     report: viewModel,
     verificationKind: "Consensus",
     stale: false,
@@ -782,7 +773,7 @@ export function renderReport(root, viewModel, options = {}) {
   );
   const state = document.createElement("div");
   state.className = "verification-state";
-  const verificationText = stale ? "Verification stale" : verificationKind === "Consensus" ? "Consensus verified" : error ? "Consensus unavailable" : "Preliminary";
+  const verificationText = stale ? "Verification stale" : verificationKind === "Consensus" ? "Consensus verified" : error ? "Consensus unavailable" : "Live analysis";
   state.append(badge(verificationText, stale ? "stale" : verificationKind.toLowerCase()));
   if (verificationKind === "Consensus") {
     state.append(element("span", checkedAtUtc(report.checked_at_timestamp_seconds), "verification-time"));
@@ -792,7 +783,7 @@ export function renderReport(root, viewModel, options = {}) {
   actions.className = "report-actions";
   if (options.onRefreshPreliminary) {
     const refresh = element("button",
-      options.preliminaryLoading ? "Refreshing public evidence…" : "Refresh preliminary",
+      options.preliminaryLoading ? "Refreshing live evidence…" : "Refresh live analysis",
       "button-quiet action-refresh");
     refresh.type = "button"; refresh.disabled = Boolean(options.preliminaryLoading); refresh.addEventListener("click", options.onRefreshPreliminary); actions.append(refresh);
   }
@@ -834,7 +825,7 @@ export function renderReport(root, viewModel, options = {}) {
     element("p", `${aggregatedRules.length} Standard rules · ${report.rules.length} policy evaluations`, "evaluation-counts"),
   );
   if (verificationKind === "Preliminary") {
-    overview.append(element("p", "Preliminary public evidence is not a compliant verdict. Controller blackhole rules require a current consensus verification.", "verification-warning"));
+    overview.append(element("p", "Consensus verification is required before management actions.", "verification-warning"));
   }
   root.append(overview);
 
@@ -849,8 +840,8 @@ export function renderReport(root, viewModel, options = {}) {
     metric("not_for_profit", String(optional(target?.not_for_profit))),
     metric("Committed topics", String(report.committed_topics.length)),
     metric("Voting-power freshness", target?.voting_power_refreshed_timestamp_seconds?.length ? checkedAtUtc(target.voting_power_refreshed_timestamp_seconds[0]) : "Unavailable"),
-    metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Requires on-chain verification"),
-    metric("Verification level", verificationKind === "Consensus" ? "Consensus verified" : "Preliminary"),
+    metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Unavailable"),
+    metric("Verification level", verificationKind === "Consensus" ? "Consensus verified" : "Live analysis"),
   );
   const characteristics = document.createElement("section");
   characteristics.id = "characteristics";
@@ -893,9 +884,31 @@ export function renderReport(root, viewModel, options = {}) {
     element("p", `Evidence timestamp: ${report.checked_at_timestamp_seconds}`),
     element("p", `Overall status: ${exactStatus}`),
   ];
+  if (verificationKind === "Consensus") {
+    metadata.push(
+      element("p", "Neuron data: replicated Dendrite verification"),
+      element("p", "Controller state: replicated Dendrite verification"),
+      element("p", "Evaluation: replicated Dendrite verifier"),
+    );
+  } else {
+    metadata.push(
+      element("p", "Neuron data: replica-signed NNS Governance query"),
+      element("p", provenance?.controllerEvidence?.kind === "certified-system-state"
+        ? "Controller state: IC-certified"
+        : "Controller state: unavailable"),
+      element("p", "Evaluation: browser"),
+    );
+    if (provenance?.controllerEvidence?.kind === "certified-system-state") {
+      metadata.push(
+        element("p", `Controller principal: ${provenance.controllerEvidence.canisterId}`),
+        element("p", `Controller certificate time: ${provenance.controllerEvidence.certificateTime}`),
+        element("p", "Controller state was IC-certified for the controller principal reported by the live Governance query."),
+      );
+    }
+  }
   const controllerTechnical = controller ? [
     element("p", `Controller principal: ${controller.principal?.[0] ? principalText(controller.principal[0]) : "Unavailable"}`),
-    element("p", `canister_info: ${controller.call_succeeded ? "Succeeded" : "Unavailable"}`),
+    element("p", `Controller state: ${controller.call_succeeded ? "Available" : "Unavailable"}`),
     element("p", `Module hash: ${controller.call_succeeded ? (controller.module_hash?.length ? "Present" : "Absent") : "Unavailable"}`),
     element("p", `Returned controllers: ${controller.call_succeeded ? (controller.controllers.map(principalText).join(", ") || "None") : "Unavailable"}`),
   ] : [element("p", "Unavailable")];

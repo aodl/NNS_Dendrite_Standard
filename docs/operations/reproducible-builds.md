@@ -10,6 +10,10 @@ does not authorize deployment.
 
 The canonical `linux/amd64` build uses `SOURCE_DATE_EPOCH=0` and the exact immutable
 production inputs in [deployment](deployment.md). Root-key fetching is disabled.
+Browser qualification permits anonymous Governance `query` plus query-signature
+`read_state` only to the fixed Governance ID, and controller `read_state` only to the
+exact principal recorded in the validated live report provenance. It rejects Dendrite,
+controller query/update, `/call`, and every unexpected canister destination.
 
 ## Canonical Docker build
 
@@ -26,6 +30,36 @@ useful diagnostics, not the canonical public container artifact.
 
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
+
+## Certified controller-evidence candidate — 2026-07-29
+
+This source-changing candidate is not deployed and performed no operator
+authentication or transaction gate. The public Candid API remains update
+`check_neuron` plus certified query `http_request`; replicated outbound calls remain
+fixed Governance `list_neurons` and management `canister_info`. Ordinary browser
+analysis adds only anonymous Governance `query`/signature `read_state` and certified
+`read_state` to the exact query-reported controller.
+
+- Raw Wasm SHA-256:
+  `8a983e2a7dfff14e7b7547b0c6d946740d06cc160922e8bb702aa0fc92eaf6d7`
+- Frontend tree SHA-256:
+  `eb53158bec323ddbe3932c25ce53aa328cd628c10429e07ddb87a1f8fef553dc`
+- Asset manifest SHA-256:
+  `f37c1fc10e138acee75baf9c0077643029c5c44423278114b6ca1efa038c74f6`
+- Build configuration SHA-256:
+  `52dfc2cc5b4d62893a3cfe884c1bdaa0a6a4f5e19e4dbae2c350b70f283d7f72`
+- SBOM checksum manifest SHA-256:
+  `ae915e2d5be74cbfa410802d6c34b0ee79f01e9c75ff9abff3e93940dbeca995`
+- Chromium evidence tree SHA-256:
+  `aa9275591b13fe0dc2c9170ec879da10a65b9d3e8ec111a2eef197faccb3981c`
+
+Two clean local builds were byte-identical. Rust workspace line coverage was 91.44%;
+frontend coverage was 96.66% lines, 87.25% branches, and 92.67% functions. Chromium
+144 qualified five viewports, refresh, interaction silence, exact controller
+destination binding, controller `read_state`-only traffic, and zero Dendrite or `/call`
+requests. Security scans passed with the existing documented `backoff`, `instant`,
+`paste`, and `serde_cbor` exceptions. Final-origin Internet Identity and controlled
+transaction smoke tests remain unrun operator gates.
 
 ## Minimal visual-system upgrade candidate — 2026-07-29
 

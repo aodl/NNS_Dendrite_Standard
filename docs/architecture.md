@@ -28,7 +28,7 @@ timer, polling, analytics, off-chain service, or background work. A small heap-o
 abuse guard resets on upgrade. Dependencies are requested in batches of at most 50,
 within the derived 272-ID graph bound.
 
-The preliminary path uses a separately generated, query-only Governance declaration
+The live-analysis path uses a separately generated, query-only Governance declaration
 whose only method is `list_neurons`. Its production `HttpAgent` is anonymous, fixed to
 `rrkah-fqaaa-aaaaa-aaaaq-cai` and `https://icp-api.io`, enables query-signature
 verification, and never fetches a root key. The target is loaded first; required
@@ -37,9 +37,11 @@ loaded in batches of at most 50 through a promise cache that is discarded on rou
 change or explicit refresh. Failed entries are evicted for retry. Nothing is persisted.
 
 Browser validation rejects an entire malformed batch before normalisation. The
-browser evaluator mirrors the Rust evidence and policy model, but cannot call
-management-canister `canister_info`; therefore controller blackhole rules remain
-indeterminate until explicit consensus verification. Preliminary evidence never enables
+browser evaluator mirrors the Rust evidence and policy model. For the exact controller
+principal in the validated Governance response, one anonymous `read_state` verifies
+controllers, module-hash presence or certified absence, certificate time, effective
+canister binding, delegation, and canister range. Invalid or ambiguous certified state
+is discarded as a whole. Live evidence never enables
 transaction controls and never satisfies transaction final preflight.
 
 The report presentation consumes the `ComplianceReport` without changing it. A

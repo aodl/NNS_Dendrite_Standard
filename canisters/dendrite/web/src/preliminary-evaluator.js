@@ -166,7 +166,7 @@ export function evaluatePreliminary(neuronId, evidence) {
     target.potentialVotingPower !== undefined && target.potentialVotingPower > 0n && target.potentialVotingPower === target.decidingVotingPower,
     "deciding and potential voting power match and are positive"));
   const controller = evidence.controller;
-  const control1 = rule("DENDRITE-CONTROL-001", target.controller !== undefined && controller?.callSucceeded === true, "controller resolves through canister_info");
+  const control1 = rule("DENDRITE-CONTROL-001", target.controller !== undefined && controller?.callSucceeded === true, "controller canister state is available");
   const control2 = rule("DENDRITE-CONTROL-002", controller?.callSucceeded === true && controller.moduleHash === undefined, "controller canister has no Wasm");
   const control3 = rule("DENDRITE-CONTROL-003", controller?.callSucceeded === true && controller.controllers.length === 0, "controller canister has no controllers");
   if (target.controller !== undefined && controller?.callSucceeded !== true) {
@@ -237,17 +237,35 @@ export function evaluatePreliminary(neuronId, evidence) {
   return finish(id, evidence, managers, target.committedTopics, quorum, rules);
 }
 
-export function createPreliminaryAnalyzer({ governanceActor, loaderFactory }) {
+export function createPreliminaryAnalyzer({ governanceActor, loaderFactory, controllerReader }) {
   const createLoader = loaderFactory ?? ((listNeurons) => import("./preliminary-evidence.js").then(({ createNeuronLoader }) => createNeuronLoader({ listNeurons })));
   let loader;
+  let certifiedReader = controllerReader;
   return Object.freeze({
     async analyze(neuronId) {
       const { collectPreliminaryEvidence } = await import("./preliminary-evidence.js");
       loader ??= await createLoader((request) => governanceActor.list_neurons(request));
-      return evaluatePreliminary(BigInt(neuronId), await collectPreliminaryEvidence(BigInt(neuronId), loader));
+      certifiedReader ??= (await import("./certified-canister-state.js")).createCertifiedCanisterStateReader();
+      const evidence = await collectPreliminaryEvidence(BigInt(neuronId), loader, certifiedReader);
+      const report = evaluatePreliminary(BigInt(neuronId), evidence);
+      return Object.freeze({
+        report,
+        provenance: Object.freeze({
+          governanceEvidence: Object.freeze({
+            kind: "replica-signed-query",
+            canisterId: "rrkah-fqaaa-aaaaa-aaaaq-cai",
+            retrievedAt: evidence.nowSeconds > 0n
+              ? new Date(Number(evidence.nowSeconds) * 1_000).toISOString()
+              : undefined,
+          }),
+          controllerEvidence: Object.freeze(evidence.controllerProvenance),
+          evaluation: Object.freeze({ kind: "browser" }),
+        }),
+      });
     },
     clear() {
       loader?.clear();
+      certifiedReader?.clear();
       loader = undefined;
     },
   });

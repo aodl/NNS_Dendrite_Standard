@@ -15,6 +15,11 @@ tracked mapping, a production controller identity selected in `icp-cli`, adequat
 cycles, Docker daemon/buildx access, and all automated gates. `codex_local` is
 local-only and must never be the production identity.
 
+Ordinary browser analysis uses the configured API host anonymously for fixed Governance
+queries and certified system-state reads for only the controller principal returned by
+validated Governance evidence. It never uses the operator identity. Deployment does not
+alter this evidence policy or authorize browser transactions.
+
 ## Production identifiers
 
 | Name                       | Value                                         |
