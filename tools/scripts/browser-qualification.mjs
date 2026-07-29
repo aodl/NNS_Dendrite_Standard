@@ -195,6 +195,8 @@ try {
     for (const controllerText of preliminaryControllers) {
       assert.match(controllerText, /\b(?:Pass|Fail|Requires verification)\b/);
     }
+    const preliminaryControllerPasses = preliminaryControllers
+      .filter((controllerText) => /\bPass\b/.test(controllerText)).length;
     for (const id of ["managers", "delegation"]) {
       const selector = `#${id} .section-toggle`;
       assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "false");
@@ -351,6 +353,7 @@ try {
       focusEvidence: bounded(focusEvidence.map((entry) => JSON.stringify(entry)), 80),
       canisterRequests: requests,
       controllerPrincipal,
+      preliminaryControllerPasses,
       screenshot: `${scenario.name}.png`,
     });
     await context.close();
@@ -460,7 +463,7 @@ const evidence = {
     multiTopicRuleSummaryAndInstances: true,
     attentionFiltering: true,
     filteredGroupHeadingsHidden: true,
-    preliminaryControllerPasses: 0,
+    certifiedControllerStatusesObserved: true,
     sectionNavigationRouteChanges: 0,
     interactionNetworkRequests: 0,
     deterministicControllerFailureFixture: true,

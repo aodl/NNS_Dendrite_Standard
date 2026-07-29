@@ -54,7 +54,7 @@ boundary; its test-only deterministic failure page is excluded from production a
 - SBOM checksum manifest SHA-256:
   `8a2fff884d2c9d6b4e528d0e9120b78ed77ac3d06d3f7c8b2aa5239ddb380272`
 - Chromium evidence tree SHA-256:
-  `ad53545f9d4e2f39f423312dfc40da9ce6ee7fed6b4f91a115f1fd1c05e7389a`
+  `b2dbfa5a5dbdb5232d1cca66e3f4d35d6cbebb3fb1bae67c3779608e56b5e868`
 
 Two clean local builds and two forced-clean no-cache canonical Docker exports had
 identical file sets and byte-identical outputs. Rust workspace line coverage was
