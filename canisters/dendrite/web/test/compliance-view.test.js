@@ -11,6 +11,11 @@ import {
   ruleTitle,
   statusPresentation,
 } from "../src/compliance-view.js";
+import {
+  buildRuleDiagnostic,
+  formatStatusSummary,
+  summarizeRuleStatuses,
+} from "../src/rule-diagnostics.js";
 
 class FakeNode {
   constructor(tag) {
@@ -255,6 +260,115 @@ test("fully compliant parity report renders 29 rules from all 43 policy evaluati
   assert.ok(byText(root, "29 Standard rules · 43 policy evaluations").length);
 });
 
+test("shared status summaries count aggregate rules once and always show pass and fail", () => {
+  const aggregates = aggregateRules([
+    statusRule("DENDRITE-DEFAULT-001", "Pass", { relevant_topic: [2] }),
+    statusRule("DENDRITE-DEFAULT-001", "Fail", { relevant_topic: [3] }),
+    statusRule("DENDRITE-CONTROL-001", "Indeterminate"),
+  ]);
+  const summary = summarizeRuleStatuses(aggregates, "Preliminary");
+  assert.equal(summary.totalDistinctRules, 2);
+  assert.equal(summary.totalPolicyEvaluations, 3);
+  assert.equal(summary.Fail, 1);
+  assert.equal(summary["Requires verification"], 1);
+  assert.equal(formatStatusSummary(summary), "0 pass · 1 fail · 1 requires verification");
+});
+
+test("controller diagnostics use structured evidence, exact links, and factual outcomes", () => {
+  const principal = (text) => ({ toText: () => text });
+  const source = report();
+  source.target[0].controller = [principal("uuc56-gyb")];
+  source.controller = [{
+    call_succeeded: true,
+    principal: [principal("uuc56-gyb")],
+    module_hash: [Uint8Array.from({ length: 32 }, (_, index) => index)],
+    controllers: [principal("2vxsx-fae"), principal("aaaaa-aa")],
+  }];
+  const provenance = { controllerEvidence: { kind: "certified-system-state" } };
+  for (const [id, phrase] of [
+    ["DENDRITE-CONTROL-002", "installed Wasm module"],
+    ["DENDRITE-CONTROL-003", "retains 2 controllers"],
+  ]) {
+    const diagnostic = buildRuleDiagnostic({
+      report: source,
+      entry: statusRule(id, "Fail"),
+      verificationKind: "Preliminary",
+      provenance,
+      requirement: ruleDescription(id),
+    });
+    assert.match(diagnostic.conciseReason, new RegExp(phrase));
+    assert.match(diagnostic.conciseReason, /uuc56-gyb/);
+    assert.equal(diagnostic.links[0].href, "https://dashboard.internetcomputer.org/canister/uuc56-gyb");
+    assert.notEqual(diagnostic.conciseReason, diagnostic.requirement);
+    assert.equal(diagnostic.technicalRuleId, id);
+    assert.ok(diagnostic.observedItems.length);
+    assert.ok(diagnostic.expectedItems.length);
+  }
+  const module = buildRuleDiagnostic({
+    report: source,
+    entry: statusRule("DENDRITE-CONTROL-002", "Fail"),
+    provenance,
+    requirement: ruleDescription("DENDRITE-CONTROL-002"),
+  });
+  assert.match(module.observedItems[0], /00010203.*1e1f/);
+  const retained = buildRuleDiagnostic({
+    report: source,
+    entry: statusRule("DENDRITE-CONTROL-003", "Fail"),
+    provenance,
+    requirement: ruleDescription("DENDRITE-CONTROL-003"),
+  });
+  assert.match(retained.conciseReason, /2vxsx-fae/);
+  assert.match(retained.conciseReason, /list must be empty/);
+});
+
+test("controller unavailable and missing-controller diagnostics never infer a result", () => {
+  const source = report();
+  source.target[0].controller = [{ toText: () => "uuc56-gyb" }];
+  const unavailable = buildRuleDiagnostic({
+    report: source,
+    entry: statusRule("DENDRITE-CONTROL-001", "Indeterminate"),
+    verificationKind: "Preliminary",
+    provenance: { controllerEvidence: { kind: "unavailable", reason: "certificate was stale" } },
+    requirement: ruleDescription("DENDRITE-CONTROL-001"),
+  });
+  assert.match(unavailable.conciseReason, /certificate was stale/);
+  assert.match(unavailable.conciseReason, /No pass was inferred/);
+  source.target[0].controller = [];
+  const missing = buildRuleDiagnostic({
+    report: source,
+    entry: statusRule("DENDRITE-CONTROL-001", "Fail"),
+    requirement: ruleDescription("DENDRITE-CONTROL-001"),
+  });
+  assert.match(missing.conciseReason, /did not report a controller canister/);
+});
+
+test("every parity failure produces a factual diagnostic with safe structured fallback", () => {
+  let failures = 0;
+  for (const fixture of parityFixtures) {
+    const source = reviveProjection(fixture.projection);
+    for (const aggregate of aggregateRules(source.rules)) {
+      for (const entry of aggregate.entries.filter((item) => Object.keys(item.status)[0] === "Fail")) {
+        const diagnostic = buildRuleDiagnostic({
+          report: source,
+          aggregate,
+          entry,
+          requirement: ruleDescription(entry.rule_id),
+        });
+        failures += 1;
+        assert.ok(diagnostic.conciseReason.trim(), `${fixture.name} ${entry.rule_id}`);
+        assert.notEqual(diagnostic.conciseReason, diagnostic.requirement, `${fixture.name} ${entry.rule_id}`);
+        assert.equal(diagnostic.technicalRuleId, entry.rule_id);
+        assert.doesNotMatch(diagnostic.conciseReason, /^Unknown$/i);
+        if (entry.observed.length || entry.expected.length) {
+          assert(diagnostic.observedItems.length || diagnostic.expectedItems.length,
+            `${fixture.name} ${entry.rule_id} dropped structured evidence`);
+        }
+      }
+    }
+  }
+  assert(failures > 20, "focused parity failures were not exercised");
+});
+
 test("mixed aggregates expose precedence, safe future IDs, and verification terminology", () => {
   const preliminary = aggregateRules([
     statusRule("DENDRITE-CONTROL-001", "Pass"),
@@ -344,6 +458,29 @@ test("one attention filter changes only transient presentation state", () => {
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.ok(groups.every((group) => !group.hidden));
   assert.equal(JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot);
+});
+
+test("rule groups disclose by severity and closing clears child expansion", () => {
+  const root = render();
+  const groups = walk(root, (node) => node.className === "rule-group");
+  assert.equal(groups.length, 6);
+  const evidence = groups.find((group) => byText(group, "Evidence integrity").length);
+  const evidenceToggle = walk(evidence, (node) => node.className === "rule-group-toggle")[0];
+  assert.equal(evidenceToggle.attributes["aria-expanded"], "false");
+  assert.match(evidenceToggle.attributes["aria-label"], /1 pass, 0 fail/);
+  assert.ok(byText(evidence, "1 pass · 0 fail").length);
+  const target = groups.find((group) => byText(group, "Target and committed topics").length);
+  const groupToggle = walk(target, (node) => node.className === "rule-group-toggle")[0];
+  assert.equal(groupToggle.attributes["aria-expanded"], "true");
+  const child = byAttribute(target, "aria-label", "Show details for Target is a known neuron")[0];
+  child.click();
+  assert.equal(child.attributes["aria-expanded"], "true");
+  groupToggle.click();
+  assert.equal(groupToggle.attributes["aria-expanded"], "false");
+  assert.equal(child.attributes["aria-expanded"], "false");
+  groupToggle.click();
+  assert.equal(child.attributes["aria-expanded"], "false");
+  assert.equal(byText(root, "Expand all").length + byText(root, "Collapse all").length, 0);
 });
 
 test("preliminary controller uncertainty is verification-required and never pass or fail", () => {

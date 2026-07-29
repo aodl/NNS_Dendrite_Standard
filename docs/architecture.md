@@ -44,8 +44,12 @@ canister binding, delegation, and canister range. Invalid or ambiguous certified
 is discarded as a whole. Live evidence never enables
 transaction controls and never satisfies transaction final preflight.
 
-The report presentation consumes the `ComplianceReport` without changing it. A
-presentation-only model groups entries by exact `rule_id`, retains every entry, orders
+The report presentation consumes the `ComplianceReport` without changing it. A focused
+diagnostic view model derives factual outcome explanations, observed/expected evidence,
+safe related links, topics, and IDs from structured report fields. It never parses a
+message to discover a principal. Stable `RULE_DESCRIPTIONS` remain normative
+requirements and are rendered after the outcome explanation. A presentation-only
+aggregation model groups entries by exact `rule_id`, retains every entry, orders
 topic instances canonically, and chooses the aggregate status using `Fail`, standard
 update required, indeterminate, warning, then pass precedence. The page orders its flat
 header, overall result and distinct-rule status counts, visible key characteristics, one
@@ -60,8 +64,13 @@ remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
 `Standard update required`; only the preliminary presentation calls the three
 controller-dependent indeterminate states `Requires verification`.
 
-The sole optional `Attention only` control uses aggregate status and hides empty group
-headings. Row and lower-section expansion remain ephemeral DOM state. These controls
+The sole optional `Attention only` control uses aggregate status and hides all-pass
+groups without changing their complete counts. Every group is a native-button
+disclosure: all-pass groups default closed, while fail, standard-update, indeterminate,
+warning, or verification-required groups default open. Closing a group clears every
+child rule disclosure. One shared summary model counts each aggregate once, always
+shows pass and fail (including zero), and separately records all policy evaluations.
+Row, group, and lower-section expansion remain ephemeral DOM state. These controls
 never alter the route, report, evaluator, or network. Semantic section IDs remain valid
 anchor targets, but the prior sticky section-navigation toolbar is removed. Managers and
 topic delegation each have one disclosure level; technical evidence is a normal section

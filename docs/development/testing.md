@@ -49,6 +49,11 @@ major lower sections and a one-level technical-evidence disclosure at every layo
 repeats overflow checks after interaction. Bounded desktop screenshots cover the header
 and overall result, collapsed and expanded rule states, attention filtering, managers,
 topic delegation, and technical evidence.
+The harness additionally serves a deterministic test-only report from a temporary
+qualification root. That page is excluded from production assets and exercises failed
+controller-module and retained-controller-list diagnostics, exact Dashboard links,
+requirement/outcome separation, group totals, severity-aware defaults, child-state
+clearing, and zero disclosure/copy network requests.
 Each scenario independently requires at least one fixed-Governance v3 `query`, expected
 query-signature `read_state`, no update endpoint, no unexpected canister, zero
 production Dendrite requests, and zero interaction-triggered requests. Captured
@@ -58,7 +63,7 @@ those headers alone. The procedure never invokes Internet
 Identity, clicks `Verify on-chain`, or sends an NNS mutation.
 
 The Rust unit suite deterministically regenerates
-`canisters/dendrite/web/test/fixtures/evaluator.json`. Its 32 cases record Rust overall
+`canisters/dendrite/web/test/fixtures/evaluator.json`. Its 38 cases record Rust overall
 status, quorum and every rule status with stable names and timestamps. Frontend tests
 apply the same named mutations to BigInt-safe browser evidence and require exact
 policy-field equality. The cases cover compliant, missing/unavailable/contradictory
@@ -67,8 +72,9 @@ following, quorum, controller evidence, source failures, and standard-update sem
 
 Frontend state and presentation tests separately prove that every rule occurs once in
 canonical order; all policy statuses have icon and text; unknown IDs fall back safely;
-rule details, values, topics, local neuron links, copy controls, filters, bulk
-disclosures, section summaries, empty/unavailable states, and accessible expansion
+rule diagnostics, factual reasons, requirement separation, values, topics, local neuron
+and controller links, copy controls, filters, group disclosures and status summaries,
+section summaries, empty/unavailable states, and accessible expansion
 attributes behave without mutating the report. They also prove that route entry calls
 Governance and the query-reported controller without calling Dendrite, controller
 certificate failures remain indeterminate, valid certified state drives controller

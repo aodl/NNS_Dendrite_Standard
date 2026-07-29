@@ -141,6 +141,10 @@ try {
     const defaultSelector = '.rule-summary-row[data-rule-id="DENDRITE-DEFAULT-001"]';
     const defaultSummary = await page.$eval(`${defaultSelector} .rule-reason`, (node) => node.textContent);
     assert.match(defaultSummary, /\d+ topic evaluations/);
+    await page.$eval(defaultSelector, (node) => {
+      const toggle = node.closest(".rule-group")?.querySelector(".rule-group-toggle");
+      if (toggle?.getAttribute("aria-expanded") === "false") toggle.click();
+    });
     await page.focus(`${defaultSelector} .rule-toggle`);
     await page.keyboard.press("Enter");
     assert.equal(await page.$eval(`${defaultSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")), "true");
@@ -150,6 +154,10 @@ try {
     await page.keyboard.press("Space");
     assert.equal(await page.$eval(`${defaultSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")), "false");
     const simpleSelector = ".rule-summary-row";
+    await page.$eval(simpleSelector, (node) => {
+      const toggle = node.closest(".rule-group")?.querySelector(".rule-group-toggle");
+      if (toggle?.getAttribute("aria-expanded") === "false") toggle.click();
+    });
     await page.click(`${simpleSelector} .rule-name-cell`);
     assert.equal(await page.$eval(`${simpleSelector} .rule-toggle`, (node) => ({
       expanded: node.getAttribute("aria-expanded"),
@@ -168,8 +176,10 @@ try {
     const copy = await page.$(".copy-button");
     if (copy) await copy.click();
     const initialGroupCount = await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length);
-    await page.click(".attention-filter");
-    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /\d+ of \d+ Standard rules visible/);
+    await page.$eval(".attention-filter", (node) => {
+      if (node.getAttribute("aria-pressed") !== "true") node.click();
+    });
+    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /Showing \d+ of \d+ Standard rules/);
     assert(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length) > 0);
     const filteredGroups = await page.$$eval(".rule-group", (nodes) => nodes.map((node) => ({
       heading: node.querySelector("h3")?.textContent,
@@ -363,6 +373,47 @@ try {
     assert(requests.length > initialRequestCount,
       `${scenario.name} refresh did not trigger a new live analysis`);
   }
+  const context = await browser.createBrowserContext();
+  const page = await context.newPage();
+  await page.setViewport({ width: 1440, height: 1000 });
+  const failureRequests = [], failureErrors = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST" || /\/api\/v[23]\/canister\//.test(request.url())) {
+      failureRequests.push(request.url());
+    }
+  });
+  page.on("pageerror", (error) => failureErrors.push(error.message));
+  await page.goto(`${baseUrl}/test-failure.html`, { waitUntil: "networkidle0" });
+  assert.equal(failureErrors.length, 0, failureErrors.join("\n"));
+  const total = await page.$eval(".rule-total-statuses", (node) => node.textContent);
+  assert.equal(total, "3 pass · 2 fail");
+  const knownGroup = await page.$('.rule-group-toggle[aria-label^="Target and committed topics"]');
+  assert.equal(await knownGroup.evaluate((node) => node.getAttribute("aria-expanded")), "false");
+  const controllerGroup = await page.$('.rule-group-toggle[aria-label^="Controller and target settings"]');
+  assert.equal(await controllerGroup.evaluate((node) => node.getAttribute("aria-expanded")), "true");
+  for (const id of ["DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]) {
+    const selector = `.rule-summary-row[data-rule-id="${id}"]`;
+    assert.match(await page.$eval(`${selector} .rule-reason`, (node) => node.textContent),
+      id.endsWith("002") ? /installed Wasm module/ : /retains 1 controller/);
+    await page.click(`${selector} .rule-toggle`);
+  }
+  const controllerLink = await page.$eval(
+    '.rule-summary-row[data-rule-id="DENDRITE-CONTROL-002"] + .rule-detail-row a',
+    (node) => ({ href: node.href, label: node.getAttribute("aria-label"), title: node.title }),
+  );
+  assert.equal(controllerLink.href, "https://dashboard.internetcomputer.org/canister/uuc56-gyb");
+  assert.match(controllerLink.label, /Open controller canister uuc56-gyb/);
+  assert.equal(controllerLink.title, "uuc56-gyb");
+  const failureText = await page.$eval("main", (node) => node.innerText);
+  assert.match(failureText, /Why it failed/);
+  assert.match(failureText, /requirement/i);
+  assert.match(failureText, /2vxsx-fae/);
+  await page.click('.rule-group-toggle[aria-label^="Controller and target settings"]');
+  assert.equal(await page.$eval('.rule-summary-row[data-rule-id="DENDRITE-CONTROL-002"] .rule-toggle',
+    (node) => node.getAttribute("aria-expanded")), "false");
+  assert.equal(failureRequests.length, 0, "failure-fixture disclosures triggered a network request");
+  await page.screenshot({ path: join(evidenceDirectory, "deterministic-controller-failures.png"), fullPage: true });
+  await context.close();
 } finally {
   await browser.close();
 }
@@ -412,6 +463,7 @@ const evidence = {
     preliminaryControllerPasses: 0,
     sectionNavigationRouteChanges: 0,
     interactionNetworkRequests: 0,
+    deterministicControllerFailureFixture: true,
   },
   scenarios: results,
 };

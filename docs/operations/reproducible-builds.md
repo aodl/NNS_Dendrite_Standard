@@ -31,31 +31,36 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
-## Certified controller-evidence candidate — 2026-07-29
+## Evidence-specific rule diagnostics candidate — 2026-07-29
 
 This source-changing candidate is not deployed and performed no operator
 authentication or transaction gate. The public Candid API remains update
 `check_neuron` plus certified query `http_request`; replicated outbound calls remain
 fixed Governance `list_neurons` and management `canister_info`. Ordinary browser
 analysis adds only anonymous Governance `query`/signature `read_state` and certified
-`read_state` to the exact query-reported controller.
+`read_state` to the exact query-reported controller. This candidate adds no network
+boundary; its test-only deterministic failure page is excluded from production assets.
 
 - Raw Wasm SHA-256:
-  `8fec1ba048185e9020b815d0dadc499b5305550ff7f27f314885b2acc17278cd`
+  `5b20aa2aa7b3d3b6706698bbd75dfaf6775a96d27c744fd230e7fd709ba448eb`
 - Frontend tree SHA-256:
-  `eb53158bec323ddbe3932c25ce53aa328cd628c10429e07ddb87a1f8fef553dc`
+  `db8f8a3b264ff70e152438feb33315e3874c5ff63c1b6cf6503fa83762ce086e`
 - Asset manifest SHA-256:
-  `f37c1fc10e138acee75baf9c0077643029c5c44423278114b6ca1efa038c74f6`
+  `c1e36dbff3b8240e32fe9878e86cdcb716bedeb3dc558f412a8f9e88b0cfad2b`
 - Build configuration SHA-256:
-  `52dfc2cc5b4d62893a3cfe884c1bdaa0a6a4f5e19e4dbae2c350b70f283d7f72`
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- `SHA256SUMS` SHA-256:
+  `05b0a2f6340e8912a46cfa78d8f54591f1c330d74a3968eb4ed8a22481d3ecbb`
 - SBOM checksum manifest SHA-256:
-  `ae915e2d5be74cbfa410802d6c34b0ee79f01e9c75ff9abff3e93940dbeca995`
+  `8a2fff884d2c9d6b4e528d0e9120b78ed77ac3d06d3f7c8b2aa5239ddb380272`
 - Chromium evidence tree SHA-256:
-  `aa9275591b13fe0dc2c9170ec879da10a65b9d3e8ec111a2eef197faccb3981c`
+  `ad53545f9d4e2f39f423312dfc40da9ce6ee7fed6b4f91a115f1fd1c05e7389a`
 
-Two clean local builds were byte-identical. Rust workspace line coverage was 91.44%;
-frontend coverage was 96.66% lines, 87.25% branches, and 92.67% functions. Chromium
-144 qualified five viewports, refresh, interaction silence, exact controller
+Two clean local builds and two forced-clean no-cache canonical Docker exports had
+identical file sets and byte-identical outputs. Rust workspace line coverage was
+91.71%; frontend coverage was 96.41% lines, 87.02% branches, and 92.72% functions.
+Chromium 144 qualified five viewports plus the deterministic failure view, refresh,
+interaction silence, exact controller
 destination binding, controller `read_state`-only traffic, and zero Dendrite or `/call`
 requests. Security scans passed with the existing documented `backoff`, `instant`,
 `paste`, and `serde_cbor` exceptions. Final-origin Internet Identity and controlled

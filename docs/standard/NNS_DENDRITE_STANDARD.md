@@ -31,3 +31,8 @@ Browser management does not change these rules or the canister API. Manager mint
 stake excludes fees and staked maturity, raw Neuron Management followees preserve order,
 and `omega_ready_topics` identifies exact singleton omega-reject following. These added
 report fields support browser preflight; a new live `check_neuron` remains authoritative.
+
+The interface presents each stable normative requirement separately from its factual
+outcome explanation. This presentation distinction does not add a report field or
+change any policy status. Multi-topic entries retain every evaluation but count once as
+their aggregate Standard rule; policy-evaluation totals remain separately visible.

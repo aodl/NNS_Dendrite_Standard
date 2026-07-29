@@ -27,6 +27,12 @@ function rule(ruleId, passed, message) {
     relevant_topic: [],
   };
 }
+function evidencedRule(ruleId, passed, passMessage, failMessage, observed, expected) {
+  const result = rule(ruleId, passed, passed ? passMessage : failMessage);
+  result.observed = [observed];
+  result.expected = [expected];
+  return result;
+}
 const statusName = (result) => Object.keys(result.status)[0];
 const setStatus = (result, status, message) => {
   result.status = variant(status);
@@ -154,33 +160,92 @@ export function evaluatePreliminary(neuronId, evidence) {
     setStatus(known4, "StandardUpdateRequired", "committed topic uses an unknown or reserved topic code");
   }
   rules.push(known4);
-  rules.push(rule("DENDRITE-LOCK-001", target.dissolving === false, "target is not dissolving"));
-  rules.push(rule("DENDRITE-LOCK-002", target.dissolveDelaySeconds === MAX_DISSOLVE_DELAY_SECONDS, "target has the standard maximum dissolve delay"));
-  rules.push(rule("DENDRITE-LOCK-003", target.effectiveStakeE8s !== undefined && target.effectiveStakeE8s > 0n, "effective stake is positive"));
-  rules.push(rule("DENDRITE-ACTIVE-001",
+  rules.push(evidencedRule("DENDRITE-LOCK-001", target.dissolving === false,
+    "target is locked and not dissolving",
+    `target is ${target.dissolving === undefined ? "unavailable" : target.dissolving ? "dissolving" : "locked"}`,
+    target.dissolving === undefined ? "dissolving state unavailable" : target.dissolving ? "dissolving" : "locked and not dissolving",
+    "locked and not dissolving"));
+  rules.push(evidencedRule("DENDRITE-LOCK-002", target.dissolveDelaySeconds === MAX_DISSOLVE_DELAY_SECONDS,
+    "target has the standard maximum dissolve delay",
+    `dissolve delay is ${target.dissolveDelaySeconds ?? "unavailable"} seconds; expected ${MAX_DISSOLVE_DELAY_SECONDS} seconds`,
+    target.dissolveDelaySeconds === undefined ? "unavailable" : `${target.dissolveDelaySeconds} seconds`,
+    "63115200 seconds"));
+  rules.push(evidencedRule("DENDRITE-LOCK-003", target.effectiveStakeE8s !== undefined && target.effectiveStakeE8s > 0n,
+    "effective stake is positive",
+    `effective stake is ${target.effectiveStakeE8s ?? "unavailable"} e8s; expected a positive value`,
+    target.effectiveStakeE8s === undefined ? "unavailable" : `${target.effectiveStakeE8s} e8s`,
+    "positive effective stake"));
+  rules.push(evidencedRule("DENDRITE-ACTIVE-001",
     target.votingPowerRefreshedTimestampSeconds !== undefined
       && evidence.nowSeconds >= target.votingPowerRefreshedTimestampSeconds
       && evidence.nowSeconds - target.votingPowerRefreshedTimestampSeconds <= SIX_NOMINAL_MONTHS_SECONDS,
-    "voting power was refreshed within six nominal months"));
-  rules.push(rule("DENDRITE-ACTIVE-002",
+    "voting power was refreshed within six nominal months",
+    "voting-power refresh age exceeds the permitted threshold",
+    target.votingPowerRefreshedTimestampSeconds === undefined ? "refresh timestamp unavailable"
+      : `refreshed at ${target.votingPowerRefreshedTimestampSeconds}; evidence at ${evidence.nowSeconds}`,
+    "age no greater than 15778800 seconds"));
+  rules.push(evidencedRule("DENDRITE-ACTIVE-002",
     target.potentialVotingPower !== undefined && target.potentialVotingPower > 0n && target.potentialVotingPower === target.decidingVotingPower,
-    "deciding and potential voting power match and are positive"));
+    "deciding and potential voting power match and are positive",
+    "deciding and potential voting power do not match as positive values",
+    `potential ${target.potentialVotingPower ?? "unavailable"}; deciding ${target.decidingVotingPower ?? "unavailable"}`,
+    "equal positive potential and deciding voting power"));
   const controller = evidence.controller;
-  const control1 = rule("DENDRITE-CONTROL-001", target.controller !== undefined && controller?.callSucceeded === true, "controller canister state is available");
-  const control2 = rule("DENDRITE-CONTROL-002", controller?.callSucceeded === true && controller.moduleHash === undefined, "controller canister has no Wasm");
-  const control3 = rule("DENDRITE-CONTROL-003", controller?.callSucceeded === true && controller.controllers.length === 0, "controller canister has no controllers");
+  const controllerText = target.controller?.toText?.() ?? target.controller?.toString?.() ?? "none";
+  const control1 = evidencedRule("DENDRITE-CONTROL-001", target.controller !== undefined && controller?.callSucceeded === true,
+    "controller canister state is available",
+    target.controller === undefined ? "target neuron did not report a controller canister" : "controller canister state was unavailable",
+    `controller canister ${controllerText}`, "controller canister state available");
+  const moduleHash = controller?.moduleHash;
+  const moduleHex = moduleHash ? [...moduleHash].map((byte) => byte.toString(16).padStart(2, "0")).join("") : undefined;
+  const control2 = evidencedRule("DENDRITE-CONTROL-002", controller?.callSucceeded === true && moduleHash === undefined,
+    "controller canister has no Wasm",
+    moduleHash ? "controller canister has an installed Wasm module" : "controller module state could not be determined",
+    moduleHash ? `module hash ${moduleHex}` : "no installed Wasm module", "no installed Wasm module");
+  const retained = controller?.controllers?.length ?? 0;
+  const retainedText = controller?.controllers?.map((principal) => principal.toText?.() ?? String(principal)).join(", ");
+  const control3 = evidencedRule("DENDRITE-CONTROL-003", controller?.callSucceeded === true && retained === 0,
+    "controller canister has an empty controller list",
+    controller?.callSucceeded === true ? `controller canister retains ${retained} controller${retained === 1 ? "" : "s"}` : "controller-list status could not be determined",
+    controller ? retained ? `${retained} controller${retained === 1 ? "" : "s"}: ${retainedText}` : "no controllers" : "controller list unavailable",
+    "no controllers");
   if (target.controller !== undefined && controller?.callSucceeded !== true) {
     setStatus(control1, "Indeterminate", `${control1.message}; mandatory evidence was unavailable`);
     setStatus(control2, "Indeterminate", `${control2.message}; mandatory evidence was unavailable`);
     setStatus(control3, "Indeterminate", `${control3.message}; mandatory evidence was unavailable`);
   }
   rules.push(control1, control2, control3);
-  rules.push(rule("DENDRITE-CONTROL-004", target.hotKeys.length === 0, "target has no hotkeys"));
-  rules.push(rule("DENDRITE-CONTROL-005", target.notForProfit === false, "not-for-profit exception is disabled"));
+  const hotkeyText = target.hotKeys.map((principal) => principal.toText?.() ?? String(principal)).join(", ");
+  rules.push(evidencedRule("DENDRITE-CONTROL-004", target.hotKeys.length === 0,
+    "target has no hotkeys",
+    `target retains ${target.hotKeys.length} hotkey${target.hotKeys.length === 1 ? "" : "s"}`,
+    target.hotKeys.length ? `${target.hotKeys.length} hotkey${target.hotKeys.length === 1 ? "" : "s"}: ${hotkeyText}` : "0 hotkeys",
+    "no hotkeys"));
+  rules.push(evidencedRule("DENDRITE-CONTROL-005", target.notForProfit === false,
+    "not-for-profit exception is disabled",
+    `not_for_profit is ${target.notForProfit ?? "unavailable"}; expected false`,
+    String(target.notForProfit ?? "unavailable"), "false"));
   const managers = target.followees.get(1) ?? [];
-  rules.push(rule("DENDRITE-NM-001", managers.length >= 5 && managers.length <= 15, "there are five to fifteen raw managers"));
-  rules.push(rule("DENDRITE-NM-002", distinct(managers), "manager IDs are distinct"));
-  rules.push(rule("DENDRITE-NM-003", !managers.includes(id), "target is not its own manager"));
+  rules.push(evidencedRule("DENDRITE-NM-001", managers.length >= 5 && managers.length <= 15,
+    "there are five to fifteen raw managers",
+    `target reports ${managers.length} manager${managers.length === 1 ? "" : "s"}; expected 5 to 15`,
+    `${managers.length} manager${managers.length === 1 ? "" : "s"}`, "5 to 15 managers"));
+  const managerSeen = new Set();
+  const duplicateManagers = managers.filter((manager) => {
+    const value = String(manager);
+    if (managerSeen.has(value)) return true;
+    managerSeen.add(value);
+    return false;
+  });
+  rules.push(evidencedRule("DENDRITE-NM-002", duplicateManagers.length === 0,
+    "manager IDs are distinct",
+    `duplicate manager IDs were found: ${duplicateManagers.join(", ")}`,
+    duplicateManagers.length ? `duplicate manager IDs: ${duplicateManagers.join(", ")}` : "manager IDs are distinct",
+    "distinct manager IDs"));
+  rules.push(evidencedRule("DENDRITE-NM-003", !managers.includes(id),
+    "target is not its own manager", `target neuron ${id} appears as a manager`,
+    managers.includes(id) ? `target neuron ${id} appears as a manager` : "target is absent from manager list",
+    "target is not its own manager"));
   rules.push(dependentRule("DENDRITE-NM-004", managers.map((managerId) => {
     const entry = lookup(evidence.dependencies, managerId);
     return [managerId, known(entry) !== undefined, !entry || entry.kind === "Unavailable"];

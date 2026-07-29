@@ -10,7 +10,10 @@ application methods remain only update `check_neuron` and query `http_request`.
 
 The neuron page is rules-first: a flat identity and trust-state header, overall result,
 and always-visible characteristics lead into a semantic table containing one expandable
-row per distinct Standard rule. Its only rule-toolbar control is `Attention only`.
+row per distinct Standard rule. Stable requirements are visually separated from
+status-sensitive factual outcome explanations. Rule-family disclosures show distinct
+rule counts and collapse all-pass groups by default; attention-bearing groups remain
+open. Its only rule-toolbar control is `Attention only`.
 Managers and topic delegation are single-level lower disclosures; technical evidence
 uses independent one-level disclosures without an outer accordion. All interaction
 state is memory-only. Certified controller state can produce live pass/fail results;

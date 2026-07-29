@@ -35,8 +35,25 @@ fn rule(_now: u64, id: &str, ok: bool, message: &str) -> RuleResult {
         relevant_topic: None,
     }
 }
+fn evidenced_rule(
+    now: u64,
+    id: &str,
+    ok: bool,
+    pass_message: &str,
+    fail_message: String,
+    observed: String,
+    expected: &str,
+) -> RuleResult {
+    let mut result = rule(now, id, ok, if ok { pass_message } else { &fail_message });
+    result.observed = Some(observed);
+    result.expected = Some(expected.into());
+    result
+}
 fn distinct(xs: &[u64]) -> bool {
     xs.iter().copied().collect::<BTreeSet<_>>().len() == xs.len()
+}
+fn bytes_hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 fn singleton(xs: Option<&Vec<u64>>, expected: u64) -> bool {
     xs.is_some_and(|x| x.as_slice() == [expected])
@@ -225,91 +242,277 @@ pub fn evaluate(
         last.status = RuleStatus::StandardUpdateRequired;
         last.message = "committed topic uses an unknown or reserved topic code".into();
     }
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-LOCK-001",
         target.dissolving == Some(false),
-        "target is not dissolving",
+        "target is locked and not dissolving",
+        format!(
+            "target is {}",
+            target.dissolving.map_or("unavailable", |value| if value {
+                "dissolving"
+            } else {
+                "locked"
+            })
+        ),
+        target.dissolving.map_or_else(
+            || "dissolving state unavailable".into(),
+            |value| {
+                if value {
+                    "dissolving"
+                } else {
+                    "locked and not dissolving"
+                }
+                .into()
+            },
+        ),
+        "locked and not dissolving",
     ));
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-LOCK-002",
         target.dissolve_delay_seconds == Some(MAX_DISSOLVE_DELAY_SECONDS),
         "target has the standard maximum dissolve delay",
+        format!(
+            "dissolve delay is {} seconds; expected {MAX_DISSOLVE_DELAY_SECONDS} seconds",
+            target
+                .dissolve_delay_seconds
+                .map_or_else(|| "unavailable".into(), |value| value.to_string())
+        ),
+        target
+            .dissolve_delay_seconds
+            .map_or_else(|| "unavailable".into(), |value| format!("{value} seconds")),
+        "63115200 seconds",
     ));
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-LOCK-003",
         target.effective_stake_e8s.is_some_and(|v| v > 0),
         "effective stake is positive",
+        format!(
+            "effective stake is {} e8s; expected a positive value",
+            target
+                .effective_stake_e8s
+                .map_or_else(|| "unavailable".into(), |value| value.to_string())
+        ),
+        target
+            .effective_stake_e8s
+            .map_or_else(|| "unavailable".into(), |value| format!("{value} e8s")),
+        "positive effective stake",
     ));
     let active = target
         .voting_power_refreshed_timestamp_seconds
         .is_some_and(|timestamp| now >= timestamp && now - timestamp <= SIX_NOMINAL_MONTHS_SECONDS);
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-ACTIVE-001",
         active,
         "voting power was refreshed within six nominal months",
+        "voting-power refresh age exceeds the permitted threshold".into(),
+        target.voting_power_refreshed_timestamp_seconds.map_or_else(
+            || "refresh timestamp unavailable".into(),
+            |timestamp| format!("refreshed at {timestamp}; evidence at {now}"),
+        ),
+        "age no greater than 15778800 seconds",
     ));
     let powers = target
         .potential_voting_power
         .zip(target.deciding_voting_power)
         .is_some_and(|(p, d)| p > 0 && p == d);
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-ACTIVE-002",
         powers,
         "deciding and potential voting power match and are positive",
+        "deciding and potential voting power do not match as positive values".into(),
+        format!(
+            "potential {}; deciding {}",
+            target
+                .potential_voting_power
+                .map_or_else(|| "unavailable".into(), |value| value.to_string()),
+            target
+                .deciding_voting_power
+                .map_or_else(|| "unavailable".into(), |value| value.to_string())
+        ),
+        "equal positive potential and deciding voting power",
     ));
     let ce = evidence.controller.as_ref();
-    out.push(rule(
+    let controller_text = target
+        .controller
+        .map_or_else(|| "none".into(), |value| value.to_text());
+    out.push(evidenced_rule(
         now,
         "DENDRITE-CONTROL-001",
         target.controller.is_some() && ce.is_some_and(|x| x.call_succeeded),
         "controller canister state is available",
+        if target.controller.is_none() {
+            "target neuron did not report a controller canister".into()
+        } else {
+            "controller canister state was unavailable".into()
+        },
+        format!("controller canister {controller_text}"),
+        "controller canister state available",
     ));
-    out.push(rule(
+    let module_hash = ce.and_then(|value| value.module_hash.as_ref());
+    let module_observed = module_hash.map_or_else(
+        || "no installed Wasm module".into(),
+        |hash| format!("module hash {}", bytes_hex(hash)),
+    );
+    out.push(evidenced_rule(
         now,
         "DENDRITE-CONTROL-002",
         ce.is_some_and(|x| x.call_succeeded && x.module_hash.is_none()),
         "controller canister has no Wasm",
+        module_hash.map_or_else(
+            || "controller module state could not be determined".into(),
+            |_| "controller canister has an installed Wasm module".into(),
+        ),
+        module_observed,
+        "no installed Wasm module",
     ));
-    out.push(rule(
+    let retained = ce.map_or(0, |value| value.controllers.len());
+    let controller_observed = ce.map_or_else(
+        || "controller list unavailable".into(),
+        |value| {
+            if value.controllers.is_empty() {
+                "no controllers".into()
+            } else {
+                format!(
+                    "{retained} controller{}: {}",
+                    if retained == 1 { "" } else { "s" },
+                    value
+                        .controllers
+                        .iter()
+                        .map(candid::Principal::to_text)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        },
+    );
+    out.push(evidenced_rule(
         now,
         "DENDRITE-CONTROL-003",
         ce.is_some_and(|x| x.call_succeeded && x.controllers.is_empty()),
-        "controller canister has no controllers",
+        "controller canister has an empty controller list",
+        if ce.is_some_and(|value| value.call_succeeded) {
+            format!(
+                "controller canister retains {retained} controller{}",
+                if retained == 1 { "" } else { "s" }
+            )
+        } else {
+            "controller-list status could not be determined".into()
+        },
+        controller_observed,
+        "no controllers",
     ));
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-CONTROL-004",
         target.hot_keys.is_empty(),
         "target has no hotkeys",
+        format!(
+            "target retains {} hotkey{}",
+            target.hot_keys.len(),
+            if target.hot_keys.len() == 1 { "" } else { "s" }
+        ),
+        if target.hot_keys.is_empty() {
+            "0 hotkeys".into()
+        } else {
+            format!(
+                "{} hotkey{}: {}",
+                target.hot_keys.len(),
+                if target.hot_keys.len() == 1 { "" } else { "s" },
+                target
+                    .hot_keys
+                    .iter()
+                    .map(candid::Principal::to_text)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+        "no hotkeys",
     ));
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-CONTROL-005",
         target.not_for_profit == Some(false),
         "not-for-profit exception is disabled",
+        format!(
+            "not_for_profit is {}; expected false",
+            target
+                .not_for_profit
+                .map_or_else(|| "unavailable".into(), |value| value.to_string())
+        ),
+        target
+            .not_for_profit
+            .map_or_else(|| "unavailable".into(), |value| value.to_string()),
+        "false",
     ));
     let managers = target.followees.get(&1).cloned().unwrap_or_default();
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-NM-001",
         (5..=15).contains(&managers.len()),
         "there are five to fifteen raw managers",
+        format!(
+            "target reports {} manager{}; expected 5 to 15",
+            managers.len(),
+            if managers.len() == 1 { "" } else { "s" }
+        ),
+        format!(
+            "{} manager{}",
+            managers.len(),
+            if managers.len() == 1 { "" } else { "s" }
+        ),
+        "5 to 15 managers",
     ));
-    out.push(rule(
+    let duplicate_managers = managers
+        .iter()
+        .filter({
+            let mut seen = BTreeSet::new();
+            move |id| !seen.insert(**id)
+        })
+        .copied()
+        .collect::<Vec<_>>();
+    out.push(evidenced_rule(
         now,
         "DENDRITE-NM-002",
         distinct(&managers),
         "manager IDs are distinct",
+        format!(
+            "duplicate manager IDs were found: {}",
+            duplicate_managers
+                .iter()
+                .map(u64::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        if duplicate_managers.is_empty() {
+            "manager IDs are distinct".into()
+        } else {
+            format!(
+                "duplicate manager IDs: {}",
+                duplicate_managers
+                    .iter()
+                    .map(u64::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+        "distinct manager IDs",
     ));
-    out.push(rule(
+    out.push(evidenced_rule(
         now,
         "DENDRITE-NM-003",
         !managers.contains(&neuron_id),
+        "target is not its own manager",
+        format!("target neuron {neuron_id} appears as a manager"),
+        if managers.contains(&neuron_id) {
+            format!("target neuron {neuron_id} appears as a manager")
+        } else {
+            "target is absent from manager list".into()
+        },
         "target is not its own manager",
     ));
     out.push(dependent_rule(

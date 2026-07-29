@@ -36,6 +36,12 @@ overflow, all frequent targets are at least 44 CSS pixels, focus uses a two-pixe
 high-contrast perimeter, and reduced-motion and forced-colour modes are supported.
 Filtering, disclosure, and copy interaction issue no network request and persist no
 preference.
+Rule-group disclosures use the same native-button semantics, expose complete status
+counts in their accessible names, retain focus while closing, and remove hidden child
+controls from navigation. Controller diagnostics construct one exact Dashboard URL
+from the structured target-controller principal through the reviewed HTTPS-link helper;
+the visible link never initiates a fetch or preflight. Retained controller and hotkey
+principals remain copyable text and are not assumed to identify canisters.
 
 Live analysis adds separate anonymous read boundaries. Its generated actor
 exposes only `list_neurons`, fixes Governance as the destination, explicitly requests

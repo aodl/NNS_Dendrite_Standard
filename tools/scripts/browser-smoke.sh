@@ -20,7 +20,13 @@ trap '
   find "$temporary" -depth -type d -empty -delete
 ' EXIT HUP INT TERM
 
-python3 -m http.server 4173 --bind 127.0.0.1 --directory "$frontend" \
+qualification_frontend=$temporary/frontend
+mkdir -p "$qualification_frontend/test-src"
+cp -R "$frontend_absolute/." "$qualification_frontend/"
+cp canisters/dendrite/web/src/*.js canisters/dendrite/web/src/styles.css "$qualification_frontend/test-src/"
+cp canisters/dendrite/web/test/browser-failure-fixture.html "$qualification_frontend/test-failure.html"
+
+python3 -m http.server 4173 --bind 127.0.0.1 --directory "$qualification_frontend" \
   >"$temporary/server.log" 2>&1 &
 server_pid=$!
 for _attempt in 1 2 3 4 5; do
@@ -37,7 +43,7 @@ docker run --rm --network host \
   -e DENDRITE_BROWSER_EVIDENCE=/evidence \
   -e DENDRITE_BROWSER_IMAGE="$image" \
   -v "$repository:/workspace:ro" \
-  -v "$frontend_absolute:/frontend:ro" \
+  -v "$qualification_frontend:/frontend:ro" \
   -v "$evidence_absolute:/evidence" \
   -w /workspace \
   "$image" \

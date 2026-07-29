@@ -1,4 +1,9 @@
 import { clear, element, safeHttpsLink } from "./dom.js";
+import {
+  buildRuleDiagnostic,
+  formatStatusSummary,
+  summarizeRuleStatuses,
+} from "./rule-diagnostics.js";
 
 export const variantName = (value) => Object.keys(value ?? {})[0] ?? "Unknown";
 const optional = (value, fallback = "Unavailable") => value?.[0] ?? fallback;
@@ -411,21 +416,70 @@ function relatedNeuronChip(value, copyText, announcer) {
   chip.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
   return chip;
 }
-function ruleDetails(rule, verificationKind, copyText, announcer) {
+function diagnosticLink(link) {
+  const visible = link.kind === "controller-canister" ? shortPrincipal(link.principal) : link.href;
+  const node = safeHttpsLink(visible, link.href);
+  node.title = link.principal ?? link.href;
+  node.setAttribute("aria-label", `Open controller canister ${link.principal} in the Internet Computer Dashboard`);
+  node.append(element("span", " ↗", "external-link-indicator"));
+  return node;
+}
+function ruleDetails(report, rule, verificationKind, provenance, copyText, announcer) {
+  const diagnostic = buildRuleDiagnostic({
+    report,
+    aggregate: { evaluationCount: 1 },
+    entry: rule,
+    verificationKind,
+    provenance,
+    requirement: ruleDescription(rule.rule_id),
+  });
   const region = document.createElement("div");
   region.className = "rule-detail";
   region.append(
-    element("p", ruleDescription(rule.rule_id), "rule-explanation"),
-    element("p", rule.message, "rule-message"),
+    element("h5", diagnostic.outcomeLabel, `outcome-heading outcome-${diagnostic.status.toLowerCase()}`),
+    element("p", diagnostic.conciseReason, "rule-message"),
+    element("p", "Requirement", "detail-label"),
+    element("p", diagnostic.requirement, "rule-requirement"),
   );
   const facts = document.createElement("dl");
-  if (rule.observed?.length) facts.append(metric("Observed value", rule.observed[0]));
-  if (rule.expected?.length) facts.append(metric("Expected value", rule.expected[0]));
-  if (rule.relevant_topic?.length) facts.append(metric("Relevant topic", topicLabel(rule.relevant_topic[0])));
-  if (rule.related_neuron_ids.length) {
+  for (const [index, value] of diagnostic.observedItems.entries()) {
+    facts.append(metric(index ? "Observed (continued)" : "Observed", value));
+  }
+  for (const [index, value] of diagnostic.expectedItems.entries()) {
+    facts.append(metric(index ? "Expected (continued)" : "Expected", value));
+  }
+  for (const link of diagnostic.links) facts.append(metric("Controller canister", diagnosticLink(link)));
+  const controller = report.controller?.[0];
+  if (rule.rule_id === "DENDRITE-CONTROL-003" && controller?.controllers?.length) {
+    const principals = document.createElement("div");
+    principals.className = "principal-list";
+    for (const principal of controller.controllers) {
+      const value = principalText(principal);
+      const item = document.createElement("span");
+      item.className = "principal-item";
+      item.append(element("span", value), copyButton(value, "Copy controller principal", copyText, announcer));
+      principals.append(item);
+    }
+    facts.append(metric("Retained controller principals", principals));
+  }
+  const target = report.target?.[0];
+  if (rule.rule_id === "DENDRITE-CONTROL-004" && target?.hot_keys?.length) {
+    const hotkeys = document.createElement("div");
+    hotkeys.className = "principal-list";
+    for (const principal of target.hot_keys) {
+      const value = principalText(principal);
+      const item = document.createElement("span");
+      item.className = "principal-item";
+      item.append(element("span", value), copyButton(value, "Copy hotkey principal", copyText, announcer));
+      hotkeys.append(item);
+    }
+    facts.append(metric("Hotkey principals", hotkeys));
+  }
+  if (diagnostic.relevantTopic !== undefined) facts.append(metric("Relevant topic", topicLabel(diagnostic.relevantTopic)));
+  if (diagnostic.relatedNeurons.length) {
     const chips = document.createElement("div");
     chips.className = "neuron-chips";
-    for (const id of rule.related_neuron_ids) {
+    for (const id of diagnostic.relatedNeurons) {
       chips.append(relatedNeuronChip(id, copyText, announcer));
     }
     facts.append(metric("Related neurons", chips));
@@ -436,21 +490,21 @@ function ruleDetails(rule, verificationKind, copyText, announcer) {
   region.append(facts);
   return region;
 }
-function aggregateRuleDetails(aggregate, verificationKind, copyText, announcer) {
+function aggregateRuleDetails(report, aggregate, verificationKind, provenance, copyText, announcer) {
   if (aggregate.evaluationCount === 1) {
-    return ruleDetails(aggregate.entries[0], verificationKind, copyText, announcer);
+    return ruleDetails(report, aggregate.entries[0], verificationKind, provenance, copyText, announcer);
   }
   const region = document.createElement("div");
   region.className = "rule-detail";
   region.append(
-    element("p", aggregate.description, "rule-explanation"),
+    element("p", aggregate.description, "rule-requirement"),
     element("p", aggregateSummary(aggregate, verificationKind), "aggregate-status-summary"),
   );
   const table = document.createElement("table");
   table.className = "rule-instance-table responsive-table";
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  for (const name of ["Topic", "Result", "Message", "Observed", "Expected", "Related neurons"]) {
+  for (const name of ["Topic", "Result", "Why this result", "Observed", "Expected", "Related neurons"]) {
     const cell = element("th", name);
     cell.setAttribute("scope", "col");
     heading.append(cell);
@@ -458,6 +512,9 @@ function aggregateRuleDetails(aggregate, verificationKind, copyText, announcer) 
   head.append(heading);
   const body = document.createElement("tbody");
   for (const entry of aggregate.entries) {
+    const diagnostic = buildRuleDiagnostic({
+      report, aggregate, entry, verificationKind, provenance, requirement: aggregate.description,
+    });
     const row = document.createElement("tr");
     const topic = element("th", entry.relevant_topic?.length
       ? topicLabel(entry.relevant_topic[0]) : "General evaluation");
@@ -466,8 +523,8 @@ function aggregateRuleDetails(aggregate, verificationKind, copyText, announcer) 
     const result = document.createElement("td");
     result.setAttribute("data-label", "Result");
     result.append(statusNode(entry, verificationKind));
-    const message = element("td", entry.message);
-    message.setAttribute("data-label", "Message");
+    const message = element("td", diagnostic.conciseReason);
+    message.setAttribute("data-label", "Why this result");
     const observed = element("td", optional(entry.observed, "—"));
     observed.setAttribute("data-label", "Observed");
     const expected = element("td", optional(entry.expected, "—"));
@@ -495,10 +552,14 @@ function aggregateRuleDetails(aggregate, verificationKind, copyText, announcer) 
   );
   return region;
 }
-function collapsedRuleSupport(rule) {
+function collapsedRuleSupport(report, rule, verificationKind, provenance) {
   const status = variantName(rule.status);
   if (rule.evaluationCount === 1) {
-    return attentionStatus(status) ? rule.entries[0].message : "";
+    return attentionStatus(status)
+      ? buildRuleDiagnostic({
+        report, aggregate: rule, entry: rule.entries[0], verificationKind, provenance,
+        requirement: rule.description,
+      }).conciseReason : "";
   }
   if (status === "Pass") return `${rule.evaluationCount} topic evaluations`;
   const matching = rule.entries.filter((entry) => variantName(entry.status) === status).length;
@@ -508,7 +569,7 @@ function collapsedRuleSupport(rule) {
         : "require verification";
   return `${matching} of ${rule.evaluationCount} topic evaluations ${verb}`;
 }
-function renderRuleRows(rule, verificationKind, copyText, announcer) {
+function renderRuleRows(report, rule, verificationKind, provenance, copyText, announcer) {
   const status = variantName(rule.status);
   const summaryRow = document.createElement("tr");
   summaryRow.className = `rule-summary-row rule-${status.toLowerCase()}`;
@@ -535,7 +596,7 @@ function renderRuleRows(rule, verificationKind, copyText, announcer) {
   const summary = document.createElement("div");
   summary.className = "rule-summary";
   summary.append(element("h4", rule.title));
-  const support = collapsedRuleSupport(rule);
+  const support = collapsedRuleSupport(report, rule, verificationKind, provenance);
   if (support) summary.append(element("p", support, "rule-reason"));
   ruleCell.append(summary);
   const statusCell = document.createElement("td");
@@ -546,7 +607,7 @@ function renderRuleRows(rule, verificationKind, copyText, announcer) {
   const detailCell = document.createElement("td");
   detailCell.colSpan = 3;
   detailCell.setAttribute("colspan", "3");
-  detailCell.append(aggregateRuleDetails(rule, verificationKind, copyText, announcer));
+  detailCell.append(aggregateRuleDetails(report, rule, verificationKind, provenance, copyText, announcer));
   detailRow.append(detailCell);
   toggle.addEventListener("click", () => {
     const expanded = attribute(toggle, "aria-expanded") === "true";
@@ -562,7 +623,7 @@ function renderRuleRows(rule, verificationKind, copyText, announcer) {
   });
   return { rule, summaryRow, detailRow, toggle };
 }
-function renderRules(report, verificationKind, copyText, announcer) {
+function renderRules(report, verificationKind, provenance, copyText, announcer) {
   const section = document.createElement("section");
   section.id = "rules";
   section.className = "rules-section";
@@ -576,17 +637,27 @@ function renderRules(report, verificationKind, copyText, announcer) {
   list.className = "rule-groups";
   const rows = [];
   const groupSections = [];
-  for (const rule of aggregateRules(report.rules)) {
+  const aggregatedRules = aggregateRules(report.rules);
+  const totalSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
+  section.append(
+    element("p", formatStatusSummary(totalSummary), "status-counts rule-total-statuses"),
+    element("p", `${totalSummary.totalDistinctRules} Standard rules · ${totalSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
+  );
+  for (const rule of aggregatedRules) {
     const group = canonicalGroup(rule.rule_id);
     let current = groupSections[groupSections.length - 1];
     if (!current || current.name !== group) {
       const groupSection = document.createElement("section");
       groupSection.className = "rule-group";
-      groupSection.append(element("h3", group));
+      const content = document.createElement("div");
+      content.id = disclosureId("rule-group-content");
+      content.className = "rule-group-content";
+      const heading = document.createElement("h3");
+      groupSection.append(heading, content);
       const table = document.createElement("table");
       table.className = "rule-table";
       const head = document.createElement("thead");
-      const heading = document.createElement("tr");
+      const tableHeading = document.createElement("tr");
       const disclosureHeading = element("th", "");
       disclosureHeading.setAttribute("scope", "col");
       disclosureHeading.setAttribute("aria-label", "Details");
@@ -594,19 +665,53 @@ function renderRules(report, verificationKind, copyText, announcer) {
       ruleHeading.setAttribute("scope", "col");
       const resultHeading = element("th", "Result");
       resultHeading.setAttribute("scope", "col");
-      heading.append(disclosureHeading, ruleHeading, resultHeading);
-      head.append(heading);
+      tableHeading.append(disclosureHeading, ruleHeading, resultHeading);
+      head.append(tableHeading);
       const body = document.createElement("tbody");
       table.append(head, body);
-      groupSection.append(table);
+      content.append(table);
       list.append(groupSection);
-      current = { name: group, section: groupSection, body, rows: [] };
+      current = { name: group, section: groupSection, heading, content, body, rows: [] };
       groupSections.push(current);
     }
-    const rendered = renderRuleRows(rule, verificationKind, copyText, announcer);
+    const rendered = renderRuleRows(report, rule, verificationKind, provenance, copyText, announcer);
     rows.push(rendered);
     current.rows.push(rendered);
     current.body.append(rendered.summaryRow, rendered.detailRow);
+  }
+  for (const group of groupSections) {
+    const summary = summarizeRuleStatuses(group.rows.map(({ rule }) => rule), verificationKind);
+    const countsText = formatStatusSummary(summary);
+    const expanded = summary.Fail > 0 || summary.Indeterminate > 0 || summary.Warning > 0
+      || summary["Standard update required"] > 0 || summary["Requires verification"] > 0;
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "rule-group-toggle";
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-controls", group.content.id);
+    toggle.setAttribute("aria-label", `${group.name}, ${countsText.replaceAll(" · ", ", ")}`);
+    toggle.append(
+      element("span", group.name, "rule-group-title"),
+      element("span", countsText, "rule-group-counts"),
+      element("span", "", "chevron"),
+    );
+    toggle.children[2].setAttribute("aria-hidden", "true");
+    group.content.hidden = !expanded;
+    toggle.addEventListener("click", () => {
+      const open = attribute(toggle, "aria-expanded") === "true";
+      toggle.setAttribute("aria-expanded", String(!open));
+      group.content.hidden = open;
+      if (open) {
+        for (const row of group.rows) {
+          row.toggle.setAttribute("aria-expanded", "false");
+          row.toggle.setAttribute("aria-label", `Show details for ${row.rule.title}`);
+          row.detailRow.hidden = true;
+        }
+      }
+    });
+    group.heading.append(toggle);
+    group.toggle = toggle;
+    group.summary = summary;
   }
   const attentionCount = rows.filter(({ rule }) => attentionStatus(variantName(rule.status))).length;
   let attentionOnly = false;
@@ -621,7 +726,7 @@ function renderRules(report, verificationKind, copyText, announcer) {
     for (const group of groupSections) {
       group.section.hidden = !group.rows.some(({ summaryRow }) => !summaryRow.hidden);
     }
-    count.textContent = `${visible} of ${rows.length} Standard rules visible`;
+    count.textContent = attentionOnly ? `Showing ${visible} of ${rows.length} Standard rules` : "";
   };
   if (attentionCount) {
     const button = document.createElement("button");
@@ -810,19 +915,12 @@ export function renderReport(root, viewModel, options = {}) {
   overview.id = "overview";
   overview.className = "overview";
   const overallHeading = verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report);
-  const counts = new Map();
   const aggregatedRules = aggregateRules(report.rules);
-  for (const rule of aggregatedRules) {
-    const presentation = statusPresentation(variantName(rule.status), verificationKind, rule.rule_id);
-    counts.set(presentation.label, (counts.get(presentation.label) ?? 0) + 1);
-  }
-  const countOrder = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"];
-  const countText = countOrder.filter((label) => counts.has(label))
-    .map((label) => `${counts.get(label)} ${label.toLowerCase()}`).join(" · ");
+  const statusSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
   overview.append(
     element("h2", overallHeading, `main-status status-${exactStatus.toLowerCase()}`),
-    element("p", countText, "status-counts"),
-    element("p", `${aggregatedRules.length} Standard rules · ${report.rules.length} policy evaluations`, "evaluation-counts"),
+    element("p", formatStatusSummary(statusSummary), "status-counts"),
+    element("p", `${statusSummary.totalDistinctRules} Standard rules · ${statusSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
   );
   if (verificationKind === "Preliminary") {
     overview.append(element("p", "Consensus verification is required before management actions.", "verification-warning"));
@@ -847,7 +945,7 @@ export function renderReport(root, viewModel, options = {}) {
   characteristics.id = "characteristics";
   characteristics.className = "characteristics-section";
   characteristics.append(element("h2", "Key characteristics"), metrics);
-  root.append(characteristics, renderRules(report, verificationKind, options.copyText, announcer));
+  root.append(characteristics, renderRules(report, verificationKind, provenance, options.copyText, announcer));
 
   const managerStatuses = report.managers.map((manager) => variantName(manager.evidence_status));
   const managersUnavailable = managerStatuses.some((status) => status === "Unavailable");
