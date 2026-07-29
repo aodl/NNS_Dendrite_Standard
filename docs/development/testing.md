@@ -84,9 +84,9 @@ controls require a current authoritative report. Existing transaction tests cont
 to prove that final preflight independently invokes `check_neuron` and a failed
 preflight sends no Governance mutation.
 
-The 2026-07-28 candidate ran 135 frontend tests and 56 Rust unit tests plus 3 PocketIC
-scenarios. Workspace Rust line coverage was 91.44% and rule-engine line coverage was
-98.35%; frontend coverage was 97.22% lines, 88.19% branches, and 92.64% functions.
+The 2026-07-29 candidate ran 153 frontend tests and 56 Rust unit tests plus 3 PocketIC
+scenarios. Workspace Rust line coverage was 91.71% and rule-engine line coverage was
+99.22%; frontend coverage was 96.41% lines, 87.02% branches, and 92.72% functions.
 All 38 Rust/browser policy fixtures matched exactly. The executed Chromium evidence is
 bounded non-release output under `dist/browser-qualification`.
 

@@ -66,6 +66,12 @@ requests. Security scans passed with the existing documented `backoff`, `instant
 `paste`, and `serde_cbor` exceptions. Final-origin Internet Identity and controlled
 transaction smoke tests remain unrun operator gates.
 
+The guarded `icp-cli 1.2.0` dry-run ran as anonymous principal `2vxsx-fae`, verified
+every candidate checksum, observed installed production module `8fec1ba0…17278cd`,
+selected upgrade mode, printed the intended lifecycle command, and exited with
+`dry-run complete; no write performed`. Its controller-only settings probe was rejected
+as expected for the anonymous caller.
+
 ## Minimal visual-system upgrade candidate — 2026-07-29
 
 This source-changing candidate is not deployed. It follows the aggregated-rule
