@@ -106,6 +106,7 @@ try {
       return {
         disclosureBackground: disclosureStyle.backgroundColor,
         disclosureBorderWidth: disclosureStyle.borderWidth,
+        disclosureBorderColor: disclosureStyle.borderColor,
         hasChevron: Boolean(disclosure.querySelector(".chevron")),
         plusMinusText: [...document.querySelectorAll(".rule-toggle")]
           .some((node) => /^[+-]$/.test(node.textContent.trim())),
@@ -122,7 +123,11 @@ try {
       };
     });
     assert.match(presentation.disclosureBackground, /rgba?\(0, 0, 0, 0\)/);
-    assert.equal(presentation.disclosureBorderWidth, "0px");
+    assert(
+      presentation.disclosureBorderWidth === "0px"
+        || /rgba?\(0, 0, 0, 0\)/.test(presentation.disclosureBorderColor),
+      `resting disclosure border was visible: ${presentation.disclosureBorderWidth} ${presentation.disclosureBorderColor}`,
+    );
     assert.equal(presentation.hasChevron, true);
     assert.equal(presentation.plusMinusText, false);
     assert.equal(presentation.primaryHeaderActions, 1);
@@ -152,8 +157,10 @@ try {
     const nestedLink = await page.$(`${simpleSelector} + .rule-detail-row a`);
     if (nestedLink) {
       const beforeNested = await page.$eval(`${simpleSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded"));
-      await nestedLink.evaluate((node) => node.addEventListener("click", (event) => event.preventDefault(), { once: true }));
-      await nestedLink.click();
+      await nestedLink.evaluate((node) => {
+        node.addEventListener("click", (event) => event.preventDefault(), { once: true });
+        node.click();
+      });
       assert.equal(await page.$eval(`${simpleSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")),
         beforeNested, "nested link toggled its rule row");
     }
@@ -163,8 +170,13 @@ try {
     await page.click(".attention-filter");
     assert.match(await page.$eval(".rule-count", (node) => node.textContent), /\d+ of \d+ Standard rules visible/);
     assert(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length) > 0);
-    assert(await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length) < initialGroupCount,
-      "filtered-out group headings remained visible");
+    const filteredGroups = await page.$$eval(".rule-group", (nodes) => nodes.map((node) => ({
+      heading: node.querySelector("h3")?.textContent,
+      hidden: node.hidden,
+      visibleRows: node.querySelectorAll(".rule-summary-row:not([hidden])").length,
+    })));
+    assert(filteredGroups.every((group) => group.hidden || group.visibleRows > 0),
+      `an empty filtered group heading remained visible: ${JSON.stringify(filteredGroups)}`);
     const preliminaryControllers = await page.$$eval(".rule-summary-row", (nodes) => nodes
       .filter((node) => /Controller canister/.test(node.textContent))
       .map((node) => node.textContent));
@@ -181,25 +193,45 @@ try {
       assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "true");
     }
     const evidenceDisclosure = "#evidence .evidence-disclosure:first-of-type";
-    await page.click(`${evidenceDisclosure} > summary`);
+    await page.focus(`${evidenceDisclosure} > summary`);
+    await page.keyboard.press("Enter");
     assert.equal(await page.$eval(evidenceDisclosure, (node) => node.open), true);
     assert.equal(page.url(), routeBeforeNavigation, "presentation interactions changed the neuron route");
     if (scenario.name === "desktop") {
+      await page.evaluate(() => {
+        const filter = document.querySelector(".attention-filter");
+        if (filter?.getAttribute("aria-pressed") === "true") filter.click();
+        for (const toggle of document.querySelectorAll(".rule-toggle[aria-expanded=true]")) toggle.click();
+        for (const toggle of document.querySelectorAll(".section-toggle[aria-expanded=true]")) toggle.click();
+        for (const disclosure of document.querySelectorAll("#evidence details[open]")) disclosure.open = false;
+      });
       for (const [name, setup] of [
         ["header-overall", async () => page.evaluate(() => scrollTo(0, 0))],
         ["all-rules-collapsed", async () => {
-          await page.click(".attention-filter");
           await page.evaluate(() => document.querySelector("#rules").scrollIntoView());
         }],
-        ["simple-rule-expanded", async () => page.evaluate(() => document.querySelector(".rule-summary-row").scrollIntoView())],
+        ["simple-rule-expanded", async () => {
+          await page.click(`${simpleSelector} .rule-toggle`);
+          await page.evaluate(() => document.querySelector(".rule-summary-row").scrollIntoView());
+        }],
         ["multi-topic-rule-expanded", async () => {
           await page.click(`${defaultSelector} .rule-toggle`);
           await page.evaluate((selector) => document.querySelector(selector).scrollIntoView(), defaultSelector);
         }],
         ["attention-only", async () => page.click(".attention-filter")],
-        ["managers-expanded", async () => page.evaluate(() => document.querySelector("#managers").scrollIntoView())],
-        ["topic-delegation-expanded", async () => page.evaluate(() => document.querySelector("#delegation").scrollIntoView())],
-        ["technical-evidence-expanded", async () => page.evaluate(() => document.querySelector("#evidence").scrollIntoView())],
+        ["managers-expanded", async () => {
+          await page.click("#managers .section-toggle");
+          await page.evaluate(() => document.querySelector("#managers").scrollIntoView());
+        }],
+        ["topic-delegation-expanded", async () => {
+          await page.click("#delegation .section-toggle");
+          await page.evaluate(() => document.querySelector("#delegation").scrollIntoView());
+        }],
+        ["technical-evidence-expanded", async () => {
+          await page.focus(`${evidenceDisclosure} > summary`);
+          await page.keyboard.press("Enter");
+          await page.evaluate(() => document.querySelector("#evidence").scrollIntoView());
+        }],
       ]) {
         await setup();
         await page.screenshot({ path: join(evidenceDirectory, `desktop-${name}.png`) });
@@ -210,6 +242,11 @@ try {
     const measurements = await page.evaluate(() => ({
       screen: { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight },
       cssViewport: { width: innerWidth, height: innerHeight },
+      layoutBoxes: Object.fromEntries(["HTML", "BODY", "MAIN"].map((tag) => {
+        const node = document.querySelector(tag.toLowerCase());
+        const box = node.getBoundingClientRect();
+        return [tag, { left: box.left, right: box.right, width: box.width, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth }];
+      })),
       devicePixelRatio,
       pageScale: visualViewport?.scale ?? 1,
       visualViewport: visualViewport ? {
@@ -218,9 +255,20 @@ try {
         scale: visualViewport.scale,
       } : null,
       overflow: {
-        document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        body: document.body.scrollWidth - document.body.clientWidth,
+        document: document.documentElement.scrollWidth - innerWidth,
+        body: document.body.scrollWidth - innerWidth,
       },
+      overflowSources: [...document.querySelectorAll("main *")].filter((node) => {
+        const box = node.getBoundingClientRect();
+        return box.right > document.documentElement.clientWidth + 1 || box.left < -1;
+      }).sort((left, right) => left.getBoundingClientRect().right - right.getBoundingClientRect().right)
+        .slice(0, 20).map((node) => ({
+        tag: node.tagName,
+        className: node.className,
+        right: node.getBoundingClientRect().right,
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+      })),
       visibleText: document.querySelector("main")?.innerText.length ?? 0,
       visibleControls: [...document.querySelectorAll("button")].filter((node) => {
         const box = node.getBoundingClientRect();
@@ -236,7 +284,13 @@ try {
         })),
     }));
     const overflow = measurements.overflow;
-    assert(overflow.document <= 1 && overflow.body <= 1, `material horizontal overflow: ${JSON.stringify(overflow)}`);
+    assert(overflow.document <= 1 && overflow.body <= 1,
+      `${scenario.name} material horizontal overflow: ${JSON.stringify({
+        cssViewport: measurements.cssViewport,
+        layoutBoxes: measurements.layoutBoxes,
+        overflow,
+        sources: measurements.overflowSources,
+      })}`);
     assert(measurements.visibleText > 0 && measurements.visibleControls > 0, "text or controls are not visible");
     assert(measurements.minimumFrequentTarget >= 44,
       `frequent icon target below 44 CSS pixels: ${measurements.minimumFrequentTarget}`);

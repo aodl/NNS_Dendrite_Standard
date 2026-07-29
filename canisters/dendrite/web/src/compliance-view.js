@@ -204,6 +204,12 @@ function technicalTable(report) {
   }
   return table;
 }
+function horizontalScroll(content) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "horizontal-scroll";
+  wrapper.append(content);
+  return wrapper;
+}
 function safeJson(value) {
   return JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : typeof item?.toText === "function" ? item.toText() : item, 2);
 }
@@ -899,7 +905,7 @@ export function renderReport(root, viewModel, options = {}) {
     details("Verification metadata", metadata),
     details("Raw target evidence", [element("pre", safeJson(target ?? null))]),
     details("Controller blackhole evidence", [...controllerTechnical, element("pre", safeJson(controller ?? null))]),
-    details("Complete rule table", [technicalTable(report)]),
+    details("Complete rule table", [horizontalScroll(technicalTable(report))]),
     details(`Source failures (${report.source_failures.length})`, [element("pre", safeJson(report.source_failures))]),
     details("Raw report", [element("pre", safeJson(report))]),
   );
