@@ -6,4 +6,4 @@ canisters:
       type: "@dfinity/prebuilt@v2.0.0"
       configuration:
         path: dist/release/dendrite.wasm
-        sha256: da0b1892880866e941b1c7461c0672ccc80d44a6b93fcb4727e63f26b4d36d0e
+        sha256: f8556ca1b5d8345b734b95241e0c1aad887f3b1d826d6d3a6a4b9f79ff63efd6

@@ -17,7 +17,7 @@ Starting boundary: deployed rules-first record `60793159`.
   interaction-network assertions independently in each scenario.
 - [x] Separate actual CDP page-scale 200% qualification from the accurately labelled
   720-CSS-pixel `200%-equivalent reflow viewport`.
-- [ ] Regenerate final embedded assets and candidate bindings, run all automated,
+- [x] Regenerate final embedded assets and candidate bindings, run all automated,
   reproducibility, browser, scan, SBOM, and guarded no-write gates, and record the new
   undeployed candidate without replacing the historical production upgrade.
 

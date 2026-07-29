@@ -27,6 +27,53 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Aggregated-rule upgrade candidate — 2026-07-29
+
+This candidate is not deployed. It follows the already deployed rules-first release
+recorded below and in [production-record.md](production-record.md). This tranche made
+no additional production or NNS write; its deployment evidence is limited to automated
+build qualification and the separately recorded guarded no-write dry-run. A future
+installation remains an operator-only action requiring separate explicit authority.
+
+Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
+`dendrite-canonical` docker-container builder. Two forced-clean `--no-cache`
+`linux/amd64` exports had identical file sets, byte-identical files, and identical
+deterministic `SHA256SUMS`.
+
+- Raw Wasm SHA-256:
+  `f8556ca1b5d8345b734b95241e0c1aad887f3b1d826d6d3a6a4b9f79ff63efd6`
+- `SHA256SUMS` file SHA-256:
+  `57715c5c45ef57995c6ba52e5c3bc47dfec8c996b32a7248a45373eeb2dd9784`
+- Frontend tree SHA-256:
+  `404d300cfad45d50708980ee6136d7001cdb9ca6a26b115b40b08b52e9e36b39`
+- `asset-manifest.json` SHA-256:
+  `8cda676c9d449cf51ba4f423f566ffab3f65f40ce815317a5f689d8b5ab44e7c`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- SBOM manifest SHA-256:
+  `d6c03ae938360909fadc2d3ffa76e09acf61caf1b88abb1083caf465591af98e`
+- Executed Chromium evidence SHA-256:
+  `62fe11404cfc45c7943579fa78314ce60701f59cb8f5b8220a1f587e871c7be4`
+
+The exact frontend passed four isolated Chrome 144.0.7559.96 scenarios. Desktop used
+a 1440×1000 CSS viewport at DPR 1 and visual scale 1. Actual page-scale qualification
+used CDP `Emulation.setPageScaleFactor(2)` after navigation: the CSS viewport remained
+1440×1000 while the measured visual viewport became 720×500 at scale 2. The separate
+`200%-equivalent reflow viewport` used 720×500 CSS pixels, DPR 1, and scale 1. Mobile
+used 390×844 CSS pixels, DPR 1, and scale 1. The headless environment reported an
+800×600 emulated screen in every scenario. All four recorded zero material horizontal
+overflow, visible text and controls, complete keyboard evidence, no console/page
+errors, and zero interaction-triggered requests.
+
+Each isolated scenario rendered 25 rows for 25 distinct live-report rule IDs and
+expanded the live default rule into all 16 returned topic evaluations; deterministic
+fixture tests separately prove 29 rows from the fully-compliant report's 43 entries and
+all 15 of its default-rule topic instances. Each browser scenario recorded at least one
+Governance query and signature-verification `read_state`, only to
+`rrkah-fqaaa-aaaaa-aaaaq-cai`, with zero Dendrite/update/unexpected destinations.
+Missing Authorization/cookie headers are recorded transport facts; the production
+actor identity-construction unit test supplies the ingress-anonymity proof.
+
 ## Rules-first neuron-page upgrade candidate — 2026-07-28
 
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
