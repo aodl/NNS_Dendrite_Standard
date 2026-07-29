@@ -42,18 +42,23 @@ management-canister `canister_info`; therefore controller blackhole rules remain
 indeterminate until explicit consensus verification. Preliminary evidence never enables
 transaction controls and never satisfies transaction final preflight.
 
-The report presentation consumes the `ComplianceReport` without changing it. The page
-orders header, overall result and status counts, the complete canonical Standard-rule
-list, key characteristics, managers, topic delegation, and technical evidence. Each
-rule disclosure presents reviewed human titles and descriptions followed by the exact
-message, observed/expected values, topics, local neuron links, source, technical ID,
-and raw values. Unknown future IDs use an explicit technical fallback. Policy states
+The report presentation consumes the `ComplianceReport` without changing it. A
+presentation-only model groups entries by exact `rule_id`, retains every entry, orders
+topic instances canonically, and chooses the aggregate status using `Fail`, standard
+update required, indeterminate, warning, then pass precedence. The page orders header,
+overall result and distinct-rule status counts, one canonical row per Standard rule,
+key characteristics, managers, topic delegation, and technical evidence. Multi-entry
+disclosures show the reviewed explanation and aggregate result followed by every exact
+topic evaluation, message, observed/expected value, related neuron, technical ID, and
+expandable raw values. The complete unaggregated rule table and raw report remain in
+technical evidence. Unknown future IDs use an explicit technical fallback. Policy states
 remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
 `Standard update required`; only the preliminary presentation calls the three
 controller-dependent indeterminate states `Requires verification`.
 
-Rule filters, row expansion, and lower-section expansion are ephemeral DOM state and
-never alter the route, report, evaluator, or network. Semantic section targets provide
+Rule filters use aggregate status, hide empty group headings, and keep row expansion
+and lower-section expansion as ephemeral DOM state. They never alter the route,
+report, evaluator, or network. Semantic section targets provide
 Overview, Rules, Characteristics, Managers, Delegation, and Evidence navigation. The
 rules section is open and primary; lower sections have evidence-derived collapsed
 summaries and keep unavailable or source-failure importance visible.

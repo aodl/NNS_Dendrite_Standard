@@ -8,7 +8,10 @@ const frontend = process.env.DENDRITE_BROWSER_FRONTEND;
 const evidenceDirectory = process.env.DENDRITE_BROWSER_EVIDENCE;
 const baseUrl = process.env.DENDRITE_BROWSER_BASE_URL ?? "http://127.0.0.1:4173";
 const governanceCanister = "rrkah-fqaaa-aaaaa-aaaaq-cai";
-const dendriteCanister = "k7w4r-zaaaa-aaaao-qkb2a-cai";
+const productionMapping = JSON.parse(readFileSync(".icp/data/mappings/ic.ids.json", "utf8"));
+const dendriteCanister = productionMapping.dendrite;
+assert.equal(dendriteCanister, "hp4av-oiaaa-aaaar-qcaha-cai",
+  "reviewed production mapping drifted");
 const neuronId = "2947465672511369";
 assert(frontend && evidenceDirectory, "browser frontend and evidence directories are required");
 mkdirSync(evidenceDirectory, { recursive: true });
@@ -33,7 +36,8 @@ const results = [];
 try {
   for (const scenario of [
     { name: "desktop", width: 1440, height: 1000 },
-    { name: "desktop-200-percent", width: 720, height: 500, deviceScaleFactor: 2 },
+    { name: "desktop-actual-page-scale-200-percent", width: 1440, height: 1000, pageScaleFactor: 2 },
+    { name: "desktop-200-percent-equivalent-reflow", width: 720, height: 500 },
     { name: "mobile", width: 390, height: 844 },
   ]) {
     const page = await browser.newPage();
@@ -42,6 +46,10 @@ try {
       height: scenario.height,
       deviceScaleFactor: scenario.deviceScaleFactor ?? 1,
     });
+    if (scenario.pageScaleFactor) {
+      const session = await page.createCDPSession();
+      await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: scenario.pageScaleFactor });
+    }
     const consoleErrors = [], pageErrors = [], requests = [];
     page.on("console", (message) => {
       if (message.type() === "error") consoleErrors.push(message.text());
@@ -71,18 +79,28 @@ try {
       managers: document.querySelector("#managers")?.getBoundingClientRect().top,
       delegation: document.querySelector("#delegation")?.getBoundingClientRect().top,
       ruleCount: document.querySelectorAll(".rule-row").length,
+      distinctRuleCount: new Set([...document.querySelectorAll(".rule-row")]
+        .map((node) => node.getAttribute("data-rule-id"))).size,
     }));
-    assert(hierarchy.ruleCount > 0, "complete rules view is missing");
+    assert.equal(hierarchy.ruleCount, hierarchy.distinctRuleCount, "primary rows are not distinct by rule ID");
+    assert.equal(hierarchy.ruleCount, 29, "ordinary report does not render 29 Standard rules");
     assert(hierarchy.rules < hierarchy.managers && hierarchy.managers < hierarchy.delegation,
       `unexpected section hierarchy: ${JSON.stringify(hierarchy)}`);
     const initialRequestCount = requests.length;
     const routeBeforeNavigation = page.url();
-    await page.focus(".rule-toggle");
+    const defaultSelector = '.rule-row[data-rule-id="DENDRITE-DEFAULT-001"]';
+    assert.match(await page.$eval(`${defaultSelector} .rule-reason`, (node) => node.textContent),
+      /15 of 15 topics pass/);
+    await page.focus(`${defaultSelector} .rule-toggle`);
     await page.keyboard.press("Enter");
-    assert.equal(await page.$eval(".rule-toggle", (node) => node.getAttribute("aria-expanded")), "true");
+    assert.equal(await page.$eval(`${defaultSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")), "true");
+    assert.equal(await page.$$eval(`${defaultSelector} .rule-instance`, (nodes) => nodes.length), 15);
+    const initialGroupCount = await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length);
     await page.click(".rule-filter:nth-of-type(2)");
     assert.match(await page.$eval(".rule-count", (node) => node.textContent), /Needs attention filter/);
     assert(await page.$$eval(".rule-row:not([hidden])", (nodes) => nodes.length) > 0);
+    assert(await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length) < initialGroupCount,
+      "filtered-out group headings remained visible");
     const preliminaryControllers = await page.$$eval(".rule-row", (nodes) => nodes
       .filter((node) => /Controller canister/.test(node.textContent))
       .map((node) => node.textContent));
@@ -102,11 +120,36 @@ try {
     }
     assert.equal(requests.length, initialRequestCount,
       "rendering, filtering, expansion, or section navigation triggered a network request");
-    const overflow = await page.evaluate(() => ({
-      document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      body: document.body.scrollWidth - document.body.clientWidth,
+    const measurements = await page.evaluate(() => ({
+      screen: { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight },
+      cssViewport: { width: innerWidth, height: innerHeight },
+      devicePixelRatio,
+      pageScale: visualViewport?.scale ?? 1,
+      visualViewport: visualViewport ? {
+        width: visualViewport.width,
+        height: visualViewport.height,
+        scale: visualViewport.scale,
+      } : null,
+      overflow: {
+        document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        body: document.body.scrollWidth - document.body.clientWidth,
+      },
+      visibleText: document.querySelector("main")?.innerText.length ?? 0,
+      visibleControls: [...document.querySelectorAll("button")].filter((node) => {
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }).length,
     }));
+    const overflow = measurements.overflow;
     assert(overflow.document <= 1 && overflow.body <= 1, `material horizontal overflow: ${JSON.stringify(overflow)}`);
+    assert(measurements.visibleText > 0 && measurements.visibleControls > 0, "text or controls are not visible");
+    if (scenario.pageScaleFactor) {
+      assert(measurements.pageScale >= 1.99 && measurements.pageScale <= 2.01,
+        `actual page scale was not 200%: ${measurements.pageScale}`);
+    } else {
+      assert(measurements.pageScale >= 0.99 && measurements.pageScale <= 1.01,
+        `unexpected page scale: ${measurements.pageScale}`);
+    }
     const focusEvidence = [];
     const requiredFocus = new Set(["Copy neuron ID", "Refresh preliminary", "Verify on-chain"]);
     for (let index = 0; index < 200 && requiredFocus.size; index += 1) {
@@ -128,6 +171,7 @@ try {
       consoleErrors: bounded(consoleErrors),
       pageErrors: bounded(pageErrors),
       overflow,
+      measurements,
       hierarchy,
       interactionRequests: requests.length - initialRequestCount,
       focusEvidence: bounded(focusEvidence.map((entry) => JSON.stringify(entry)), 80),
@@ -135,6 +179,18 @@ try {
       screenshot: `${scenario.name}.png`,
     });
     await page.close();
+
+    const scenarioQueries = requests.filter((request) => /\/query$/.test(request.url));
+    const scenarioReadStates = requests.filter((request) => /\/read_state$/.test(request.url));
+    assert(scenarioQueries.length >= 1, `${scenario.name} made no Governance query`);
+    assert(scenarioReadStates.length >= 1, `${scenario.name} made no signature-verification read_state request`);
+    for (const request of requests) {
+      assert.match(request.url, new RegExp(`/api/v3/canister/${governanceCanister}/(?:query|read_state)$`));
+      assert(!request.url.includes(dendriteCanister), `${scenario.name} contacted Dendrite`);
+      assert(!/\/call$/.test(request.url), `${scenario.name} invoked an update endpoint`);
+    }
+    assert.equal(requests.length - initialRequestCount, 0,
+      `${scenario.name} interactions triggered network requests`);
   }
 } finally {
   await browser.close();
@@ -166,14 +222,18 @@ const evidence = {
   assertions: {
     fixedGovernanceDestination: governanceCanister,
     requestEndpoint: "query",
-    anonymousTransportHeaders: true,
+    transportHeadersObservedWithoutAuthorizationOrCookies: true,
+    ingressAnonymityProvedByIdentityConstructionUnitTest: true,
     dendriteCheckNeuronCalls: 0,
     unexpectedCanisterDestinations: 0,
     verifyActionAutomaticallyActivated: false,
     assetManifestContentAddressesVerified: true,
     rulesBeforeManagersAndDelegation: true,
     keyboardRuleExpansion: true,
+    distinctPrimaryRuleRows: 29,
+    defaultRuleTopicInstances: 15,
     attentionFiltering: true,
+    filteredGroupHeadingsHidden: true,
     preliminaryControllerPasses: 0,
     sectionNavigationRouteChanges: 0,
     interactionNetworkRequests: 0,

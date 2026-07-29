@@ -32,8 +32,10 @@ fails on any missing, extra, or different file or manifest.
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
 `dendrite-canonical` `docker-container` builder. Two forced-clean `--no-cache`
 `linux/amd64` exports had identical file sets, byte-identical files, and identical
-deterministic `SHA256SUMS`. This candidate has not been installed or submitted to
-mainnet. It supersedes, without deleting, the historical trust-state candidate below.
+deterministic `SHA256SUMS`. This rules-first release was subsequently installed by the
+operator as the production upgrade recorded in
+[production-record.md](production-record.md). It remains historical deployed-release
+evidence and is not evidence that a later source-changing candidate was deployed.
 
 - Raw Wasm SHA-256:
   `da0b1892880866e941b1c7461c0672ccc80d44a6b93fcb4727e63f26b4d36d0e`
@@ -50,8 +52,9 @@ mainnet. It supersedes, without deleting, the historical trust-state candidate b
 - Executed Chromium evidence SHA-256:
   `e636a58c615e7f818fc378aa531bd435c1eb24c71b1ef451b073bde0fd83c770`
 
-The exact canonical frontend export passed Chrome 144.0.7559.96 at 1440×1000,
-720×500 with 2× device scale for 200% zoom qualification, and 390×844. It verified
+The exact canonical frontend export passed the qualification mechanism used at that
+time at 1440×1000, a 720×500 viewport with 2× device scale (a high-density reflow
+scenario, not proof of actual browser zoom), and 390×844. It verified
 canonical rule ordering above managers and delegation, keyboard
 rule expansion, attention filtering, preliminary controller uncertainty, route-stable
 section navigation, every lower disclosure, and post-interaction overflow. The run

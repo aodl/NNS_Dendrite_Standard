@@ -1,5 +1,26 @@
 # Aggressive simplification implementation plan
 
+## Standard-rule aggregation and browser qualification
+
+Starting boundary: deployed rules-first record `60793159`.
+
+- [x] Aggregate presentation rows by exact rule ID without changing raw report order,
+  evaluator policy, parity fixtures, Candid, transactions, or trust boundaries.
+- [x] Preserve every topic instance and expose deterministic fail, standard-update,
+  indeterminate, warning, pass aggregate precedence.
+- [x] Count distinct Standard rules, retain the secondary policy-evaluation total,
+  filter by aggregate status, and hide empty rule-group headings.
+- [x] Test the unchanged fully-compliant parity shape as 43 evaluations, 29 rules, and
+  one 15-topic default-rule disclosure; cover mixed statuses and unknown future IDs.
+- [x] Derive browser qualification's Dendrite destination from the reviewed production
+  mapping and require query, signature `read_state`, destination, update, and
+  interaction-network assertions independently in each scenario.
+- [x] Separate actual CDP page-scale 200% qualification from the accurately labelled
+  720-CSS-pixel `200%-equivalent reflow viewport`.
+- [ ] Regenerate final embedded assets and candidate bindings, run all automated,
+  reproducibility, browser, scan, SBOM, and guarded no-write gates, and record the new
+  undeployed candidate without replacing the historical production upgrade.
+
 ## Rules-first neuron information architecture
 
 Starting boundary: completed trust-state candidate `20c6aff`.

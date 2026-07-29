@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
+  AGGREGATE_SEVERITY,
+  aggregateRules,
+  aggregateSummary,
   canonicalRules,
   renderReport,
   ruleDescription,
@@ -86,6 +90,45 @@ const report = () => ({
   rules: rules.map((rule) => ({ ...rule })),
   source_failures: [{ method: "list_neurons", kind: { Rejected: null }, message: "unavailable", affected_neuron_ids: [9n] }],
 });
+const parityFixtures = JSON.parse(readFileSync(
+  "canisters/dendrite/web/test/fixtures/evaluator.json",
+  "utf8",
+));
+const decimalFields = new Set([
+  "neuron_id", "checked_at_timestamp_seconds", "id", "dissolve_delay_seconds",
+  "effective_stake_e8s", "minted_stake_e8s", "voting_power_refreshed_timestamp_seconds",
+  "potential_voting_power", "deciding_voting_power",
+]);
+const decimalArrays = new Set([
+  "related_neuron_ids", "affected_neuron_ids", "delegate_ids", "followee_ids",
+  "neuron_management_followees",
+]);
+const optionFields = new Set([
+  "target", "known_neuron", "controller", "not_for_profit", "dissolve_delay_seconds",
+  "dissolving", "effective_stake_e8s", "voting_power_refreshed_timestamp_seconds",
+  "potential_voting_power", "deciding_voting_power", "minted_stake_e8s", "module_hash",
+  "observed", "expected", "relevant_topic", "quorum_threshold", "principal",
+]);
+const variantFields = new Set(["overall_status", "status", "evidence_status", "kind"]);
+function reviveProjection(value, field) {
+  if (value === null) return optionFields.has(field) ? [] : value;
+  if (variantFields.has(field)) return { [value]: null };
+  if (decimalFields.has(field)) {
+    const revived = BigInt(value);
+    return optionFields.has(field) ? [revived] : revived;
+  }
+  if (decimalArrays.has(field)) return value.map(BigInt);
+  if (Array.isArray(value)) return value.map((item) => reviveProjection(item));
+  if (typeof value === "object") {
+    const revived = Object.fromEntries(Object.entries(value)
+      .map(([name, item]) => [name, reviveProjection(item, name)]));
+    return optionFields.has(field) ? [revived] : revived;
+  }
+  return optionFields.has(field) ? [value] : value;
+}
+const fullyCompliantReport = () => reviveProjection(
+  parityFixtures.find((fixture) => fixture.name === "fully_compliant").projection,
+);
 
 function render(verificationKind = "Consensus", options = {}) {
   const prior = globalThis.document;
@@ -128,6 +171,64 @@ test("rules render once in canonical order with a safe future-rule fallback", ()
   assert.match(ruleDescription("FUTURE-RULE-900"), /not yet described/);
 });
 
+test("aggregation severity is documented and preserves every report entry", () => {
+  assert.deepEqual(AGGREGATE_SEVERITY, {
+    Fail: 0,
+    StandardUpdateRequired: 1,
+    Indeterminate: 2,
+    Warning: 3,
+    Pass: 4,
+  });
+  for (const [other, expected] of [
+    ["Fail", "Fail"],
+    ["Warning", "Warning"],
+    ["Indeterminate", "Indeterminate"],
+    ["StandardUpdateRequired", "StandardUpdateRequired"],
+  ]) {
+    const entries = [statusRule("FUTURE-RULE-900", "Pass"), statusRule("FUTURE-RULE-900", other)];
+    const [aggregate] = aggregateRules(entries);
+    assert.equal(Object.keys(aggregate.status)[0], expected);
+    assert.deepEqual(new Set(aggregate.entries), new Set(entries));
+  }
+});
+
+test("fully compliant parity report renders 29 rules from all 43 policy evaluations", () => {
+  const source = fullyCompliantReport();
+  assert.equal(source.rules.length, 43);
+  const aggregates = aggregateRules(source.rules);
+  assert.equal(aggregates.length, 29);
+  const defaultRule = aggregates.find((rule) => rule.rule_id === "DENDRITE-DEFAULT-001");
+  assert.equal(defaultRule.entries.length, 15);
+  assert.equal(aggregateSummary(defaultRule, "Consensus"), "Pass · 15 of 15 topics pass");
+
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  const root = new FakeNode("main");
+  try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
+  assert.equal(walk(root, (node) => node.className?.includes?.("rule-row ")).length, 29);
+  assert.equal(byText(root, "Uncommitted topic follows alpha-vote").length, 1);
+  assert.ok(byText(root, "Pass · 15 of 15 topics pass").length);
+  const region = byAttribute(root, "aria-label", "Uncommitted topic follows alpha-vote details")[0];
+  assert.equal(walk(region, (node) => node.className === "rule-instance").length, 15);
+  assert.equal(walk(root, (node) => node.tag === "tr").length, 44);
+  assert.ok(byText(root, "29 Standard rules · 43 policy evaluations").length);
+});
+
+test("mixed aggregates expose precedence, safe future IDs, and verification terminology", () => {
+  const preliminary = aggregateRules([
+    statusRule("DENDRITE-CONTROL-001", "Pass"),
+    statusRule("DENDRITE-CONTROL-001", "Indeterminate"),
+  ])[0];
+  assert.match(aggregateSummary(preliminary, "Preliminary"), /^Requires verification/);
+  const future = aggregateRules([
+    statusRule("FUTURE-RULE-901", "Pass", { relevant_topic: [4] }),
+    statusRule("FUTURE-RULE-901", "StandardUpdateRequired", { relevant_topic: [99] }),
+  ])[0];
+  assert.equal(Object.keys(future.status)[0], "StandardUpdateRequired");
+  assert.equal(future.title, "Technical check: FUTURE-RULE-901");
+  assert.match(aggregateSummary(future, "Consensus"), /^Standard update required/);
+});
+
 test("rule disclosure exposes policy evidence, topic, Dendrite link, and copy control", () => {
   let copied;
   const root = render("Consensus", { copyText: (value) => { copied = value; } });
@@ -160,12 +261,19 @@ test("filters and bulk disclosures change only transient presentation state", ()
   const rows = walk(root, (node) => node.className?.includes?.("rule-row "));
   byText(root, "Needs attention")[0].click();
   assert.equal(rows.filter((row) => !row.hidden).length, 4);
+  const groups = walk(root, (node) => node.className === "rule-group");
+  const knownGroup = groups.find((group) => byText(group, "Target and committed topics").length);
+  assert.equal(knownGroup.hidden, false);
   byText(root, "Failed")[0].click();
   assert.equal(rows.filter((row) => !row.hidden).length, 1);
+  assert.equal(groups.find((group) => byText(group, "Evidence integrity").length).hidden, true);
   byText(root, "Passed")[0].click();
   assert.equal(rows.filter((row) => !row.hidden).length, 3);
+  byText(root, "Expand attention")[0].click();
+  assert.equal(byAttribute(root, "aria-expanded", "true").filter((node) => node.className === "rule-toggle").length, 0);
   byText(root, "All")[0].click();
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
+  assert.ok(groups.every((group) => !group.hidden));
   byText(root, "Expand attention")[0].click();
   assert.equal(byAttribute(root, "aria-expanded", "true").filter((node) => node.className === "rule-toggle").length, 4);
   byText(root, "Collapse all")[0].click();

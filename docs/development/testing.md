@@ -30,19 +30,27 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 
 The Chromium gate uses `puppeteer-core` only as a development dependency and runs
 Chrome 144.0.7559.96 from the digest-pinned
-`ghcr.io/puppeteer/puppeteer:24.36.0` image. It serves the exact production export,
-executes 1440×1000, a 720×500 viewport at 2× device scale for the 200% zoom
-qualification, and 390×844 viewports, captures bounded JSON evidence and
+`ghcr.io/puppeteer/puppeteer:24.36.0` image. It serves the exact production export
+and executes four independent scenarios: 1440×1000 desktop; 1440×1000 with Chrome
+DevTools Protocol `Emulation.setPageScaleFactor` set to 2 and the resulting visual
+viewport scale asserted as actual 200% page scale; a separately labelled 720×500
+CSS-pixel `200%-equivalent reflow viewport` at page scale 1; and 390×844 mobile.
+It captures bounded JSON evidence and
 screenshots under `dist/browser-qualification`, fails on page/console errors or
 material page overflow, and keyboard-focuses the copy, refresh, and Verify controls.
-It also proves the full rules view precedes managers and delegation, expands a rule by
-keyboard, applies the attention filter, rejects preliminary controller passes, follows
+It records emulated screen and CSS viewport dimensions, device pixel ratio,
+visual-viewport dimensions and scale, overflow, visible text/control counts, and
+keyboard evidence. It also proves one primary row per distinct rule ID, the 15-topic
+default-rule summary, all 15 instances after keyboard expansion, hidden empty group
+headings under filtering, rejects preliminary controller passes, follows
 section navigation without changing the neuron route, opens every lower disclosure at
-both widths, and repeats overflow checks after interaction.
-Network assertions require the fixed Governance canister's v3 `query` endpoint (plus
-query-signature `read_state`), anonymous headers, no update endpoint, no unexpected
-canister, and zero Dendrite requests. Rendering, filtering, rule/section expansion and
-section navigation must add zero requests. The procedure never invokes Internet
+every layout, and repeats overflow checks after interaction.
+Each scenario independently requires at least one fixed-Governance v3 `query`, expected
+query-signature `read_state`, no update endpoint, no unexpected canister, zero
+production Dendrite requests, and zero interaction-triggered requests. Captured
+transport headers contain no Authorization or cookies, but ingress anonymity is proved
+by the separate production actor identity-construction unit test, not inferred from
+those headers alone. The procedure never invokes Internet
 Identity, clicks `Verify on-chain`, or sends an NNS mutation.
 
 The Rust unit suite deterministically regenerates

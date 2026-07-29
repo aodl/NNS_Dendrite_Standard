@@ -184,7 +184,16 @@ function technicalTable(report) {
 function safeJson(value) {
   return JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : typeof item?.toText === "function" ? item.toText() : item, 2);
 }
-const severity = Object.freeze({ Fail: 0, StandardUpdateRequired: 1, Indeterminate: 2, Warning: 3, Pass: 4 });
+// Presentation aggregation follows the Standard's deterministic severity order.
+// It never changes the underlying report entries or evaluator semantics.
+export const AGGREGATE_SEVERITY = Object.freeze({
+  Fail: 0,
+  StandardUpdateRequired: 1,
+  Indeterminate: 2,
+  Warning: 3,
+  Pass: 4,
+});
+const severity = AGGREGATE_SEVERITY;
 
 export function sortedFindings(rules) {
   return [...rules].filter((rule) => variantName(rule.status) !== "Pass")
@@ -265,6 +274,47 @@ export function canonicalRules(rules) {
     return leftPosition - rightPosition || left.rule_id.localeCompare(right.rule_id);
   });
 }
+const optionalCompare = (left, right) => {
+  const leftPresent = left?.length > 0, rightPresent = right?.length > 0;
+  if (leftPresent !== rightPresent) return leftPresent ? -1 : 1;
+  if (!leftPresent) return 0;
+  return Number(left[0]) - Number(right[0]);
+};
+const compareRuleInstances = (left, right) =>
+  optionalCompare(left.relevant_topic, right.relevant_topic)
+  || String(left.message).localeCompare(String(right.message))
+  || String(optional(left.observed, "")).localeCompare(String(optional(right.observed, "")))
+  || String(optional(left.expected, "")).localeCompare(String(optional(right.expected, "")));
+
+export function aggregateRules(rules) {
+  const groups = new Map();
+  for (const entry of rules) {
+    const aggregate = groups.get(entry.rule_id) ?? {
+      rule_id: entry.rule_id,
+      title: ruleTitle(entry.rule_id),
+      description: ruleDescription(entry.rule_id),
+      entries: [],
+    };
+    aggregate.entries.push(entry);
+    groups.set(entry.rule_id, aggregate);
+  }
+  return canonicalRules([...groups.values()].map((aggregate) => {
+    aggregate.entries = [...aggregate.entries].sort(compareRuleInstances);
+    aggregate.status = aggregate.entries.reduce((selected, entry) =>
+      (severity[variantName(entry.status)] ?? Number.MAX_SAFE_INTEGER)
+        < (severity[variantName(selected.status)] ?? Number.MAX_SAFE_INTEGER) ? entry : selected
+    ).status;
+    aggregate.evaluationCount = aggregate.entries.length;
+    aggregate.topics = aggregate.entries
+      .filter((entry) => entry.relevant_topic?.length)
+      .map((entry) => entry.relevant_topic[0]);
+    aggregate.observed = aggregate.entries.flatMap((entry) => entry.observed);
+    aggregate.expected = aggregate.entries.flatMap((entry) => entry.expected);
+    aggregate.relatedNeuronIds = aggregate.entries.flatMap((entry) => entry.related_neuron_ids);
+    aggregate.messages = aggregate.entries.map((entry) => entry.message);
+    return aggregate;
+  }));
+}
 function disclosureButton(label, region, expanded = false, className = "") {
   const button = element("button", label, className);
   button.type = "button";
@@ -289,6 +339,22 @@ function statusNode(rule, verificationKind) {
   icon.setAttribute("aria-hidden", "true");
   node.append(icon, element("span", presentation.label));
   return node;
+}
+const statusVerb = (status) => ({
+  Pass: "pass",
+  Fail: "fail",
+  Indeterminate: "require verification",
+  Warning: "have warnings",
+  StandardUpdateRequired: "use an unknown Standard variant",
+})[status] ?? status.toLowerCase();
+export function aggregateSummary(aggregate, verificationKind) {
+  const status = variantName(aggregate.status);
+  const label = statusPresentation(status, verificationKind, aggregate.rule_id).label;
+  if (aggregate.evaluationCount === 1) return label;
+  const matching = aggregate.entries.filter((entry) => variantName(entry.status) === status).length;
+  const unit = aggregate.topics.length === aggregate.evaluationCount ? "topic" : "evaluation";
+  const count = status === "Pass" ? aggregate.evaluationCount : matching;
+  return `${label} · ${count} of ${aggregate.evaluationCount} ${unit}${aggregate.evaluationCount === 1 ? "" : "s"} ${statusVerb(status)}`;
 }
 function relatedNeuronChip(value, copyText) {
   const id = String(value);
@@ -340,21 +406,79 @@ function ruleDetails(rule, verificationKind, copyText) {
   }
   return region;
 }
+function aggregateRuleDetails(aggregate, verificationKind, copyText) {
+  if (aggregate.evaluationCount === 1) {
+    return ruleDetails(aggregate.entries[0], verificationKind, copyText);
+  }
+  const region = document.createElement("div");
+  region.id = disclosureId("rule-detail");
+  region.className = "rule-detail";
+  region.setAttribute("role", "region");
+  region.setAttribute("aria-label", `${aggregate.title} details`);
+  region.append(
+    element("p", aggregate.description, "rule-explanation"),
+    element("p", aggregateSummary(aggregate, verificationKind), "aggregate-status-summary"),
+  );
+  const list = document.createElement("ol");
+  list.className = "rule-instance-list";
+  for (const entry of aggregate.entries) {
+    const item = document.createElement("li");
+    item.className = "rule-instance";
+    const heading = document.createElement("div");
+    heading.className = "rule-instance-heading";
+    heading.append(
+      element("h5", entry.relevant_topic?.length ? topicLabel(entry.relevant_topic[0]) : "General evaluation"),
+      statusNode(entry, verificationKind),
+    );
+    item.append(heading, element("p", entry.message, "rule-message"));
+    const facts = document.createElement("dl");
+    if (entry.observed?.length) facts.append(metric("Observed value", entry.observed[0]));
+    if (entry.expected?.length) facts.append(metric("Expected value", entry.expected[0]));
+    if (entry.related_neuron_ids.length) {
+      const chips = document.createElement("div");
+      chips.className = "neuron-chips";
+      for (const id of entry.related_neuron_ids) chips.append(relatedNeuronChip(id, copyText));
+      facts.append(metric("Related neurons", chips));
+    }
+    if (facts.children.length) item.append(facts);
+    item.append(details("Complete raw values", [element("pre", safeJson({
+      observed: entry.observed,
+      expected: entry.expected,
+      relevant_topic: entry.relevant_topic,
+      related_neuron_ids: entry.related_neuron_ids,
+    }))]));
+    list.append(item);
+  }
+  region.append(
+    list,
+    element("p", "", "technical-rule-label"),
+  );
+  region.children[region.children.length - 1].append(
+    "Technical rule ID: ",
+    element("code", aggregate.rule_id),
+  );
+  return region;
+}
 function renderRuleRow(rule, verificationKind, copyText) {
   const status = variantName(rule.status);
   const row = document.createElement("li");
   row.className = `rule-row rule-${status.toLowerCase()}`;
   row.dataset && (row.dataset.status = status);
   row.setAttribute("data-status", status);
-  const region = ruleDetails(rule, verificationKind, copyText);
+  row.setAttribute("data-rule-id", rule.rule_id);
+  const region = aggregateRuleDetails(rule, verificationKind, copyText);
   const heading = document.createElement("div");
   heading.className = "rule-row-heading";
   const toggle = disclosureButton("Show details", region, false, "rule-toggle");
   toggle.setAttribute("aria-label", `Show details for ${ruleTitle(rule.rule_id)}`);
   const summary = document.createElement("div");
   summary.className = "rule-summary";
-  summary.append(element("h4", ruleTitle(rule.rule_id)));
-  if (attentionStatus(status)) summary.append(element("p", rule.message, "rule-reason"));
+  summary.append(element("h4", rule.title));
+  if (rule.evaluationCount > 1) {
+    summary.append(element("p", aggregateSummary(rule, verificationKind), "rule-reason"));
+  } else if (attentionStatus(status)) {
+    summary.append(element("p", rule.entries[0].message, "rule-reason"));
+  }
   heading.append(toggle, summary, statusNode(rule, verificationKind));
   toggle.addEventListener("click", () => {
     const expanded = toggle.attributes?.["aria-expanded"] === "true"
@@ -378,9 +502,10 @@ function renderRules(report, verificationKind, copyText) {
   const list = document.createElement("div");
   list.className = "rule-groups";
   const rows = [];
+  const groupSections = [];
   let currentGroup;
   let groupList;
-  for (const rule of canonicalRules(report.rules)) {
+  for (const rule of aggregateRules(report.rules)) {
     const group = canonicalGroup(rule.rule_id);
     if (group !== currentGroup) {
       const groupSection = document.createElement("section");
@@ -390,10 +515,12 @@ function renderRules(report, verificationKind, copyText) {
       groupList.className = "rule-list";
       groupSection.append(groupList);
       list.append(groupSection);
+      groupSections.push({ section: groupSection, rows: [] });
       currentGroup = group;
     }
     const row = renderRuleRow(rule, verificationKind, copyText);
     rows.push({ rule, row });
+    groupSections[groupSections.length - 1].rows.push(row);
     groupList.append(row);
   }
   let active = "All";
@@ -410,8 +537,11 @@ function renderRules(report, verificationKind, copyText) {
       row.hidden = !predicate(variantName(rule.status));
       if (!row.hidden) visible += 1;
     }
+    for (const group of groupSections) {
+      group.section.hidden = !group.rows.some((row) => !row.hidden);
+    }
     for (const button of filterButtons) button.setAttribute("aria-pressed", String(button.textContent === active));
-    count.textContent = `${active} filter · ${visible} of ${rows.length} rules visible`;
+    count.textContent = `${active} filter · ${visible} of ${rows.length} Standard rules visible`;
   };
   const filterButtons = filters.map(([label, predicate]) => {
     const button = element("button", label, "secondary rule-filter");
@@ -423,7 +553,7 @@ function renderRules(report, verificationKind, copyText) {
   });
   const setExpanded = (predicate, expanded) => {
     for (const { rule, row } of rows) {
-      if (!predicate(variantName(rule.status))) continue;
+      if (row.hidden || !predicate(variantName(rule.status))) continue;
       const toggle = row.children[0].children[0];
       const current = toggle.attributes?.["aria-expanded"] === "true"
         || toggle.getAttribute?.("aria-expanded") === "true";
@@ -579,7 +709,8 @@ export function renderReport(root, viewModel, options = {}) {
   overview.className = "overview";
   const overallHeading = verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report);
   const counts = new Map();
-  for (const rule of report.rules) {
+  const aggregatedRules = aggregateRules(report.rules);
+  for (const rule of aggregatedRules) {
     const presentation = statusPresentation(variantName(rule.status), verificationKind, rule.rule_id);
     counts.set(presentation.label, (counts.get(presentation.label) ?? 0) + 1);
   }
@@ -589,6 +720,7 @@ export function renderReport(root, viewModel, options = {}) {
   overview.append(
     element("h2", overallHeading, `main-status status-${exactStatus.toLowerCase()}`),
     element("p", countText, "status-counts"),
+    element("p", `${aggregatedRules.length} Standard rules · ${report.rules.length} policy evaluations`, "evaluation-counts"),
   );
   if (verificationKind === "Preliminary") {
     overview.append(element("p", "Preliminary public evidence is not a compliant verdict. Controller blackhole rules require a current consensus verification.", "verification-warning"));

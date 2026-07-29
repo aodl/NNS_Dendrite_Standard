@@ -142,6 +142,14 @@ form, .report-actions, .authentication { display: flex; flex-wrap: wrap; gap: .7
 .rule-detail dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: .5rem; }
 .rule-detail .metric-card { padding: .65rem; }
 .rule-detail pre { max-width: 100%; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aggregate-status-summary { font-weight: 800; }
+.rule-instance-list { display: grid; gap: .75rem; margin: .75rem 0; padding: 0; list-style: none; }
+.rule-instance { padding: .75rem; border: 1px solid var(--border); border-radius: .65rem; background: var(--surface); }
+.rule-instance-heading { display: flex; align-items: start; justify-content: space-between; gap: .75rem; }
+.rule-instance-heading h5 { margin: .2rem 0; font-size: .95rem; }
+.rule-instance .rule-status { flex: 0 0 auto; }
+.rule-instance dl { margin-bottom: .5rem; }
+.technical-rule-label { margin-top: .75rem !important; }
 .page-section { margin-top: 1rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
 .page-section > h2 { margin: 0; }
 .section-toggle {

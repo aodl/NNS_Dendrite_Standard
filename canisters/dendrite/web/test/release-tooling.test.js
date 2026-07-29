@@ -48,6 +48,14 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 
+test("browser qualification derives the reviewed Dendrite ID from the production mapping", () => {
+  const qualification = readFileSync("tools/scripts/browser-qualification.mjs", "utf8");
+  assert.match(qualification, /readFileSync\("\.icp\/data\/mappings\/ic\.ids\.json"/);
+  assert.match(qualification, /productionMapping\.dendrite/);
+  assert.match(qualification, new RegExp(productionId));
+  assert.doesNotMatch(qualification, /k7w4r-zaaaa-aaaao-qkb2a-cai/);
+});
+
 test("repository contains no dfx project configuration", () => {
   for (const path of ["dfx.json", "canister_ids.json", ".dfx"]) {
     assert.equal(existsSync(path), false, `${path} must not exist`);
