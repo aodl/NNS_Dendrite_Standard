@@ -5,6 +5,30 @@
 Only an operator-supplied real deployment result may change this into completed
 evidence. Never include private identity or authentication material.
 
+## Certified controller-evidence upgrade — 2026-07-29
+
+| Field | Recorded value |
+| --- | --- |
+| Release Git commit | `fbab098a38f6f33b661e991ef50e9521e8fe7260` |
+| Lifecycle client | `dfx 0.27.0` |
+| Operator identity | `codex_local` |
+| Operator identity principal | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae` |
+| Deployment mode | `upgrade` |
+| Exact upgrade command | `DFX_IDENTITY=codex_local DFX_WARNING=-mainnet_plaintext_identity dfx canister install hp4av-oiaaa-aaaar-qcaha-cai --network ic --mode upgrade --wasm dist/release/dendrite.wasm` |
+| Controllers before and after | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae`, `zkkkd-i34qc-367ln-e2u7o-ezznu-dkfqh-gtfvz-cviph-6qa4v-evtfs-wqe` |
+| Cycles balance before | `5_359_743_697_857` |
+| Cycles balance after | `5_337_616_559_505` |
+| Freezing threshold before and after | `7_776_000` seconds |
+| Previous module hash | `93a9ab8dc8b16929bcf32e3dd5823f5ff8a572f8633dbccf771dc608907c4a6f` |
+| Installed module hash | `8fec1ba048185e9020b815d0dadc499b5305550ff7f27f314885b2acc17278cd` |
+| Release `SHA256SUMS` hash | `e3aa3286d33760f72870fa38a799d26edebff4f047c86e942689dcad79cd9578` |
+| Asset-manifest hash | `f37c1fc10e138acee75baf9c0077643029c5c44423278114b6ca1efa038c74f6` |
+| Generated application hash | `7a01ed2dfecd57cbb075d7b157ddfb12d73127bc6120fd95102408dd1ec8f631` |
+| Generated stylesheet hash | `5c47423d8ae5798dcc30176b61e17e8552e31b192e731362b5000846f6fffaac` |
+| Deployment verification timestamp | `2026-07-29T18:44:27Z` |
+| Verification | Installed module hash matched the canonical Wasm; `/`, `/asset-manifest.json`, `/.well-known/ii-alternative-origins`, and both generated assets returned certified HTTP 200 responses. |
+| Notes | The consolidated verifier passed artifact and status checks, then its anonymous `icp canister settings show` probe was rejected because controller authorization is required. Direct `dfx` status and public certified-HTTP verification completed. No controller, freezing threshold, authentication configuration, or other setting changed; no transaction gate, cycle transfer, or NNS mutation was performed. |
+
 ## Minimal visual-system upgrade — 2026-07-29
 
 | Field | Recorded value |
