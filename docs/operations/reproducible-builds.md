@@ -27,13 +27,56 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Minimal visual-system upgrade candidate — 2026-07-29
+
+This source-changing candidate is not deployed. It follows the aggregated-rule
+production upgrade recorded in [production-record.md](production-record.md). The
+visual tranche performed no additional production, lifecycle, controller, cycle,
+authentication, or NNS write.
+
+Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
+`dendrite-canonical` docker-container builder. Two forced-clean `--no-cache`
+`linux/amd64` exports had identical file sets, byte-identical files, and identical
+deterministic `SHA256SUMS`.
+
+- Raw Wasm SHA-256:
+  `93a9ab8dc8b16929bcf32e3dd5823f5ff8a572f8633dbccf771dc608907c4a6f`
+- `SHA256SUMS` file SHA-256:
+  `638305ff85f1fef1ac6c2465490178e7b2a05ad2b4f065acaa5433b5d0231b29`
+- Frontend tree SHA-256:
+  `3713bfe8f52385da5ba7008bfcb0f7f090725d685c732a55c207545761a1e462`
+- `asset-manifest.json` SHA-256:
+  `2dcf25b388d301acfe23a5f8fe48c2ca862d89e5415765302cfe50683a6a1661`
+- `build-configuration.txt` SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- SBOM manifest SHA-256:
+  `d72d1fe331bb5c586598c9fb71b65fcfe18306f0d9fcaa21fb3e1ec7db82725d`
+- Executed Chromium evidence SHA-256:
+  `b6ab0f031d00bb4390687e146f20bd03a00a615833727c46c48770306f28995d`
+
+Chrome 144.0.7559.96 qualified five isolated layouts: 1440×1000 desktop;
+1440×1000 with CDP `Emulation.setPageScaleFactor(2)` and measured visual viewport
+720×500 at scale 2; the separately labelled 720×500 CSS-pixel
+`200%-equivalent reflow viewport` at scale 1; 390×844 mobile; and 320×844 narrow
+reflow. Every layout used DPR 1 and reported an 800×600 emulated screen. All recorded
+zero material page overflow, no console/page errors, visible text and controls, and
+44-CSS-pixel frequent icon targets.
+
+The gate captured the header/verdict, collapsed rules, simple and multi-topic expanded
+rules, attention filtering, managers, topic delegation, and technical evidence. It
+proved transparent quiet disclosures, one filled preliminary header action, native
+table headings, keyboard and guarded whole-row activation, flat disclosure structure,
+and zero interaction-triggered requests. Every scenario independently observed a
+Governance query and signature-verification `read_state` only to
+`rrkah-fqaaa-aaaaa-aaaaq-cai`, with zero Dendrite, update, or unexpected-canister
+requests. Anonymous ingress remains proved by the separate actor-construction unit
+test, not inferred from missing HTTP headers.
+
 ## Aggregated-rule upgrade candidate — 2026-07-29
 
-This candidate is not deployed. It follows the already deployed rules-first release
-recorded below and in [production-record.md](production-record.md). This tranche made
-no additional production or NNS write; its deployment evidence is limited to automated
-build qualification and the separately recorded guarded no-write dry-run. A future
-installation remains an operator-only action requiring separate explicit authority.
+This candidate was subsequently deployed and is preserved as historical release
+evidence in [production-record.md](production-record.md). Its qualification evidence
+does not qualify or imply deployment of later source-changing candidates.
 
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
 `dendrite-canonical` docker-container builder. Two forced-clean `--no-cache`

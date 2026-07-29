@@ -222,7 +222,7 @@ test("guarded dry-run reaches no lifecycle write", () => {
     writeFileSync(
       join(fixture, "tools/scripts/mainnet-deploy.sh"),
       readFileSync(join(fixture, "tools/scripts/mainnet-deploy.sh"), "utf8")
-        .replace("f8556ca1b5d8345b734b95241e0c1aad887f3b1d826d6d3a6a4b9f79ff63efd6", hash),
+        .replace(/canonical_wasm_hash=[0-9a-f]{64}/, `canonical_wasm_hash=${hash}`),
     );
     const log = join(fixture, "icp.log");
     writeFileSync(join(fixture, "bin/icp"), `#!/bin/sh
