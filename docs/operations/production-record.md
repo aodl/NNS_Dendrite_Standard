@@ -5,6 +5,29 @@
 Only an operator-supplied real deployment result may change this into completed
 evidence. Never include private identity or authentication material.
 
+## Minimal visual-system upgrade — 2026-07-29
+
+| Field | Recorded value |
+| --- | --- |
+| Release Git commit | `bd98353b9086834806c9999866841dd4c9d5e424` |
+| Lifecycle client | `dfx 0.27.0` |
+| Operator identity | `codex_local` |
+| Deployment mode | `upgrade` |
+| Exact upgrade command | `DFX_IDENTITY=codex_local DFX_WARNING=-mainnet_plaintext_identity dfx canister install hp4av-oiaaa-aaaar-qcaha-cai --network ic --mode upgrade --wasm /home/codexdev/src/Dendrite/dist/release/dendrite.wasm` |
+| Controllers before and after | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae`, `zkkkd-i34qc-367ln-e2u7o-ezznu-dkfqh-gtfvz-cviph-6qa4v-evtfs-wqe` |
+| Cycles balance before | `5_382_481_336_903` |
+| Cycles balance after | `5_360_394_521_990` |
+| Freezing threshold before and after | `7_776_000` seconds |
+| Previous module hash | `f8556ca1b5d8345b734b95241e0c1aad887f3b1d826d6d3a6a4b9f79ff63efd6` |
+| Installed module hash | `93a9ab8dc8b16929bcf32e3dd5823f5ff8a572f8633dbccf771dc608907c4a6f` |
+| Release `SHA256SUMS` hash | `638305ff85f1fef1ac6c2465490178e7b2a05ad2b4f065acaa5433b5d0231b29` |
+| Asset-manifest hash | `2dcf25b388d301acfe23a5f8fe48c2ca862d89e5415765302cfe50683a6a1661` |
+| Generated application hash | `4f2a7ce261d94c9399b3fbdd3e045d0a4ef8a78d7700510bc90a89e6130ec33b` |
+| Generated stylesheet hash | `5c47423d8ae5798dcc30176b61e17e8552e31b192e731362b5000846f6fffaac` |
+| Deployment verification timestamp | `2026-07-29T12:24:31Z` |
+| Verification | Module hash matched; `/asset-manifest.json` and both generated assets returned certified HTTP 200 responses and byte-matched the candidate |
+| Notes | No controller, freezing threshold, authentication configuration, or other setting changed; no cycle transfer or NNS mutation occurred. |
+
 ## Aggregated-rule upgrade — 2026-07-29
 
 | Field | Recorded value |
