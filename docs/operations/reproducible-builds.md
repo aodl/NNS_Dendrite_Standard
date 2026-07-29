@@ -74,6 +74,14 @@ Governance query and signature-verification `read_state`, only to
 Missing Authorization/cookie headers are recorded transport facts; the production
 actor identity-construction unit test supplies the ingress-anonymity proof.
 
+The guarded anonymous `upgrade` dry-run at commit
+`2bf98b017bb87fadb8e3566b6aba869637a5dd6d` verified the new candidate binding and
+every release checksum, observed the previously deployed rules-first module
+`da0b1892880866e941b1c7461c0672ccc80d44a6b93fcb4727e63f26b4d36d0e`,
+tolerated the expected anonymous controller-settings rejection, printed the exact
+intended upgrade command, and exited with `dry-run complete; no write performed`.
+It made no lifecycle or NNS write.
+
 ## Rules-first neuron-page upgrade candidate — 2026-07-28
 
 Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit 0.31.2 used the reviewed
