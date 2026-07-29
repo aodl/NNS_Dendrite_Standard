@@ -1,7 +1,6 @@
 import { clear, element, safeHttpsLink } from "./dom.js";
 import {
   buildRuleDiagnostic,
-  formatStatusSummary,
   summarizeRuleStatuses,
 } from "./rule-diagnostics.js";
 
@@ -388,6 +387,24 @@ function statusText(status, suppliedPresentation) {
   node.append(icon, element("span", presentation.label));
   return node;
 }
+function renderStatusSummary(summary, className = "status-counts") {
+  const node = document.createElement("span");
+  node.className = className;
+  const labels = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"];
+  for (const label of labels) {
+    if (label !== "Pass" && label !== "Fail" && !summary[label]) continue;
+    const canonical = label === "Requires verification" ? "Indeterminate"
+      : label === "Standard update required" ? "StandardUpdateRequired" : label;
+    const presentation = statusPresentation(canonical);
+    const segment = statusText(`${summary[label]} ${label.toLowerCase()}`, {
+      ...presentation,
+      label: `${summary[label]} ${label.toLowerCase()}`,
+    });
+    segment.classList?.add?.("status-count-segment");
+    node.append(segment);
+  }
+  return node;
+}
 const statusVerb = (status) => ({
   Pass: "pass",
   Fail: "fail",
@@ -640,7 +657,7 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   const aggregatedRules = aggregateRules(report.rules);
   const totalSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
   section.append(
-    element("p", formatStatusSummary(totalSummary), "status-counts rule-total-statuses"),
+    renderStatusSummary(totalSummary, "status-counts rule-total-statuses"),
     element("p", `${totalSummary.totalDistinctRules} Standard rules · ${totalSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
   );
   for (const rule of aggregatedRules) {
@@ -681,7 +698,9 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   }
   for (const group of groupSections) {
     const summary = summarizeRuleStatuses(group.rows.map(({ rule }) => rule), verificationKind);
-    const countsText = formatStatusSummary(summary);
+    const countsText = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"]
+      .filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
+      .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
     const expanded = summary.Fail > 0 || summary.Indeterminate > 0 || summary.Warning > 0
       || summary["Standard update required"] > 0 || summary["Requires verification"] > 0;
     const toggle = document.createElement("button");
@@ -692,7 +711,7 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     toggle.setAttribute("aria-label", `${group.name}, ${countsText.replaceAll(" · ", ", ")}`);
     toggle.append(
       element("span", group.name, "rule-group-title"),
-      element("span", countsText, "rule-group-counts"),
+      renderStatusSummary(summary, "rule-group-counts"),
       element("span", "", "chevron"),
     );
     toggle.children[2].setAttribute("aria-hidden", "true");
@@ -852,7 +871,7 @@ export function preliminaryStatus(report) {
 
 export function renderReport(root, viewModel, options = {}) {
   clear(root);
-  const { report, verificationKind, stale = false, error, provenance } = viewModel.report ? viewModel : {
+  const { report, verificationKind = "Preliminary", provenance } = viewModel.report ? viewModel : {
     report: viewModel,
     verificationKind: "Consensus",
     stale: false,
@@ -878,27 +897,8 @@ export function renderReport(root, viewModel, options = {}) {
   );
   const state = document.createElement("div");
   state.className = "verification-state";
-  const verificationText = stale ? "Verification stale" : verificationKind === "Consensus" ? "Consensus verified" : error ? "Consensus unavailable" : "Live analysis";
-  state.append(badge(verificationText, stale ? "stale" : verificationKind.toLowerCase()));
-  if (verificationKind === "Consensus") {
-    state.append(element("span", checkedAtUtc(report.checked_at_timestamp_seconds), "verification-time"));
-  }
+  state.append(badge("Live analysis", "preliminary"));
   header.append(title, state);
-  const actions = document.createElement("div");
-  actions.className = "report-actions";
-  if (options.onRefreshPreliminary) {
-    const refresh = element("button",
-      options.preliminaryLoading ? "Refreshing live evidence…" : "Refresh live analysis",
-      "button-quiet action-refresh");
-    refresh.type = "button"; refresh.disabled = Boolean(options.preliminaryLoading); refresh.addEventListener("click", options.onRefreshPreliminary); actions.append(refresh);
-  }
-  if (options.onVerifyConsensus) {
-    const verifyClass = verificationKind === "Consensus" && !stale ? "button-quiet" : "button-primary";
-    const verify = element("button", options.consensusLoading ? "Verifying on-chain…" : "Verify on-chain",
-      `${verifyClass} action-verify`);
-    verify.type = "button"; verify.disabled = Boolean(options.consensusLoading); verify.addEventListener("click", options.onVerifyConsensus); actions.append(verify);
-  }
-  header.append(actions);
   if (known?.links?.length) {
     const links = document.createElement("div");
     links.className = "known-links";
@@ -909,22 +909,19 @@ export function renderReport(root, viewModel, options = {}) {
     header.append(links);
   }
   root.append(header);
-  if (error) root.append(element("p", error, "verification-warning"));
   const exactStatus = variantName(report.overall_status);
   const overview = document.createElement("section");
   overview.id = "overview";
   overview.className = "overview";
-  const overallHeading = verificationKind === "Consensus" ? exactStatus : preliminaryStatus(report);
+  const overallHeading = preliminaryStatus(report);
   const aggregatedRules = aggregateRules(report.rules);
   const statusSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
   overview.append(
     element("h2", overallHeading, `main-status status-${exactStatus.toLowerCase()}`),
-    element("p", formatStatusSummary(statusSummary), "status-counts"),
+    renderStatusSummary(statusSummary),
     element("p", `${statusSummary.totalDistinctRules} Standard rules · ${statusSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
   );
-  if (verificationKind === "Preliminary") {
-    overview.append(element("p", "Consensus verification is required before management actions.", "verification-warning"));
-  }
+  overview.append(element("p", "A fresh transaction preflight is required before management actions.", "verification-warning"));
   root.append(overview);
 
   const metrics = document.createElement("dl");
@@ -939,7 +936,7 @@ export function renderReport(root, viewModel, options = {}) {
     metric("Committed topics", String(report.committed_topics.length)),
     metric("Voting-power freshness", target?.voting_power_refreshed_timestamp_seconds?.length ? checkedAtUtc(target.voting_power_refreshed_timestamp_seconds[0]) : "Unavailable"),
     metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Unavailable"),
-    metric("Verification level", verificationKind === "Consensus" ? "Consensus verified" : "Live analysis"),
+    metric("Verification level", "Live analysis"),
   );
   const characteristics = document.createElement("section");
   characteristics.id = "characteristics";

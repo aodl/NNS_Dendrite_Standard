@@ -78,18 +78,12 @@ export function createApplication({
   let currentPreliminaryReport;
   let currentPreliminaryProvenance;
   let currentPreliminaryNeuronId;
-  let currentConsensusReport;
-  let currentConsensusNeuronId;
-  let consensusStale = false;
   let preliminaryLoading = false;
   let preliminaryError;
-  let consensusLoading = false;
-  let consensusError;
   let currentView = "unselected";
   let routeGeneration = 0;
   let operationSequence = 0;
   let preliminaryOperation;
-  let consensusOperation;
   let currentTransactionReceipt;
   let currentTransactionNotices;
 
@@ -107,22 +101,14 @@ export function createApplication({
     preliminaryLoading = false;
     root.removeAttribute("aria-busy");
   }
-  function invalidateConsensusOperation() {
-    consensusOperation = undefined;
-    consensusLoading = false;
-  }
   function invalidateUnsubmittedWork() {
     transactionPipeline.discardUnsubmittedReview();
   }
   function invalidateAuthoritativeEvidence(neuronId) {
-    invalidateConsensusOperation();
-    if (currentConsensusNeuronId === neuronId && currentConsensusReport) consensusStale = true;
-    consensusError = undefined;
     invalidateUnsubmittedWork();
   }
   function supersedeRouteOperations() {
     invalidatePreliminaryOperation();
-    invalidateConsensusOperation();
     invalidateUnsubmittedWork();
   }
 
@@ -149,7 +135,7 @@ export function createApplication({
             element("p", "Proposal creation is not adoption or execution. Dendrite does not poll for either."),
           );
         }
-        known.append(element("p", "Resulting state is not consensus verified until a new explicit on-chain verification completes."));
+        known.append(element("p", "The public live report refreshes automatically; any later management action still requires fresh transaction preflights."));
       } else if (receipt.kind === "GovernanceRejection") {
         known.append(
           element("p", `Request SHA-256: ${boundedReceiptField(receipt.requestDigest, 64)}.`),
@@ -341,18 +327,15 @@ export function createApplication({
   function appendReportActions(id) {
     appendTransactionNotices();
     root.append(authenticationPanel());
-    const authoritative = currentConsensusNeuronId === id && currentConsensusReport && !consensusStale
-      ? currentConsensusReport
-      : undefined;
-    if (authenticatedPrincipal && authoritative) {
-      renderManagerAuthority(root, authoritative, authenticatedPrincipal);
+    if (authenticatedPrincipal && currentPreliminaryReport
+      && transactionPipeline.state !== "outcome-unknown") {
+      renderManagerAuthority(root, currentPreliminaryReport, authenticatedPrincipal);
       if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
-        report: authoritative,
+        report: currentPreliminaryReport,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
         pipeline: transactionPipeline,
         onSettlement: settleTransaction,
-        onRerun: () => verifyConsensus(id),
       });
     }
     if (trustInjectedPreliminaryForTests) {
@@ -367,29 +350,11 @@ export function createApplication({
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (match && currentView === "report" && currentPreliminaryReport && currentPreliminaryNeuronId === match[1]) {
       const id = match[1];
-      const hasConsensus = currentConsensusReport
-        && currentConsensusNeuronId === id
-        && !consensusStale
-        && !consensusError;
       renderReport(root, {
-        verificationKind: hasConsensus ? "Consensus" : "Preliminary",
-        report: hasConsensus ? currentConsensusReport : currentPreliminaryReport,
-        verifiedAt: hasConsensus ? currentConsensusReport.checked_at_timestamp_seconds : undefined,
-        controllerEvidenceAvailable: Boolean(hasConsensus),
-        provenance: hasConsensus ? {
-          governanceEvidence: { kind: "replicated-dendrite-verification" },
-          controllerEvidence: { kind: "replicated-dendrite-verification" },
-          evaluation: { kind: "replicated-dendrite-verifier" },
-        } : currentPreliminaryProvenance,
-        stale: consensusStale,
-        error: consensusError,
-      }, {
-        copyText,
-        preliminaryLoading,
-        consensusLoading,
-        onRefreshPreliminary: () => loadNeuron(id),
-        onVerifyConsensus: () => verifyConsensus(id),
-      });
+        verificationKind: "Preliminary",
+        report: currentPreliminaryReport,
+        provenance: currentPreliminaryProvenance,
+      }, { copyText });
       appendReportActions(id);
     } else if (!match) {
       renderLanding();
@@ -401,7 +366,7 @@ export function createApplication({
     clear(root);
     root.append(
       element("h1", "Dendrite"),
-      element("p", "View a preliminary analysis from public NNS data, then request consensus verification when required."),
+      element("p", "View one live analysis from replica-signed Governance data and IC-certified controller state."),
     );
     if (trustInjectedPreliminaryForTests) root.append(element("p", "Run a live consensus-backed verification."));
     const form = document.createElement("form");
@@ -441,21 +406,13 @@ export function createApplication({
     currentPreliminaryReport = undefined;
     currentPreliminaryProvenance = undefined;
     currentPreliminaryNeuronId = undefined;
-    currentConsensusReport = undefined;
-    currentConsensusNeuronId = undefined;
     preliminaryError = undefined;
-    consensusError = undefined;
-    consensusStale = false;
     renderLanding();
   }
 
   async function loadNeuron(id, generation = ++routeGeneration) {
     supersedeRouteOperations();
     preliminaryAnalyzer?.clear();
-    currentConsensusReport = undefined;
-    currentConsensusNeuronId = undefined;
-    consensusError = undefined;
-    consensusStale = false;
     const owner = newOperation("preliminary", id, generation);
     preliminaryOperation = owner;
     if (!ownsOperation(owner, preliminaryOperation)) return;
@@ -476,10 +433,6 @@ export function createApplication({
       currentPreliminaryReport = report;
       currentPreliminaryProvenance = analyzed?.provenance;
       currentPreliminaryNeuronId = id;
-      if (trustInjectedPreliminaryForTests) {
-        currentConsensusReport = report;
-        currentConsensusNeuronId = id;
-      }
       currentView = "report";
       preliminaryLoading = false;
       renderCurrent();
@@ -502,40 +455,6 @@ export function createApplication({
         preliminaryOperation = undefined;
         preliminaryLoading = false;
         root.removeAttribute("aria-busy");
-      }
-    }
-  }
-
-  async function verifyConsensus(id) {
-    const generation = routeGeneration;
-    if (location.hash !== `#/neuron/${id}`) return;
-    if (consensusOperation?.generation === generation && consensusOperation.neuronId === id) return;
-    invalidateConsensusOperation();
-    const owner = newOperation("consensus", id, generation);
-    consensusOperation = owner;
-    const hadConsensus = Boolean(
-      currentConsensusReport
-      && currentConsensusNeuronId === id,
-    );
-    consensusLoading = true;
-    consensusStale = hadConsensus;
-    consensusError = undefined;
-    renderCurrent();
-    try {
-      const report = await checkLive(await actor(), id);
-      if (!ownsOperation(owner, consensusOperation)) return;
-      currentConsensusReport = report;
-      currentConsensusNeuronId = id;
-      consensusStale = false;
-      consensusError = undefined;
-    } catch (error) {
-      if (!ownsOperation(owner, consensusOperation)) return;
-      consensusError = errorMessage(error);
-    } finally {
-      if (consensusOperation === owner) {
-        consensusOperation = undefined;
-        consensusLoading = false;
-        if (owner.generation === routeGeneration && location.hash === `#/neuron/${id}`) renderCurrent();
       }
     }
   }
@@ -579,9 +498,6 @@ export function createApplication({
       supersedeRouteOperations();
       currentPreliminaryReport = undefined;
       currentPreliminaryNeuronId = undefined;
-      currentConsensusReport = undefined;
-      currentConsensusNeuronId = undefined;
-      consensusStale = true;
       await loadNeuron(id);
       return;
     }

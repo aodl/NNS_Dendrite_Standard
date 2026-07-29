@@ -3,6 +3,8 @@ export const OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264n;
 export const SOURCE_REVISION = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 export const RECOGNISED_TOPICS = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18]);
 export const MAX_DEPENDENCY_NEURONS = RECOGNISED_TOPICS.length * 15 + 2;
+export const MAX_METADATA_TIMESTAMP_SKEW_SECONDS = 300n;
+export const MAX_METADATA_CONCURRENCY = 8;
 
 const LIMITS = Object.freeze({
   requested: 50,
@@ -126,7 +128,7 @@ function normalizeKnownData(value, id, interpretCommittedTopics) {
   };
 }
 
-function normalizeNeuron(raw, interpretCommittedTopics) {
+function normalizeNeuron(raw) {
   const id = BigInt(opt(raw?.id)?.id ?? 0);
   if (id === 0n) throw new PreliminaryEvidenceError("InvalidResponse", "full neuron has a missing or zero ID");
   if (!Array.isArray(raw.hot_keys) || raw.hot_keys.length > LIMITS.hotKeys) {
@@ -147,7 +149,6 @@ function normalizeNeuron(raw, interpretCommittedTopics) {
     }
     followees.set(entry[0], values.map((value) => BigInt(value.id)));
   }
-  const known = normalizeKnownData(raw.known_neuron_data, id, interpretCommittedTopics);
   const cached = BigInt(raw.cached_neuron_stake_e8s);
   const fees = BigInt(raw.neuron_fees_e8s);
   if (fees > cached) throw new PreliminaryEvidenceError("InvalidResponse", "neuron stake arithmetic is contradictory", [id]);
@@ -161,7 +162,9 @@ function normalizeNeuron(raw, interpretCommittedTopics) {
   return {
     id,
     controller: opt(raw.controller),
-    knownData: known.knownData,
+    // list_neurons deliberately omits known_neuron_data. It is never evidence
+    // for known-neuron status; get_neuron_info is merged later.
+    knownData: undefined,
     hotKeys: [...raw.hot_keys],
     notForProfit: Boolean(raw.not_for_profit),
     dissolveDelaySeconds: dissolveName === "DissolveDelaySeconds" ? BigInt(dissolve.DissolveDelaySeconds) : undefined,
@@ -171,9 +174,9 @@ function normalizeNeuron(raw, interpretCommittedTopics) {
     votingPowerRefreshedTimestampSeconds: refreshed === undefined ? undefined : BigInt(refreshed),
     potentialVotingPower: opt(raw.potential_voting_power) === undefined ? undefined : BigInt(opt(raw.potential_voting_power)),
     decidingVotingPower: opt(raw.deciding_voting_power) === undefined ? undefined : BigInt(opt(raw.deciding_voting_power)),
-    committedTopics: known.committedTopics,
+    committedTopics: [],
     followees,
-    unknownCommittedTopics: known.unknownCommittedTopics,
+    unknownCommittedTopics: 0,
   };
 }
 
@@ -201,7 +204,7 @@ export function validateListNeuronsBatch(requestedIds, response, { target = fals
   const neurons = new Map();
   let unknownCommittedTopics = 0;
   for (const raw of response.full_neurons) {
-    const neuron = normalizeNeuron(raw, target);
+    const neuron = normalizeNeuron(raw);
     const key = idKey(neuron.id);
     if (!expected.has(key)) throw new PreliminaryEvidenceError("InvalidResponse", "response contains an unexpected full-neuron ID", requested);
     if (neurons.has(key)) throw new PreliminaryEvidenceError("InvalidResponse", "response contains duplicate full-neuron IDs", requested);
@@ -222,8 +225,53 @@ export function validateListNeuronsBatch(requestedIds, response, { target = fals
   return { neurons, infos, unknownCommittedTopics };
 }
 
-export function createNeuronLoader({ listNeurons }) {
+function validateKnownMetadata(id, result, listTimestamp) {
+  if (!result || typeof result !== "object") {
+    throw new PreliminaryEvidenceError("InvalidResponse", "get_neuron_info returned a malformed result", [id]);
+  }
+  if ("Err" in result) {
+    const message = boundedUtf8(result.Err?.error_message ?? "", 512, "Governance error message");
+    throw new PreliminaryEvidenceError("Rejected", `get_neuron_info returned Governance error: ${message}`, [id]);
+  }
+  if (!("Ok" in result)) {
+    throw new PreliminaryEvidenceError("InvalidResponse", "get_neuron_info returned an unknown result variant", [id]);
+  }
+  const info = result.Ok;
+  const retrieved = BigInt(info?.retrieved_at_timestamp_seconds ?? 0);
+  if (retrieved === 0n || listTimestamp === 0n) {
+    throw new PreliminaryEvidenceError("InvalidResponse", "Governance retrieval timestamp is zero", [id]);
+  }
+  const responseId = BigInt(opt(info.id)?.id ?? 0);
+  if (responseId !== id) {
+    throw new PreliminaryEvidenceError("InvalidResponse", "get_neuron_info returned a mismatched neuron ID", [id]);
+  }
+  const skew = retrieved > listTimestamp ? retrieved - listTimestamp : listTimestamp - retrieved;
+  if (skew > MAX_METADATA_TIMESTAMP_SKEW_SECONDS) {
+    throw new PreliminaryEvidenceError("InvalidResponse", "Governance query timestamps exceed the permitted 300-second skew", [id]);
+  }
+  const known = normalizeKnownData(info.known_neuron_data, id, true);
+  return known.knownData
+    ? { kind: "Found", data: known.knownData, committedTopics: known.committedTopics,
+      unknownCommittedTopics: known.unknownCommittedTopics, retrievedAtTimestampSeconds: retrieved }
+    : { kind: "ConfirmedAbsent", retrievedAtTimestampSeconds: retrieved };
+}
+
+export function createNeuronLoader({ listNeurons, getNeuronInfo }) {
   const cache = new Map();
+  const metadataCache = new Map();
+  async function loadMetadata(id, timestamp) {
+    const key = idKey(id);
+    if (!metadataCache.has(key)) {
+      const pending = Promise.resolve().then(() => getNeuronInfo(BigInt(id)))
+        .then((result) => validateKnownMetadata(BigInt(id), result, BigInt(timestamp)))
+        .catch((error) => {
+          metadataCache.delete(key);
+          throw classifySourceFailure(error, [BigInt(id)]);
+        });
+      metadataCache.set(key, pending);
+    }
+    return metadataCache.get(key);
+  }
   async function fetchBatch(ids, target = false) {
     const requested = [...new Map(ids.map((id) => [idKey(id), BigInt(id)])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
     const response = await listNeurons(listNeuronsRequest(requested));
@@ -232,10 +280,28 @@ export function createNeuronLoader({ listNeurons }) {
   async function loadTarget(id) {
     const key = idKey(id);
     if (!cache.has(key)) {
-      const pending = fetchBatch([BigInt(id)], true).then((batch) => {
-        const lookup = batch.neurons.has(key) ? { kind: "Found", neuron: batch.neurons.get(key) } : { kind: "ConfirmedMissing" };
+      const pending = fetchBatch([BigInt(id)], true).then(async (batch) => {
+        let lookup = batch.neurons.has(key) ? { kind: "Found", neuron: batch.neurons.get(key) } : { kind: "ConfirmedMissing" };
+        const listTimestamp = batch.infos.get(key)?.retrievedAtTimestampSeconds ?? 0n;
+        let metadataFailure;
+        if (lookup.kind === "Found") {
+          try {
+            const metadata = await loadMetadata(BigInt(id), listTimestamp);
+            lookup.neuron.knownMetadataEvidence = metadata;
+            if (metadata.kind === "Found") {
+              lookup.neuron.knownData = metadata.data;
+              lookup.neuron.committedTopics = metadata.committedTopics;
+              lookup.neuron.unknownCommittedTopics = metadata.unknownCommittedTopics;
+            }
+          } catch (error) {
+            metadataFailure = classifySourceFailure(error, [BigInt(id)]);
+            lookup.neuron.knownMetadataEvidence = { kind: "Unavailable", failure: metadataFailure };
+          }
+        }
         cache.set(key, Promise.resolve(lookup));
-        return { lookup, retrievedAtTimestampSeconds: batch.infos.get(key)?.retrievedAtTimestampSeconds ?? 0n, unknownCommittedTopics: batch.unknownCommittedTopics };
+        return { lookup, retrievedAtTimestampSeconds: listTimestamp,
+          unknownCommittedTopics: lookup.kind === "Found" ? lookup.neuron.unknownCommittedTopics : 0,
+          metadataFailure };
       }).catch((error) => { cache.delete(key); throw error; });
       const cachedLookup = pending.then((result) => result.lookup);
       cachedLookup.catch(() => {});
@@ -260,7 +326,25 @@ export function createNeuronLoader({ listNeurons }) {
         cache.set(key, entry);
       }
       try {
-        await pending;
+        const validated = await pending;
+        const found = batchIds.filter((id) => validated.neurons.has(idKey(id)));
+        for (let index = 0; index < found.length; index += MAX_METADATA_CONCURRENCY) {
+          await Promise.all(found.slice(index, index + MAX_METADATA_CONCURRENCY).map(async (id) => {
+            const key = idKey(id), neuron = validated.neurons.get(key);
+            try {
+              const metadata = await loadMetadata(id, validated.infos.get(key)?.retrievedAtTimestampSeconds ?? 0n);
+              neuron.knownMetadataEvidence = metadata;
+              if (metadata.kind === "Found") neuron.knownData = metadata.data;
+            } catch (error) {
+              const failure = classifySourceFailure(error, [id]);
+              neuron.knownMetadataEvidence = { kind: "Unavailable", failure };
+              if (sourceFailures.length < LIMITS.sourceFailures) sourceFailures.push({
+                method: "get_neuron_info", kind: failure.kind, message: failure.message,
+                affectedNeuronIds: [id],
+              });
+            }
+          }));
+        }
       } catch (error) {
         const failure = classifySourceFailure(error, batchIds);
         if (sourceFailures.length < LIMITS.sourceFailures) sourceFailures.push({
@@ -289,7 +373,13 @@ export function createNeuronLoader({ listNeurons }) {
     });
     return result;
   }
-  return Object.freeze({ loadTarget, loadDependencies, clear: () => cache.clear(), cache });
+  return Object.freeze({
+    loadTarget,
+    loadDependencies,
+    clear: () => { cache.clear(); metadataCache.clear(); },
+    cache,
+    metadataCache,
+  });
 }
 
 export function deriveDependencyIds(target) {
@@ -307,12 +397,18 @@ export async function collectPreliminaryEvidence(neuronId, loader, controllerRea
   const targetId = BigInt(neuronId);
   try {
     const target = await loader.loadTarget(targetId);
+    const targetSourceFailures = target.metadataFailure ? [{
+      method: "get_neuron_info",
+      kind: target.metadataFailure.kind,
+      message: target.metadataFailure.message,
+      affectedNeuronIds: [targetId],
+    }] : [];
     if (target.lookup.kind !== "Found") return {
       nowSeconds: target.retrievedAtTimestampSeconds,
       target: target.lookup,
       dependencies: new Map(),
       controller: undefined,
-      sourceFailures: [],
+      sourceFailures: targetSourceFailures,
       unknownCommittedTopics: target.unknownCommittedTopics,
       controllerProvenance: { kind: "unavailable", reason: "Target controller was unavailable." },
     };
@@ -347,7 +443,7 @@ export async function collectPreliminaryEvidence(neuronId, loader, controllerRea
       target: target.lookup,
       dependencies,
       controller,
-      sourceFailures: [...(dependencies.sourceFailures ?? [])].slice(0, LIMITS.sourceFailures),
+      sourceFailures: [...targetSourceFailures, ...(dependencies.sourceFailures ?? [])].slice(0, LIMITS.sourceFailures),
       unknownCommittedTopics: target.unknownCommittedTopics,
       controllerProvenance,
     };

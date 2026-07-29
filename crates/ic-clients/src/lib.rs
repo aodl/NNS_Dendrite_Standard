@@ -17,6 +17,7 @@ pub const MAX_KNOWN_NEURON_LINKS: usize = 10;
 pub const MAX_KNOWN_NEURON_LINK_BYTES: usize = 100;
 pub const MAX_COMMITTED_TOPIC_WIRE_ENTRIES: usize = 64;
 pub const MAX_FOLLOWING_MAP_WIRE_ENTRIES: usize = 64;
+pub const MAX_METADATA_TIMESTAMP_SKEW_SECONDS: u64 = 300;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceError {
@@ -163,7 +164,15 @@ pub struct NeuronSubaccount {
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct NeuronInfo {
+    pub id: Option<NeuronId>,
     pub retrieved_at_timestamp_seconds: u64,
+    pub known_neuron_data: Option<KnownNeuronData>,
+    pub visibility: Option<i32>,
+}
+#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
+pub struct GovernanceError {
+    pub error_message: String,
+    pub error_type: i32,
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct ListNeuronsResponse {
@@ -264,6 +273,60 @@ pub async fn fetch_public_full_neurons(ids: Vec<u64>) -> Result<ListNeuronsRespo
         .candid::<ListNeuronsResponse>()
         .map_err(|e| decode_error(NNS_GOVERNANCE, "list_neurons", e))?;
     validate_neurons(response)
+}
+pub async fn fetch_known_neuron_info(id: u64) -> Result<NeuronInfo, SourceError> {
+    if id == 0 {
+        return Err(invalid_response(
+            NNS_GOVERNANCE,
+            "get_neuron_info",
+            "requested neuron ID is zero",
+        ));
+    }
+    let result = Call::bounded_wait(NNS_GOVERNANCE, "get_neuron_info")
+        .with_arg(id)
+        .await
+        .map_err(|e| call_error(NNS_GOVERNANCE, "get_neuron_info", e))?
+        .candid::<Result<NeuronInfo, GovernanceError>>()
+        .map_err(|e| decode_error(NNS_GOVERNANCE, "get_neuron_info", e))?;
+    let info = result.map_err(|error| SourceError {
+        destination: NNS_GOVERNANCE,
+        method: "get_neuron_info",
+        kind: SourceErrorKind::Rejected,
+        message: bounded_message(error.error_message),
+    })?;
+    if info.retrieved_at_timestamp_seconds == 0
+        || info.id.as_ref().map(|value| value.id) != Some(id)
+    {
+        return Err(invalid_response(
+            NNS_GOVERNANCE,
+            "get_neuron_info",
+            "response has a zero timestamp or mismatched neuron ID",
+        ));
+    }
+    if info.known_neuron_data.as_ref().is_some_and(|data| {
+        data.name.len() > MAX_KNOWN_NEURON_NAME_BYTES
+            || data
+                .description
+                .as_ref()
+                .is_some_and(|value| value.len() > MAX_KNOWN_NEURON_DESCRIPTION_BYTES)
+            || data.links.as_ref().is_some_and(|links| {
+                links.len() > MAX_KNOWN_NEURON_LINKS
+                    || links
+                        .iter()
+                        .any(|value| value.len() > MAX_KNOWN_NEURON_LINK_BYTES)
+            })
+            || data
+                .committed_topics
+                .as_ref()
+                .is_some_and(|topics| topics.len() > MAX_COMMITTED_TOPIC_WIRE_ENTRIES)
+    }) {
+        return Err(response_too_large(
+            NNS_GOVERNANCE,
+            "get_neuron_info",
+            "known-neuron metadata exceeds a pinned bound",
+        ));
+    }
+    Ok(info)
 }
 pub async fn inspect_controller_canister(
     canister_id: Principal,
@@ -390,7 +453,10 @@ mod tests {
                         (
                             id.id,
                             NeuronInfo {
+                                id: Some(NeuronId { id: id.id }),
                                 retrieved_at_timestamp_seconds: 1,
+                                known_neuron_data: neuron.known_neuron_data.clone(),
+                                visibility: neuron.visibility,
                             },
                         )
                     })

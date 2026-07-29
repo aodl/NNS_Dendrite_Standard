@@ -468,7 +468,8 @@ test("rule groups disclose by severity and closing clears child expansion", () =
   const evidenceToggle = walk(evidence, (node) => node.className === "rule-group-toggle")[0];
   assert.equal(evidenceToggle.attributes["aria-expanded"], "false");
   assert.match(evidenceToggle.attributes["aria-label"], /1 pass, 0 fail/);
-  assert.ok(byText(evidence, "1 pass · 0 fail").length);
+  assert.ok(byText(evidence, "1 pass").length);
+  assert.ok(byText(evidence, "0 fail").length);
   const target = groups.find((group) => byText(group, "Target and committed topics").length);
   const groupToggle = walk(target, (node) => node.className === "rule-group-toggle")[0];
   assert.equal(groupToggle.attributes["aria-expanded"], "true");
@@ -489,7 +490,7 @@ test("preliminary controller uncertainty is verification-required and never pass
   assert.ok(byText(row, "Requires verification").length);
   assert.equal(byText(row, "Pass").length, 0);
   assert.equal(byText(row, "Fail").length, 0);
-  assert.ok(byText(root, "Consensus verification is required before management actions.").length);
+  assert.ok(byText(root, "A fresh transaction preflight is required before management actions.").length);
 });
 
 test("live and consensus provenance appears once without per-rule trust warnings", () => {
@@ -525,18 +526,14 @@ test("live and consensus provenance appears once without per-rule trust warnings
   }
 });
 
-test("header action hierarchy and flat section structure are accessible", () => {
+test("report header has no generic actions and flat section structure is accessible", () => {
   const preliminary = render("Preliminary", {
     onRefreshPreliminary() {},
     onVerifyConsensus() {},
   });
-  assert.equal(walk(preliminary, (node) => node.className?.includes?.("button-primary")).length, 1);
-  assert.ok(byText(preliminary, "Verify on-chain")[0].className.includes("button-primary"));
-  assert.ok(byText(preliminary, "Refresh live analysis")[0].className.includes("button-quiet"));
+  assert.equal(byText(preliminary, "Verify on-chain").length, 0);
+  assert.equal(byText(preliminary, "Refresh live analysis").length, 0);
   assert.equal(walk(preliminary, (node) => node.className === "section-navigation").length, 0);
-  const consensus = render("Consensus", { onVerifyConsensus() {} });
-  assert.equal(walk(consensus, (node) => node.className?.includes?.("button-primary")).length, 0);
-
   const root = render();
   const sectionIds = walk(root, (node) => ["overview", "rules", "characteristics", "managers", "delegation", "evidence"].includes(node.id))
     .map((node) => node.id);

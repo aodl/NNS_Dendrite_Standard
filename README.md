@@ -3,9 +3,9 @@
 ## Overview
 
 Dendrite is one stateless Rust canister that serves a certified frontend and performs
-anonymous, live NNS Dendrite Standard verification. Ordinary browsing first evaluates
-strictly validated public Governance evidence in browser memory; an explicit
-`Verify on-chain` action obtains the authoritative consensus report. Its public
+anonymous, live NNS Dendrite Standard verification. Ordinary browsing evaluates
+strictly validated public Governance and certified controller evidence in browser
+memory. There is no manual refresh or public consensus-report mode. Its public
 application methods remain only update `check_neuron` and query `http_request`.
 
 The neuron page is rules-first: a flat identity and trust-state header, overall result,
@@ -33,9 +33,8 @@ that query. Neither fetches the root key in production. Internet Identity sessio
 and Governance-only delegations remain in the browser and are never sent to Dendrite.
 Privileged mutations go directly from the browser to fixed NNS Governance and still
 require a fresh authoritative Dendrite preflight. See [security](docs/security.md).
-Live-analysis and consensus work is owned by explicit route-generation operations:
-navigation, refresh, replacement, and transaction settlement cannot publish stale
-completions or strand a loading state.
+Live-analysis work is owned by route-generation operations, so navigation and
+transaction settlement cannot publish stale completions or strand a loading state.
 
 ## Production deployment
 

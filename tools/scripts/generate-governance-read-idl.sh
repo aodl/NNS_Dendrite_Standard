@@ -10,6 +10,6 @@ didc bind -t js "$input" |
   sed '/^export const init =/d' > "$temporary"
 {
   echo '// Generated deterministically from candid/nns-governance/governance.subset.did.'
-  echo '// Anonymous preliminary analysis exposes only the public list_neurons query.'
+  echo '// Anonymous live analysis exposes only explicit public Governance queries.'
   cat "$temporary"
 } > "$output"

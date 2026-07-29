@@ -60,7 +60,7 @@ production Dendrite requests, and zero interaction-triggered requests. Captured
 transport headers contain no Authorization or cookies, but ingress anonymity is proved
 by the separate production actor identity-construction unit test, not inferred from
 those headers alone. The procedure never invokes Internet
-Identity, clicks `Verify on-chain`, or sends an NNS mutation.
+Identity or sends an NNS mutation.
 
 The Rust unit suite deterministically regenerates
 `canisters/dendrite/web/test/fixtures/evaluator.json`. Its 38 cases record Rust overall
@@ -78,9 +78,8 @@ section summaries, empty/unavailable states, and accessible expansion
 attributes behave without mutating the report. They also prove that route entry calls
 Governance and the query-reported controller without calling Dendrite, controller
 certificate failures remain indeterminate, valid certified state drives controller
-pass/fail results, explicit verification calls Dendrite once, bounded verifier errors
-retain live evidence, route races remain suppressed, and authenticated transaction
-controls require a current authoritative report. Existing transaction tests continue
+pass/fail results, route races remain suppressed, and ordinary browsing never calls
+Dendrite. Existing transaction tests continue
 to prove that final preflight independently invokes `check_neuron` and a failed
 preflight sends no Governance mutation.
 

@@ -167,12 +167,30 @@ pub fn evaluate(
         }
     };
     out.push(rule(now, "DENDRITE-KNOWN-001", true, "target exists"));
-    out.push(rule(
+    let mut known_metadata = rule(
         now,
         "DENDRITE-KNOWN-002",
         target.known_data.is_some(),
-        "target is a current known neuron",
-    ));
+        if target.known_data.is_some() {
+            "Governance returned valid known-neuron metadata"
+        } else {
+            "Governance returned no known-neuron metadata"
+        },
+    );
+    let metadata_failure = evidence.source_failures.iter().find(|failure| {
+        failure.method == "get_neuron_info" && failure.affected_neuron_ids.contains(&neuron_id)
+    });
+    if let Some(failure) = metadata_failure {
+        known_metadata.status = RuleStatus::Indeterminate;
+        known_metadata.message = format!(
+            "known-neuron metadata could not be retrieved: {}. No failure was inferred",
+            failure.message
+        )
+        .chars()
+        .take(512)
+        .collect();
+    }
+    out.push(known_metadata);
     let has_concrete_committed_topic = target
         .committed_topics
         .iter()
@@ -241,6 +259,19 @@ pub fn evaluate(
         let last = out.last_mut().expect("committed-topic rule was just added");
         last.status = RuleStatus::StandardUpdateRequired;
         last.message = "committed topic uses an unknown or reserved topic code".into();
+    }
+    if metadata_failure.is_some() {
+        for result in out.iter_mut().filter(|result| {
+            matches!(
+                result.rule_id.as_str(),
+                "DENDRITE-KNOWN-003" | "DENDRITE-KNOWN-004"
+            )
+        }) {
+            result.status = RuleStatus::Indeterminate;
+            result.message =
+                "known-neuron metadata was unavailable; no committed-topic result was inferred"
+                    .into();
+        }
     }
     out.push(evidenced_rule(
         now,
@@ -1104,6 +1135,40 @@ mod tests {
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
         assert_eq!(snapshot.rules[0].status, RuleStatus::Indeterminate);
+    }
+    #[test]
+    fn unavailable_target_metadata_is_not_inferred_as_absent() {
+        let mut evidence = compliant_evidence();
+        evidence.target.as_mut().unwrap().known_data = None;
+        evidence.target.as_mut().unwrap().committed_topics.clear();
+        evidence.source_failures.push(SourceFailure {
+            method: "get_neuron_info".into(),
+            kind: SourceFailureKind::DecodeFailed,
+            message: "metadata response could not be decoded".into(),
+            affected_neuron_ids: vec![42],
+        });
+        let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
+        for id in [
+            "DENDRITE-KNOWN-002",
+            "DENDRITE-KNOWN-003",
+            "DENDRITE-KNOWN-004",
+        ] {
+            assert!(
+                snapshot
+                    .rules
+                    .iter()
+                    .any(|rule| { rule.rule_id == id && rule.status == RuleStatus::Indeterminate })
+            );
+        }
+        assert!(
+            snapshot
+                .rules
+                .iter()
+                .find(|rule| { rule.rule_id == "DENDRITE-KNOWN-002" })
+                .unwrap()
+                .message
+                .contains("No failure was inferred")
+        );
     }
     #[test]
     fn rejected_controller_call_is_indeterminate_not_blackhole_failure() {

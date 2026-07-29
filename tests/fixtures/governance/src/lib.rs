@@ -95,7 +95,7 @@ fn fixtures() -> Vec<Neuron> {
 
 #[ic_cdk::query]
 fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
-    let full_neurons: Vec<_> = fixtures()
+    let metadata_neurons: Vec<_> = fixtures()
         .into_iter()
         .filter(|neuron| {
             neuron
@@ -104,15 +104,26 @@ fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
                 .is_some_and(|id| request.neuron_ids.contains(&id.id))
         })
         .collect();
+    let full_neurons = metadata_neurons
+        .iter()
+        .cloned()
+        .map(|mut neuron| {
+            neuron.known_neuron_data = None;
+            neuron
+        })
+        .collect();
     ListNeuronsResponse {
-        neuron_infos: full_neurons
+        neuron_infos: metadata_neurons
             .iter()
             .filter_map(|neuron| {
                 neuron.id.as_ref().map(|id| {
                     (
                         id.id,
                         NeuronInfo {
+                            id: Some(NeuronId { id: id.id }),
                             retrieved_at_timestamp_seconds: RETRIEVED_AT_TIMESTAMP_SECONDS,
+                            known_neuron_data: neuron.known_neuron_data.clone(),
+                            visibility: neuron.visibility,
                         },
                     )
                 })
@@ -121,6 +132,23 @@ fn list_neurons(request: ListNeurons) -> ListNeuronsResponse {
         full_neurons,
         total_pages_available: Some(1),
     }
+}
+
+#[ic_cdk::query]
+fn get_neuron_info(id: u64) -> Result<NeuronInfo, GovernanceError> {
+    fixtures()
+        .into_iter()
+        .find(|neuron| neuron.id.as_ref().is_some_and(|value| value.id == id))
+        .map(|neuron| NeuronInfo {
+            id: neuron.id,
+            retrieved_at_timestamp_seconds: RETRIEVED_AT_TIMESTAMP_SECONDS,
+            known_neuron_data: neuron.known_neuron_data,
+            visibility: neuron.visibility,
+        })
+        .ok_or(GovernanceError {
+            error_message: "Neuron not found".into(),
+            error_type: 5,
+        })
 }
 
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]

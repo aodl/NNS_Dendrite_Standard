@@ -44,5 +44,8 @@ export async function createAnonymousGovernanceReadActor(options = {}) {
     agent,
     canisterId: Principal.fromText(configuration.canisterId),
   });
-  return Object.freeze({ list_neurons: (request) => actor.list_neurons(request) });
+  return Object.freeze({
+    list_neurons: (request) => actor.list_neurons(request),
+    get_neuron_info: (neuronId) => actor.get_neuron_info(neuronId),
+  });
 }

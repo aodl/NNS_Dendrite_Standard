@@ -103,6 +103,34 @@ const genericReason = ({ report, entry, status }) => {
   return entry.message || `${entry.rule_id} produced ${status}.`;
 };
 
+export function buildOutcomeExplanation({
+  status,
+  ruleId,
+  report,
+  observedItems,
+  expectedItems,
+  relatedNeurons,
+}) {
+  const failures = sourceFailureText(report, relatedNeurons);
+  if (ruleId === "DENDRITE-KNOWN-002") {
+    const known = option(report.target)?.known_neuron?.[0];
+    if (status === "Pass" && known) {
+      return `Governance returned valid known-neuron metadata for ${known.name}.`;
+    }
+    if (status === "Indeterminate") {
+      return `Known-neuron metadata could not be retrieved${failures.length ? `: ${failures.join("; ")}` : ""}. No failure was inferred.`;
+    }
+    return `Governance confirmed that no known-neuron metadata is registered for neuron ${report.neuron_id}.`;
+  }
+  if (status === "Fail" && observedItems.length && expectedItems.length) {
+    return `${observedItems.join("; ")}; expected ${expectedItems.join("; ")}.`;
+  }
+  if (status === "Indeterminate" && failures.length) {
+    return `The required evidence could not be retrieved: ${failures.join("; ")}. No pass or failure was inferred.`;
+  }
+  return undefined;
+}
+
 const duplicates = (values) => {
   const seen = new Set();
   return values.map(String).filter((value) => seen.has(value) || !seen.add(value));
@@ -119,7 +147,12 @@ const structuredValues = (report, entry) => {
     case "DENDRITE-KNOWN-001":
       return [set(observed, target ? `full public neuron ${report.neuron_id} returned` : `target neuron ${report.neuron_id} not returned`), set(expected, "full public neuron data returned")];
     case "DENDRITE-KNOWN-002":
-      return [set(observed, target?.known_neuron?.length ? `known neuron: ${target.known_neuron[0].name}` : "known_neuron_data absent or malformed"), set(expected, "valid known_neuron_data")];
+      return [set(observed, target?.known_neuron?.length
+        ? `Governance metadata: ${target.known_neuron[0].name}`
+        : sourceFailureText(report, [report.neuron_id]).length
+          ? `metadata unavailable: ${sourceFailureText(report, [report.neuron_id]).join("; ")}`
+          : "Governance confirmed no known-neuron metadata"),
+      set(expected, "valid known-neuron metadata")];
     case "DENDRITE-LOCK-001":
       return [set(observed, target?.dissolving?.length ? (target.dissolving[0] ? "dissolving" : "locked and not dissolving") : "dissolving state unavailable"), set(expected, "locked and not dissolving")];
     case "DENDRITE-LOCK-002":
@@ -178,7 +211,14 @@ export function buildRuleDiagnostic({
     ? controllerReason({ report, entry, status, verificationKind, provenance }) : undefined;
   const [observedItems, expectedItems] = structuredValues(report, entry);
   const relatedNeurons = [...(entry.related_neuron_ids ?? [])];
-  const explanation = controller?.reason ?? genericReason({ report, entry, status });
+  const explanation = controller?.reason ?? buildOutcomeExplanation({
+    status,
+    ruleId: entry.rule_id,
+    report,
+    observedItems,
+    expectedItems,
+    relatedNeurons,
+  }) ?? genericReason({ report, entry, status });
   return Object.freeze({
     status,
     presentationStatus: statusLabel(status, verificationKind, entry.rule_id),

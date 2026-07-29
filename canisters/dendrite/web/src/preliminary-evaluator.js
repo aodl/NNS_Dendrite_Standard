@@ -139,13 +139,30 @@ export function evaluatePreliminary(neuronId, evidence) {
   }
   const target = evidence.target.neuron;
   rules.push(rule("DENDRITE-KNOWN-001", true, "target exists"));
-  rules.push(rule("DENDRITE-KNOWN-002", target.knownData !== undefined, "target is a current known neuron"));
+  const metadataFailure = evidence.sourceFailures.find((failure) =>
+    failure.method === "get_neuron_info"
+      && failure.affectedNeuronIds.some((related) => BigInt(related) === id));
+  const knownMetadata = rule(
+    "DENDRITE-KNOWN-002",
+    target.knownData !== undefined,
+    target.knownData !== undefined
+      ? "Governance returned valid known-neuron metadata"
+      : "Governance returned no known-neuron metadata",
+  );
+  if (metadataFailure) setStatus(
+    knownMetadata,
+    "Indeterminate",
+    `Known-neuron metadata could not be retrieved: ${metadataFailure.message}. No failure was inferred.`,
+  );
+  rules.push(knownMetadata);
   const concreteTopics = target.committedTopics.some(concrete);
   const known3 = rule("DENDRITE-KNOWN-003", concreteTopics, "at least one concrete committed topic exists");
   if (!concreteTopics && evidence.unknownCommittedTopics > 0) {
     setStatus(known3, "StandardUpdateRequired");
     known3.observed = [`${evidence.unknownCommittedTopics} unknown committed-topic variant(s)`];
   }
+  if (metadataFailure) setStatus(known3, "Indeterminate",
+    "known-neuron metadata was unavailable; no committed-topic result was inferred");
   rules.push(known3);
   const rawCommittedCount = target.committedTopics.length + evidence.unknownCommittedTopics;
   const duplicateTopics = new Set(target.committedTopics).size !== target.committedTopics.length;
@@ -159,6 +176,8 @@ export function evaluatePreliminary(neuronId, evidence) {
   } else if (!factualCommittedInvalidity && target.committedTopics.some((topic) => !RECOGNISED_TOPICS.includes(topic))) {
     setStatus(known4, "StandardUpdateRequired", "committed topic uses an unknown or reserved topic code");
   }
+  if (metadataFailure) setStatus(known4, "Indeterminate",
+    "known-neuron metadata was unavailable; no committed-topic result was inferred");
   rules.push(known4);
   rules.push(evidencedRule("DENDRITE-LOCK-001", target.dissolving === false,
     "target is locked and not dissolving",
@@ -303,13 +322,16 @@ export function evaluatePreliminary(neuronId, evidence) {
 }
 
 export function createPreliminaryAnalyzer({ governanceActor, loaderFactory, controllerReader }) {
-  const createLoader = loaderFactory ?? ((listNeurons) => import("./preliminary-evidence.js").then(({ createNeuronLoader }) => createNeuronLoader({ listNeurons })));
+  const createLoader = loaderFactory ?? ((governance) => import("./preliminary-evidence.js").then(({ createNeuronLoader }) => createNeuronLoader({
+    listNeurons: (request) => governance.list_neurons(request),
+    getNeuronInfo: (id) => governance.get_neuron_info(id),
+  })));
   let loader;
   let certifiedReader = controllerReader;
   return Object.freeze({
     async analyze(neuronId) {
       const { collectPreliminaryEvidence } = await import("./preliminary-evidence.js");
-      loader ??= await createLoader((request) => governanceActor.list_neurons(request));
+      loader ??= await createLoader(governanceActor);
       certifiedReader ??= (await import("./certified-canister-state.js")).createCertifiedCanisterStateReader();
       const evidence = await collectPreliminaryEvidence(BigInt(neuronId), loader, certifiedReader);
       const report = evaluatePreliminary(BigInt(neuronId), evidence);

@@ -41,8 +41,13 @@ type Neuron = record {
   potential_voting_power : opt nat64;
 };
 type NeuronInfo = record {
+  id : opt NeuronId;
   retrieved_at_timestamp_seconds : nat64;
+  known_neuron_data : opt KnownNeuronData;
+  visibility : opt int32;
 };
+type GovernanceError = record { error_message : text; error_type : int32 };
+type NeuronInfoResult = variant { Ok : NeuronInfo; Err : GovernanceError };
 type ListNeurons = record {
   neuron_ids : vec nat64;
   include_neurons_readable_by_caller : bool;
@@ -59,4 +64,5 @@ type ListNeuronsResponse = record {
 };
 service : {
   list_neurons : (ListNeurons) -> (ListNeuronsResponse) query;
+  get_neuron_info : (nat64) -> (NeuronInfoResult) query;
 };

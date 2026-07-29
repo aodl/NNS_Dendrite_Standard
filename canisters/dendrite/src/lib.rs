@@ -135,32 +135,9 @@ fn neuron_collections_within_bounds(neuron: &Neuron) -> bool {
 
 fn normalize_neuron(
     neuron: Neuron,
-    interpret_committed_topics: bool,
+    _interpret_committed_topics: bool,
 ) -> Result<(NeuronEvidence, usize), &'static str> {
     let id = neuron.id.as_ref().map_or(0, |id| id.id);
-    let mut unknown = 0;
-    let committed_topics = if interpret_committed_topics {
-        neuron
-            .known_neuron_data
-            .as_ref()
-            .and_then(|d| d.committed_topics.as_ref())
-            .map(|topics| {
-                topics
-                    .iter()
-                    .filter_map(|topic| match topic {
-                        Some(topic) => Some(topic_code(topic)),
-                        None => {
-                            unknown += 1;
-                            None
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let known_data = neuron.known_neuron_data.as_ref().map(|d| known_data(d, id));
     let followees = neuron
         .followees
         .into_iter()
@@ -182,7 +159,7 @@ fn normalize_neuron(
         NeuronEvidence {
             id,
             controller: neuron.controller,
-            known_data,
+            known_data: None,
             hot_keys: neuron.hot_keys,
             not_for_profit: Some(neuron.not_for_profit),
             dissolve_delay_seconds,
@@ -193,15 +170,23 @@ fn normalize_neuron(
                 .voting_power_refreshed_timestamp_seconds,
             potential_voting_power: neuron.potential_voting_power,
             deciding_voting_power: neuron.deciding_voting_power,
-            committed_topics,
+            committed_topics: Vec::new(),
             followees,
         },
-        unknown,
+        0,
     ))
 }
 
 trait EvidenceClient {
     async fn list_neurons(&self, ids: Vec<u64>) -> Result<ListNeuronsResponse, SourceError>;
+    async fn get_neuron_info(&self, _id: u64) -> Result<NeuronInfo, SourceError> {
+        Err(SourceError {
+            destination: ic_clients::NNS_GOVERNANCE,
+            method: "get_neuron_info",
+            kind: ic_clients::SourceErrorKind::Rejected,
+            message: "known-neuron metadata fixture unavailable".into(),
+        })
+    }
     async fn canister_info(
         &self,
         canister_id: Principal,
@@ -330,10 +315,52 @@ fn dependency_ids(target: &NeuronEvidence) -> Vec<u64> {
     requested
 }
 
+fn merge_known_metadata(
+    neuron: &mut NeuronEvidence,
+    info: NeuronInfo,
+    list_timestamp: u64,
+    interpret_committed_topics: bool,
+) -> Result<usize, &'static str> {
+    if info.id.as_ref().map(|id| id.id) != Some(neuron.id)
+        || info.retrieved_at_timestamp_seconds == 0
+        || list_timestamp == 0
+        || info.retrieved_at_timestamp_seconds.abs_diff(list_timestamp)
+            > ic_clients::MAX_METADATA_TIMESTAMP_SKEW_SECONDS
+    {
+        return Err("get_neuron_info ID or retrieval timestamp is inconsistent");
+    }
+    let Some(data) = info.known_neuron_data else {
+        neuron.known_data = None;
+        neuron.committed_topics.clear();
+        return Ok(0);
+    };
+    let mut unknown = 0;
+    if interpret_committed_topics {
+        neuron.committed_topics = data
+            .committed_topics
+            .as_ref()
+            .into_iter()
+            .flatten()
+            .filter_map(|topic| match topic {
+                Some(topic) => Some(topic_code(topic)),
+                None => {
+                    unknown += 1;
+                    None
+                }
+            })
+            .collect();
+    }
+    neuron.known_data = Some(known_data(&data, neuron.id));
+    Ok(unknown)
+}
+
 struct ProductionEvidenceClient;
 impl EvidenceClient for ProductionEvidenceClient {
     async fn list_neurons(&self, ids: Vec<u64>) -> Result<ListNeuronsResponse, SourceError> {
         ic_clients::fetch_public_full_neurons(ids).await
+    }
+    async fn get_neuron_info(&self, id: u64) -> Result<NeuronInfo, SourceError> {
+        ic_clients::fetch_known_neuron_info(id).await
     }
 
     async fn canister_info(
@@ -395,7 +422,26 @@ async fn collect_with(
             (NeuronLookup::Unavailable, 0, 0)
         }
     };
-    let (target_lookup, unknown_committed_topics, evaluation_timestamp_seconds) = target_lookup;
+    let (mut target_lookup, mut unknown_committed_topics, evaluation_timestamp_seconds) =
+        target_lookup;
+    if let NeuronLookup::Found(target) = &mut target_lookup {
+        match client.get_neuron_info(neuron_id).await {
+            Ok(info) => {
+                match merge_known_metadata(target, info, evaluation_timestamp_seconds, true) {
+                    Ok(unknown) => unknown_committed_topics = unknown,
+                    Err(message) => {
+                        source_failures.push(SourceFailure {
+                            method: "get_neuron_info".into(),
+                            kind: SourceFailureKind::InvalidResponse,
+                            message: message.into(),
+                            affected_neuron_ids: vec![neuron_id],
+                        });
+                    }
+                }
+            }
+            Err(error) => source_failures.push(source_failure(error, &[neuron_id])),
+        }
+    }
     let NeuronLookup::Found(target) = &target_lookup else {
         let evidence = EvaluationEvidence {
             now_seconds: evaluation_timestamp_seconds,
@@ -414,12 +460,44 @@ async fn collect_with(
             Ok(response) => match validate_list_neurons_batch(&batch, response, false) {
                 Ok(mut validated) => {
                     for id in batch {
-                        let lookup = validated
-                            .neurons
-                            .remove(&id)
-                            .map_or(NeuronLookup::ConfirmedMissing, |neuron| {
-                                NeuronLookup::Found(Box::new(neuron))
-                            });
+                        let lookup = match validated.neurons.remove(&id) {
+                            Some(mut neuron) => {
+                                let list_timestamp = validated
+                                    .neuron_infos
+                                    .get(&id)
+                                    .map_or(0, |info| info.retrieved_at_timestamp_seconds);
+                                let metadata_available = match client.get_neuron_info(id).await {
+                                    Ok(info) => {
+                                        if let Err(message) = merge_known_metadata(
+                                            &mut neuron,
+                                            info,
+                                            list_timestamp,
+                                            false,
+                                        ) {
+                                            source_failures.push(SourceFailure {
+                                                method: "get_neuron_info".into(),
+                                                kind: SourceFailureKind::InvalidResponse,
+                                                message: message.into(),
+                                                affected_neuron_ids: vec![id],
+                                            });
+                                            false
+                                        } else {
+                                            true
+                                        }
+                                    }
+                                    Err(error) => {
+                                        source_failures.push(source_failure(error, &[id]));
+                                        false
+                                    }
+                                };
+                                if metadata_available {
+                                    NeuronLookup::Found(Box::new(neuron))
+                                } else {
+                                    NeuronLookup::Unavailable
+                                }
+                            }
+                            None => NeuronLookup::ConfirmedMissing,
+                        };
                         dependencies.insert(id, lookup);
                     }
                 }
@@ -503,6 +581,10 @@ mod tests {
         List(Vec<u64>),
         CanisterInfo(Principal),
     }
+    thread_local! {
+        static TEST_METADATA: TestRefCell<BTreeMap<u64, (KnownNeuronData, Option<i32>)>> =
+            const { TestRefCell::new(BTreeMap::new()) };
+    }
     struct FakeClient {
         neurons: TestRefCell<VecDeque<Result<ListNeuronsResponse, SourceError>>>,
         calls: TestRefCell<Vec<RecordedCall>>,
@@ -510,10 +592,32 @@ mod tests {
     impl EvidenceClient for FakeClient {
         async fn list_neurons(&self, ids: Vec<u64>) -> Result<ListNeuronsResponse, SourceError> {
             self.calls.borrow_mut().push(RecordedCall::List(ids));
-            self.neurons
+            let response = self
+                .neurons
                 .borrow_mut()
                 .pop_front()
-                .expect("unexpected list_neurons call")
+                .expect("unexpected list_neurons call");
+            if let Ok(value) = &response {
+                TEST_METADATA.with_borrow_mut(|metadata| {
+                    for neuron in &value.full_neurons {
+                        if let (Some(id), Some(data)) = (&neuron.id, &neuron.known_neuron_data) {
+                            metadata.insert(id.id, (data.clone(), neuron.visibility));
+                        }
+                    }
+                });
+            }
+            response
+        }
+        async fn get_neuron_info(&self, id: u64) -> Result<NeuronInfo, SourceError> {
+            Ok(TEST_METADATA.with_borrow(|metadata| {
+                let value = metadata.get(&id);
+                NeuronInfo {
+                    id: Some(ic_clients::NeuronId { id }),
+                    retrieved_at_timestamp_seconds: 1_000_000,
+                    known_neuron_data: value.map(|(data, _)| data.clone()),
+                    visibility: value.and_then(|(_, visibility)| *visibility),
+                }
+            }))
         }
         async fn canister_info(
             &self,
@@ -554,7 +658,10 @@ mod tests {
                         (
                             id.id,
                             NeuronInfo {
+                                id: Some(ic_clients::NeuronId { id: id.id }),
                                 retrieved_at_timestamp_seconds: 1_000_000,
+                                known_neuron_data: neuron.known_neuron_data.clone(),
+                                visibility: neuron.visibility,
                             },
                         )
                     })
@@ -750,7 +857,19 @@ mod tests {
         target.controller = Some(Principal::from_slice(&[1]));
         target.known_neuron_data.as_mut().unwrap().committed_topics =
             Some(recognised_topic_variants());
-        let normalized = normalize_neuron(target.clone(), true).unwrap().0;
+        let mut normalized = normalize_neuron(target.clone(), true).unwrap().0;
+        merge_known_metadata(
+            &mut normalized,
+            NeuronInfo {
+                id: target.id.clone(),
+                retrieved_at_timestamp_seconds: 1_000_000,
+                known_neuron_data: target.known_neuron_data.clone(),
+                visibility: target.visibility,
+            },
+            1_000_000,
+            true,
+        )
+        .unwrap();
         let dependency_ids = dependency_ids(&normalized);
         assert_eq!(dependency_ids.len(), MAX_DEPENDENCY_NEURONS);
 

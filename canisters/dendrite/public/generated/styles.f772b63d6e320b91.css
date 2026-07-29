@@ -114,7 +114,7 @@ button:disabled { cursor: wait; opacity: .62; }
 }
 .muted, .table-support { color: var(--text-muted); }
 .table-support { display: block; margin-top: var(--space-1); font-size: .86rem; }
-form, .report-actions, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; }
+form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; }
 .authentication { margin: var(--space-6) 0; padding: var(--space-4); border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider); }
 .authentication h2, .authentication p { flex-basis: 100%; margin: var(--space-1) 0; }
 
@@ -137,7 +137,6 @@ form, .report-actions, .authentication { display: flex; flex-wrap: wrap; gap: va
 }
 .verification-state { display: flex; flex-direction: column; gap: var(--space-2); align-items: end; }
 .verification-time { color: var(--text-muted); font-size: .82rem; }
-.report-actions { grid-column: 1 / -1; justify-content: flex-end; }
 .known-links { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: .9rem; }
 .badge {
   display: inline-flex;
@@ -159,6 +158,7 @@ form, .report-actions, .authentication { display: flex; flex-wrap: wrap; gap: va
 .status-noncompliant { color: var(--fail); }
 .status-indeterminate, .status-standardupdaterequired { color: var(--warning); }
 .status-counts { margin: var(--space-2) 0 var(--space-1); font-weight: 600; }
+.status-count-segment + .status-count-segment { margin-inline-start: var(--space-4); }
 .evaluation-counts { margin: 0; color: var(--text-muted); }
 .verification-warning, .error {
   padding: var(--space-3) var(--space-4);
@@ -424,7 +424,6 @@ table { width: 100%; border-collapse: collapse; }
   main { width: calc(100% - 1rem); max-width: 74rem; padding-top: var(--space-6); }
   .report-header { grid-template-columns: 1fr; gap: var(--space-3); }
   .verification-state { align-items: start; }
-  .report-actions { grid-column: 1; justify-content: flex-start; }
   .rule-table > thead th:last-child, .rule-result-cell { width: 9rem; }
   .rule-summary-row > th, .rule-summary-row > td { padding-inline: var(--space-2); }
   .rule-detail-row > td { padding: var(--space-4) var(--space-2); }

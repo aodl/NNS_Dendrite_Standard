@@ -31,6 +31,40 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Known-metadata and single-live-report candidate — 2026-07-29
+
+This candidate is not deployed. Ordinary reports have one route-loaded live state and
+no refresh or public consensus-verification action. Anonymous, signature-verified
+Governance `list_neurons` supplies full configuration while explicit-ID
+`get_neuron_info` supplies known-neuron metadata; certified controller state remains a
+separate exact-canister `read_state`. Dendrite `check_neuron` remains confined to exact
+transaction review and final preflight.
+
+Two clean local builds and two forced-clean, no-cache `linux/amd64` canonical Docker
+exports had identical file sets and byte-identical output.
+
+- Raw Wasm SHA-256:
+  `26693c14ea44bf6b67216f5527671ad1290a628b5f44b0581a411e3bd7c9cee3`
+- Frontend tree SHA-256:
+  `dceed211dffed3bda2c56c31330d77b8afb1ec457055a909a4acba13a77d094e`
+- Asset manifest SHA-256:
+  `ed653503512e234b5f755fd3aba511bb8015046aadf174cc03f38fb5af7013af`
+- Build configuration SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- `SHA256SUMS` SHA-256:
+  `601be4bc25f87d6b0e1f607401ece3341b49914a9a19c099323feb9e24bd2339`
+- SBOM checksum manifest SHA-256:
+  `62f2f2241f54a0ac5617113522faded6b4a93116f8a458d88dc9db4113bdff88`
+
+The deterministic `33138099823745946` fixture proves that omission from
+`list_neurons` is not absence: explicit metadata for `CO.DELTA △` is merged, the known
+rule passes, and committed topics come from `get_neuron_info`. Chromium 144 qualified
+five viewports, semantic summary colours, deterministic failures, disclosure/filter/
+copy request silence, 20 anonymous Governance query requests, and zero Dendrite or
+`/call` requests. Rust workspace line coverage was 89.58%; frontend coverage was
+95.56% lines, 86.95% branches, and 92.64% functions. Security scanning and SBOM
+generation passed with the existing documented exceptions.
+
 ## Evidence-specific rule diagnostics candidate — 2026-07-29
 
 This source-changing candidate is not deployed and performed no operator

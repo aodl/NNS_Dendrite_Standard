@@ -59,6 +59,16 @@ const response = (ids, neurons = ids.map((id) => neuron(id))) => ({
   full_neurons: neurons,
   total_pages_available: [1n],
 });
+const metadataResult = (raw, timestamp = 100n) => ({
+  Ok: {
+    id: raw.id,
+    retrieved_at_timestamp_seconds: timestamp,
+    known_neuron_data: raw.known_neuron_data,
+    visibility: raw.visibility,
+  },
+});
+const metadataFor = (resolve = (id) => neuron(id)) =>
+  async (id) => metadataResult(resolve(BigInt(id)));
 
 test("anonymous Governance read actor is fixed, signed anonymously, and query-verified", async () => {
   assert.deepEqual(governanceReadConfiguration({ host: "https://icp-api.io", fetchRootKey: false }), {
@@ -73,14 +83,14 @@ test("anonymous Governance read actor is fixed, signed anonymously, and query-ve
     host: "https://icp-api.io",
     fetchRootKey: false,
     createAgent: async (options) => { agentOptions = options; return {}; },
-    createActor: (_factory, config) => { actorConfig = config; return { list_neurons: async () => ({}) , manage_neuron: async () => ({})}; },
+    createActor: (_factory, config) => { actorConfig = config; return { list_neurons: async () => ({}), get_neuron_info: async () => ({}) }; },
   });
   assert.equal(agentOptions.host, "https://icp-api.io");
   assert.equal(agentOptions.shouldFetchRootKey, false);
   assert.equal(agentOptions.verifyQuerySignatures, true);
   assert.equal(agentOptions.identity.getPrincipal().toText(), "2vxsx-fae");
   assert.equal(actorConfig.canisterId.toText(), NNS_GOVERNANCE_CANISTER_ID);
-  assert.deepEqual(Object.keys(read), ["list_neurons"]);
+  assert.deepEqual(Object.keys(read), ["list_neurons", "get_neuron_info"]);
 });
 
 test("preliminary list_neurons request is complete and exact", () => {
@@ -127,7 +137,6 @@ test("whole-batch validation rejects structural, bound, timestamp, and arithmeti
     response([1n], [neuron(1n, { followees: [[0, { followees: Array.from({ length: 16 }, (_, index) => ({ id: BigInt(index + 1) })) }]] })]),
     response([1n], [neuron(1n, { cached_neuron_stake_e8s: 1n, neuron_fees_e8s: 2n })]),
     response([1n], [neuron(1n, { voting_power_refreshed_timestamp_seconds: [101n] })]),
-    response([1n], [neuron(1n, { known_neuron_data: [{ name: "x".repeat(201), description: [], links: [], committed_topics: [] }] })]),
   ];
   for (const invalid of cases) assert.throws(() => validateListNeuronsBatch([1n], invalid, { target: true }), PreliminaryEvidenceError);
 });
@@ -135,7 +144,7 @@ test("whole-batch validation rejects structural, bound, timestamp, and arithmeti
 test("loader caches pending reads, batches sorted dependencies, and retries failed entries", async () => {
   const requests = [];
   let fail = true;
-  const loader = createNeuronLoader({ listNeurons: async (request) => {
+  const loader = createNeuronLoader({ getNeuronInfo: metadataFor(), listNeurons: async (request) => {
     requests.push(request.neuron_ids);
     if (fail) { fail = false; throw new Error("temporary"); }
     return response(request.neuron_ids);
@@ -159,14 +168,14 @@ test("dependency failures preserve typed bounded batch evidence", async () => {
     ["InvalidResponse", () => new PreliminaryEvidenceError("InvalidResponse", "bad structure")],
     ["ResponseTooLarge", () => new PreliminaryEvidenceError("ResponseTooLarge", "too many records")],
   ]) {
-    const loader = createNeuronLoader({ listNeurons: async () => { throw makeFailure(); } });
+    const loader = createNeuronLoader({ getNeuronInfo: metadataFor(), listNeurons: async () => { throw makeFailure(); } });
     const loaded = await loader.loadDependencies([1n, 2n]);
     assert.equal(loaded.sourceFailures[0].kind, kind);
     assert.deepEqual(loaded.sourceFailures[0].affectedNeuronIds, [1n, 2n]);
     assert.ok(loaded.sourceFailures[0].message.length <= 512);
   }
   let calls = 0;
-  const loader = createNeuronLoader({ listNeurons: async (request) => {
+  const loader = createNeuronLoader({ getNeuronInfo: metadataFor(), listNeurons: async (request) => {
     calls += 1;
     if (calls <= 2) throw Object.assign(new Error(`batch ${calls} rejected`), { kind: "Rejected" });
     return response(request.neuron_ids);
@@ -190,7 +199,7 @@ test("target failures preserve bounded source-failure classification and target 
     ["ResponseTooLarge", "Governance response exceeded its size bound", () => new Error("Governance response exceeded its size bound")],
     ["Rejected", "generic transport failure", () => new Error("generic transport failure")],
   ]) {
-    const loader = createNeuronLoader({ listNeurons: async () => { throw makeFailure(); } });
+    const loader = createNeuronLoader({ getNeuronInfo: metadataFor(), listNeurons: async () => { throw makeFailure(); } });
     const evidence = await collectPreliminaryEvidence(targetId, loader);
     assert.equal(evidence.target.kind, "Unavailable");
     assert.equal(evidence.sourceFailures.length, 1);
@@ -210,8 +219,9 @@ test("preliminary evaluator never passes controller-only rules", async () => {
     ],
     known_neuron_data: [{ name: "Target", description: [], links: [[]], committed_topics: [[[topic("Governance")]]] }],
   });
-  const governance = { list_neurons: async (request) => response(request.neuron_ids, request.neuron_ids.map((id) => id === 42n ? target : neuron(id, { known_neuron_data: [{ name: `Known ${id}`, description: [], links: [[]], committed_topics: [] }], followees: [[4, { followees: [{ id: OMEGA_REJECT_NEURON_ID }] }]] }))) };
-  const loader = createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request) });
+  const resolve = (id) => id === 42n ? target : neuron(id, { known_neuron_data: [{ name: `Known ${id}`, description: [], links: [[]], committed_topics: [] }], followees: [[4, { followees: [{ id: OMEGA_REJECT_NEURON_ID }] }]] });
+  const governance = { list_neurons: async (request) => response(request.neuron_ids, request.neuron_ids.map(resolve)), get_neuron_info: metadataFor(resolve) };
+  const loader = createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request), getNeuronInfo: governance.get_neuron_info });
   const report = evaluatePreliminary(42n, await collectPreliminaryEvidence(42n, loader));
   for (const id of ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]) {
     assert.equal(variantName(report.rules.find((rule) => rule.rule_id === id).status), "Indeterminate");
@@ -228,10 +238,11 @@ test("certified controller evidence drives live controller pass and fail semanti
     ],
     known_neuron_data: [{ name: "Target", description: [], links: [[]], committed_topics: [[[topic("Governance")]]] }],
   });
-  const governance = { list_neurons: async (request) => response(request.neuron_ids, request.neuron_ids.map((id) => id === 42n ? target : neuron(id, { known_neuron_data: [{ name: `Known ${id}`, description: [], links: [[]], committed_topics: [] }], followees: [[4, { followees: [{ id: OMEGA_REJECT_NEURON_ID }] }]] }))) };
+  const resolve = (id) => id === 42n ? target : neuron(id, { known_neuron_data: [{ name: `Known ${id}`, description: [], links: [[]], committed_topics: [] }], followees: [[4, { followees: [{ id: OMEGA_REJECT_NEURON_ID }] }]] });
+  const governance = { list_neurons: async (request) => response(request.neuron_ids, request.neuron_ids.map(resolve)), get_neuron_info: metadataFor(resolve) };
   const collect = (controller) => collectPreliminaryEvidence(
     42n,
-    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request) }),
+    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request), getNeuronInfo: governance.get_neuron_info }),
     { read: async (principal) => {
       assert.equal(principal.toText(), target.controller[0].toText());
       return controller;
@@ -248,11 +259,70 @@ test("certified controller evidence drives live controller pass and fail semanti
   }
   const unavailable = evaluatePreliminary(42n, await collectPreliminaryEvidence(
     42n,
-    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request) }),
+    createNeuronLoader({ listNeurons: (request) => governance.list_neurons(request), getNeuronInfo: governance.get_neuron_info }),
     { read: async () => { throw new Error("stale certificate"); } },
   ));
   assert.deepEqual(unavailable.rules.filter((rule) => ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"].includes(rule.rule_id))
     .map((rule) => variantName(rule.status)), ["Indeterminate", "Indeterminate", "Indeterminate"]);
+});
+
+test("CO.DELTA metadata is merged only from explicit get_neuron_info", async () => {
+  const id = 33_138_099_823_745_946n;
+  const full = neuron(id, {
+    known_neuron_data: [],
+    followees: [[4, { followees: [] }]],
+  });
+  const metadataCalls = [];
+  const loader = createNeuronLoader({
+    listNeurons: async (request) => response(request.neuron_ids, [full]),
+    getNeuronInfo: async (requested) => {
+      metadataCalls.push(requested);
+      return {
+        Ok: {
+          id: [{ id }],
+          retrieved_at_timestamp_seconds: 100n,
+          visibility: [1],
+          known_neuron_data: [{
+            name: "CO.DELTA △",
+            description: ["Registered known neuron"],
+            links: [["https://example.com/co-delta"]],
+            committed_topics: [[[topic("Governance")]]],
+          }],
+        },
+      };
+    },
+  });
+  const evidence = await collectPreliminaryEvidence(id, loader);
+  assert.equal(evidence.target.neuron.knownData.name, "CO.DELTA △");
+  assert.deepEqual(evidence.target.neuron.committedTopics, [4]);
+  assert.deepEqual(metadataCalls, [id]);
+  const knownRule = evaluatePreliminary(id, evidence).rules
+    .find((rule) => rule.rule_id === "DENDRITE-KNOWN-002");
+  assert.equal(variantName(knownRule.status), "Pass");
+});
+
+test("known metadata distinguishes confirmed absence, invalidity, and rejection", async () => {
+  const id = 42n;
+  for (const [result, expectedKind, expectedStatus] of [
+    [{ Ok: { id: [{ id }], retrieved_at_timestamp_seconds: 100n, visibility: [1], known_neuron_data: [] } }, "ConfirmedAbsent", "Fail"],
+    [{ Ok: { id: [{ id: 43n }], retrieved_at_timestamp_seconds: 100n, visibility: [1], known_neuron_data: [] } }, "Unavailable", "Indeterminate"],
+  ]) {
+    const loader = createNeuronLoader({
+      listNeurons: async (request) => response(request.neuron_ids, [neuron(id)]),
+      getNeuronInfo: async () => result,
+    });
+    const evidence = await collectPreliminaryEvidence(id, loader);
+    assert.equal(evidence.target.neuron.knownMetadataEvidence.kind, expectedKind);
+    assert.equal(variantName(evaluatePreliminary(id, evidence).rules
+      .find((rule) => rule.rule_id === "DENDRITE-KNOWN-002").status), expectedStatus);
+  }
+  const rejected = createNeuronLoader({
+    listNeurons: async (request) => response(request.neuron_ids, [neuron(id)]),
+    getNeuronInfo: async () => { throw Object.assign(new Error("get_neuron_info was rejected"), { kind: "Rejected" }); },
+  });
+  const unavailable = await collectPreliminaryEvidence(id, rejected);
+  assert.equal(unavailable.target.neuron.knownMetadataEvidence.kind, "Unavailable");
+  assert.equal(unavailable.sourceFailures[0].method, "get_neuron_info");
 });
 
 const differentialEvidence = () => {
@@ -436,176 +506,24 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
-test("operation owners make preliminary and consensus completion order race-safe", async () => {
+test("public route renders one live state without report actions or Dendrite reads", async () => {
   const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
   globalThis.document = fakeDocument(root);
   try {
-    const preliminary = [], consensus = [];
+    let dendriteCalls = 0;
     const app = createApplication({
       root, location, onHashChange: () => {},
-      governanceActorFactory: async () => ({}),
-      preliminaryAnalyzerFactory: () => ({
-        analyze: async () => { const pending = deferred(); preliminary.push(pending); return pending.promise; },
-        clear() {},
-      }),
-      actorFactory: async () => ({ check_neuron: async () => {
-        const pending = deferred(); consensus.push(pending); return pending.promise;
-      } }),
+      preliminaryAnalyzerFactory: () => ({ analyze: async () => report(), clear() {} }),
+      actorFactory: async () => ({ check_neuron: async () => { dendriteCalls += 1; } }),
       authSession: { configuration: { derivationOrigin: "https://dendrite.example" }, restore: async () => null },
-    });
-    const initial = app.start();
-    while (!preliminary[0]) await Promise.resolve();
-    preliminary[0].resolve(report());
-    await initial;
-
-    const oldVerification = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (!consensus[0]) await Promise.resolve();
-    await findNode(root, (node) => node.textContent === "Verifying on-chain…").dispatch("click");
-    assert.equal(consensus.length, 1, "repeated activation must reuse the owned request");
-    const refresh = findNode(root, (node) => node.textContent === "Refresh live analysis").dispatch("click");
-    while (!preliminary[1]) await Promise.resolve();
-    assert.doesNotMatch(JSON.stringify(root), /Verifying on-chain…/);
-    preliminary[1].resolve({ ...report(), standard_version: "fresh-preliminary" });
-    await refresh;
-    consensus[0].resolve({ Ok: { ...report(), standard_version: "obsolete-consensus" } });
-    await oldVerification;
-    assert.match(JSON.stringify(root), /fresh-preliminary/);
-    assert.doesNotMatch(JSON.stringify(root), /obsolete-consensus|Consensus verified|Verifying on-chain…/);
-
-    const replacement = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (!consensus[1]) await Promise.resolve();
-    consensus[1].resolve({ Ok: { ...report(), standard_version: "current-consensus" } });
-    await replacement;
-    assert.match(JSON.stringify(root), /current-consensus|Consensus verified/);
-  } finally { globalThis.document = prior; }
-});
-
-test("route, landing, and replacement operations reject old success and failure completions", async () => {
-  const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
-  globalThis.document = fakeDocument(root);
-  try {
-    const preliminary = [], consensus = [];
-    const app = createApplication({
-      root, location, onHashChange: () => {},
-      governanceActorFactory: async () => ({}),
-      preliminaryAnalyzerFactory: () => ({
-        analyze: async (id) => { const pending = deferred(); preliminary.push({ id, ...pending }); return pending.promise; },
-        clear() {},
-      }),
-      actorFactory: async () => ({ check_neuron: async () => {
-        const pending = deferred(); consensus.push(pending); return pending.promise;
-      } }),
-      authSession: { configuration: { derivationOrigin: "https://dendrite.example" }, restore: async () => null },
-    });
-    const initial = app.start();
-    while (!preliminary[0]) await Promise.resolve();
-    preliminary[0].resolve(report());
-    await initial;
-    const obsoleteSuccess = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (!consensus[0]) await Promise.resolve();
-    location.hash = "#/neuron/43";
-    const other = app.route();
-    while (!preliminary[1]) await Promise.resolve();
-    preliminary[1].resolve({ ...report(43n), standard_version: "neuron-43" });
-    await other;
-    consensus[0].resolve({ Ok: { ...report(), standard_version: "old-success" } });
-    await obsoleteSuccess;
-    assert.match(JSON.stringify(root), /neuron-43/);
-    assert.doesNotMatch(JSON.stringify(root), /old-success|Verifying on-chain…/);
-
-    const obsoleteFailure = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (!consensus[1]) await Promise.resolve();
-    location.hash = "";
-    await app.route();
-    location.hash = "#/neuron/43";
-    const back = app.route();
-    while (!preliminary[2]) await Promise.resolve();
-    preliminary[2].resolve({ ...report(43n), standard_version: "landing-back" });
-    await back;
-    consensus[1].reject(new Error("old failure"));
-    await obsoleteFailure;
-    assert.match(JSON.stringify(root), /landing-back/);
-    assert.doesNotMatch(JSON.stringify(root), /old failure|Verifying on-chain…/);
-  } finally { globalThis.document = prior; }
-});
-
-test("first verification unavailable differs from stale re-verification and controls require current consensus", async () => {
-  const prior = globalThis.document, root = new FakeNode("main"), location = { hash: "#/neuron/42" };
-  globalThis.document = fakeDocument(root);
-  try {
-    let governanceReads = 0, dendriteCalls = 0;
-    const outcomes = ["failure", "low-cycles", "success", "failure", "success"];
-    const app = createApplication({
-      root, location, onHashChange: () => {},
-      governanceActorFactory: async () => ({ list_neurons: async () => { governanceReads += 1; } }),
-      preliminaryAnalyzerFactory: () => ({ analyze: async () => { governanceReads += 1; return report(); }, clear() {} }),
-      actorFactory: async () => ({ check_neuron: async () => {
-        const outcome = outcomes[dendriteCalls++];
-        if (outcome === "failure") throw new Error("verification transport unavailable");
-        if (outcome === "low-cycles") return { Err: { LowCycles: null } };
-        return { Ok: { ...report(), overall_status: { NonCompliant: null }, controller: [{ call_succeeded: true, module_hash: [], controllers: [], principal: [] }] } };
-      } }),
-      nnsActorFactory: async () => ({}),
-      authSession: {
-        configuration: { derivationOrigin: "https://dendrite.example" },
-        restore: async () => ({ principal: { toText: () => "aaaaa-aa" }, signingIdentity: {} }),
-      },
+      trustInjectedPreliminaryForTests: true,
     });
     await app.start();
-    assert.equal(governanceReads, 1);
+    const rendered = JSON.stringify(root);
+    assert.match(rendered, /Live analysis/);
+    assert.doesNotMatch(rendered, /Refresh live analysis|Verify on-chain|Consensus verified|Verification stale/);
     assert.equal(dendriteCalls, 0);
-    assert.match(JSON.stringify(root), /Live analysis/);
-    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
-
-    const firstFailure = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (dendriteCalls < 1) await Promise.resolve();
-    assert.equal(dendriteCalls, 1);
-    assert.match(JSON.stringify(root), /Verifying on-chain…/);
-    assert.match(JSON.stringify(root), /Live analysis/);
-    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Consensus unavailable|Manage through NNS Governance/);
-    await firstFailure;
-    assert.match(JSON.stringify(root), /Consensus unavailable|verification transport unavailable/);
-    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Consensus verified|Manage through NNS Governance/);
-
-    const lowCycles = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (dendriteCalls < 2) await Promise.resolve();
-    assert.equal(dendriteCalls, 2);
-    assert.match(JSON.stringify(root), /Verifying on-chain…|Live analysis/);
-    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
-    await lowCycles;
-    assert.match(JSON.stringify(root), /Consensus unavailable|Preliminary analysis remains available/);
-    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
-
-    const firstSuccess = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (dendriteCalls < 3) await Promise.resolve();
-    assert.equal(dendriteCalls, 3);
-    assert.match(JSON.stringify(root), /Verifying on-chain…|Live analysis/);
-    assert.doesNotMatch(JSON.stringify(root), /Verification stale|Manage through NNS Governance/);
-    await firstSuccess;
-    assert.match(JSON.stringify(root), /Consensus verified/);
-    assert.match(JSON.stringify(root), /Manage through NNS Governance/);
-
-    const failedReverification = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (dendriteCalls < 4) await Promise.resolve();
-    assert.equal(dendriteCalls, 4);
-    assert.match(JSON.stringify(root), /Verification stale|Verifying on-chain…/);
-    assert.match(JSON.stringify(root), /Live analysis/);
-    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
-    await failedReverification;
-    assert.match(JSON.stringify(root), /Verification stale|verification transport unavailable/);
-    assert.doesNotMatch(JSON.stringify(root), /Consensus verified|Manage through NNS Governance/);
-
-    const successfulRetry = findNode(root, (node) => node.textContent === "Verify on-chain").dispatch("click");
-    while (dendriteCalls < 5) await Promise.resolve();
-    assert.equal(dendriteCalls, 5);
-    assert.match(JSON.stringify(root), /Verification stale|Verifying on-chain…/);
-    assert.doesNotMatch(JSON.stringify(root), /Manage through NNS Governance/);
-    await successfulRetry;
-    assert.match(JSON.stringify(root), /Consensus verified/);
-    assert.match(JSON.stringify(root), /Manage through NNS Governance/);
-  } finally {
-    globalThis.document = prior;
-  }
+  } finally { globalThis.document = prior; }
 });
 
 test("presentation helpers order severity, group topics, shorten principals, and deliberately title unknown rules", () => {

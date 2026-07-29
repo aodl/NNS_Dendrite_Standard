@@ -74,8 +74,7 @@ try {
     }
     const text = await page.$eval("main", (node) => node.innerText);
     assert.match(text, /Live analysis/);
-    assert.match(text, /Verify on-chain/);
-    assert.doesNotMatch(text, /Consensus verified/);
+    assert.doesNotMatch(text, /Verify on-chain|Refresh live analysis|Consensus verified/);
     const controllerPrincipal = await page.$eval("#evidence", (node) =>
       node.textContent.match(/Controller principal: ([a-z0-9-]+)/)?.[1]);
     assert(controllerPrincipal, `${scenario.name} omitted bounded controller provenance`);
@@ -100,6 +99,13 @@ try {
         .filter((node) => !node.hidden);
       const result = document.querySelector(".rule-result-cell");
       const resultStyle = getComputedStyle(result);
+      const summaryPass = document.querySelector(".rule-total-statuses .status-pass");
+      const summaryFail = document.querySelector(".rule-total-statuses .status-fail");
+      const passProbe = document.createElement("span");
+      passProbe.className = "status-pass";
+      const failProbe = document.createElement("span");
+      failProbe.className = "status-fail";
+      document.body.append(passProbe, failProbe);
       const simpleRow = document.querySelector(".rule-summary-row");
       const before = simpleRow.getBoundingClientRect();
       simpleRow.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
@@ -113,6 +119,10 @@ try {
           .some((node) => /^[+-]$/.test(node.textContent.trim())),
         primaryHeaderActions: primaryActions.length,
         resultAlignment: resultStyle.textAlign,
+        summaryPassColor: getComputedStyle(summaryPass).color,
+        summaryFailColor: getComputedStyle(summaryFail).color,
+        passTokenColor: getComputedStyle(passProbe).color,
+        failTokenColor: getComputedStyle(failProbe).color,
         hoverShift: Math.max(
           Math.abs(before.x - after.x), Math.abs(before.y - after.y),
           Math.abs(before.width - after.width), Math.abs(before.height - after.height),
@@ -131,7 +141,9 @@ try {
     );
     assert.equal(presentation.hasChevron, true);
     assert.equal(presentation.plusMinusText, false);
-    assert.equal(presentation.primaryHeaderActions, 1);
+    assert.equal(presentation.primaryHeaderActions, 0);
+    assert.equal(presentation.summaryPassColor, presentation.passTokenColor);
+    assert.equal(presentation.summaryFailColor, presentation.failTokenColor);
     assert.equal(presentation.nestedRuleDisclosures, 0);
     assert.equal(presentation.ruleRegions, 0);
     assert.equal(presentation.stickyNavigation, 0);
@@ -314,7 +326,7 @@ try {
         `unexpected page scale: ${measurements.pageScale}`);
     }
     const focusEvidence = [];
-    const requiredFocus = new Set(["Copy neuron ID", "Refresh live analysis", "Verify on-chain"]);
+    const requiredFocus = new Set(["Copy neuron ID"]);
     for (let index = 0; index < 200 && requiredFocus.size; index += 1) {
       await page.keyboard.press("Tab");
       const focused = await page.evaluate(() => ({
@@ -334,10 +346,9 @@ try {
     const interactionRequests = requests.length - initialRequestCount;
     assert.equal(interactionRequests, 0,
       "rendering, filtering, copying, disclosure, or section interaction triggered a request");
-    await page.click(".action-refresh");
-    await page.waitForNetworkIdle({ idleTime: 1_000, timeout: 45_000 });
-    const refreshRequests = requests.length - initialRequestCount;
-    assert(refreshRequests >= 3, `${scenario.name} refresh did not perform a new live analysis`);
+    const refreshRequests = 0;
+    assert.equal(await page.$(".action-refresh"), null);
+    assert.equal(await page.$(".action-verify"), null);
     results.push({
       ...scenario,
       consoleErrors: bounded(consoleErrors),
@@ -373,8 +384,8 @@ try {
     }
     assert(requests.some((request) => request.url.includes(controllerPrincipal)),
       `${scenario.name} made no certified controller read`);
-    assert(requests.length > initialRequestCount,
-      `${scenario.name} refresh did not trigger a new live analysis`);
+    assert.equal(requests.length, initialRequestCount,
+      `${scenario.name} ordinary interactions triggered a new analysis`);
   }
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
@@ -389,7 +400,8 @@ try {
   await page.goto(`${baseUrl}/test-failure.html`, { waitUntil: "networkidle0" });
   assert.equal(failureErrors.length, 0, failureErrors.join("\n"));
   const total = await page.$eval(".rule-total-statuses", (node) => node.textContent);
-  assert.equal(total, "3 pass · 2 fail");
+  assert.match(total, /3 pass/);
+  assert.match(total, /2 fail/);
   const knownGroup = await page.$('.rule-group-toggle[aria-label^="Target and committed topics"]');
   assert.equal(await knownGroup.evaluate((node) => node.getAttribute("aria-expanded")), "false");
   const controllerGroup = await page.$('.rule-group-toggle[aria-label^="Controller and target settings"]');

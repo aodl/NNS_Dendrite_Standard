@@ -2,11 +2,9 @@
 
 ## Threat boundaries
 
-Starting a consensus verification immediately stales any older authoritative report.
-Pending or failed verification cannot retain transaction controls or a
-`Consensus verified` label; only a newly successful Dendrite update restores that
-trust state. Browser-only controller rules remain indeterminate and are separated from
-the public-posture headline without being inferred as passing.
+The public report has one live evidence state and never invokes Dendrite. Transaction
+controls rely on fresh transaction-scoped Dendrite review and final preflights; the
+live report itself never authorizes a mutation.
 Explicit operation ownership also prevents an old success, old failure, or old
 `finally` block from mutating a replacement route or clearing its loading state.
 
@@ -44,7 +42,7 @@ the visible link never initiates a fetch or preflight. Retained controller and h
 principals remain copyable text and are not assumed to identify canisters.
 
 Live analysis adds separate anonymous read boundaries. Its generated actor
-exposes only `list_neurons`, fixes Governance as the destination, explicitly requests
+exposes only `list_neurons` and explicit-ID `get_neuron_info`, fixes Governance as the destination, explicitly requests
 only public full neurons for bounded IDs, and verifies query signatures. Every response
 batch is rejected atomically for unexpected/duplicate IDs, invalid paging, duplicate
 topic keys, collection or string bound violations, invalid topic variants, contradictory
@@ -63,19 +61,17 @@ explicit confirmation, strict response validation, and no automatic retry. Ambig
 outcomes block another mutation until acknowledged; this coordination and the single
 current receipt are bounded, heap-only, and lost on reload.
 Crossing the NNS update boundary with no conclusive response immediately marks the
-context's prior authoritative report stale and removes mutation controls. Preliminary
-evidence stays visible. A later successful `check_neuron` may establish newly observed
-current evidence, but it does not clear the unresolved-outcome lock; acknowledgement
+removes mutation controls. Live evidence stays visible. A later transaction-scoped
+`check_neuron` does not clear the unresolved-outcome lock; acknowledgement
 clears only that lock and never fabricates a verification. Known Governance rejection
 and final-preflight failure remain non-ambiguous and do not take this path.
 
-Only a current consensus report enables privileged controls. The transaction pipeline
-does not trust that report as final authority: immediately before mutation it still
-performs its own Dendrite `check_neuron` update and revalidates the reviewed request.
+The transaction pipeline performs a Dendrite `check_neuron` update when preparing an
+exact review and performs a new one immediately before mutation.
 `LowCycles`, rate limiting, concurrency, duplicate-in-flight, transport, or decode
-failure affects only consensus state; preliminary evidence remains visible and no NNS
-mutation is sent after a failed final preflight. Successful mutation invalidates both
-reports and is explicitly presented as not yet consensus verified.
+failure affects only management state; live evidence remains visible and no NNS
+mutation is sent after a failed final preflight. Successful mutation triggers a new
+route-owned live analysis and discards the transaction-scoped preflight result.
 
 Replicated controller blackholing is proven only by successful `canister_info`, no Wasm,
 and no controllers. Browser live analysis requires certified empty controllers and

@@ -215,7 +215,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -1010,7 +1010,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -1685,7 +1685,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned no known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -2353,7 +2353,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -3030,7 +3030,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -3705,7 +3705,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -4380,7 +4380,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -5055,7 +5055,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -5730,7 +5730,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -6390,7 +6390,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -7174,7 +7174,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -7877,7 +7877,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -8563,7 +8563,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -9232,7 +9232,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -9900,7 +9900,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -10577,7 +10577,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -11181,7 +11181,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -11852,7 +11852,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -12525,7 +12525,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -13199,7 +13199,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -13871,7 +13871,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -14550,7 +14550,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -15235,7 +15235,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -15906,7 +15906,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -16583,7 +16583,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -17260,7 +17260,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -17935,7 +17935,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -18610,7 +18610,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -19294,7 +19294,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -19969,7 +19969,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -20652,7 +20652,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -21327,7 +21327,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -22002,7 +22002,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -22687,7 +22687,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -23371,7 +23371,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,
@@ -24041,7 +24041,7 @@
         },
         {
           "expected": null,
-          "message": "target is a current known neuron",
+          "message": "Governance returned valid known-neuron metadata",
           "observed": null,
           "related_neuron_ids": [],
           "relevant_topic": null,

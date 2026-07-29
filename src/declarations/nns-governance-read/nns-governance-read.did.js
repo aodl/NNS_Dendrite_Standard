@@ -1,26 +1,7 @@
 // Generated deterministically from candid/nns-governance/governance.subset.did.
-// Anonymous preliminary analysis exposes only the public list_neurons query.
+// Anonymous live analysis exposes only explicit public Governance queries.
 export const idlFactory = ({ IDL }) => {
-  const ListNeurons = IDL.Record({
-    'page_size' : IDL.Opt(IDL.Nat64),
-    'include_public_neurons_in_full_neurons' : IDL.Opt(IDL.Bool),
-    'neuron_ids' : IDL.Vec(IDL.Nat64),
-    'page_number' : IDL.Opt(IDL.Nat64),
-    'include_empty_neurons_readable_by_caller' : IDL.Opt(IDL.Bool),
-    'neuron_subaccounts' : IDL.Opt(
-      IDL.Vec(IDL.Record({ 'subaccount' : IDL.Vec(IDL.Nat8) }))
-    ),
-    'include_neurons_readable_by_caller' : IDL.Bool,
-  });
-  const NeuronInfo = IDL.Record({
-    'retrieved_at_timestamp_seconds' : IDL.Nat64,
-  });
   const NeuronId = IDL.Record({ 'id' : IDL.Nat64 });
-  const DissolveState = IDL.Variant({
-    'DissolveDelaySeconds' : IDL.Nat64,
-    'WhenDissolvedTimestampSeconds' : IDL.Nat64,
-  });
-  const Followees = IDL.Record({ 'followees' : IDL.Vec(NeuronId) });
   const TopicToFollow = IDL.Variant({
     'Kyc' : IDL.Null,
     'ServiceNervousSystemManagement' : IDL.Null,
@@ -47,6 +28,36 @@ export const idlFactory = ({ IDL }) => {
     'description' : IDL.Opt(IDL.Text),
     'links' : IDL.Opt(IDL.Vec(IDL.Text)),
   });
+  const NeuronInfo = IDL.Record({
+    'id' : IDL.Opt(NeuronId),
+    'retrieved_at_timestamp_seconds' : IDL.Nat64,
+    'visibility' : IDL.Opt(IDL.Int32),
+    'known_neuron_data' : IDL.Opt(KnownNeuronData),
+  });
+  const GovernanceError = IDL.Record({
+    'error_message' : IDL.Text,
+    'error_type' : IDL.Int32,
+  });
+  const NeuronInfoResult = IDL.Variant({
+    'Ok' : NeuronInfo,
+    'Err' : GovernanceError,
+  });
+  const ListNeurons = IDL.Record({
+    'page_size' : IDL.Opt(IDL.Nat64),
+    'include_public_neurons_in_full_neurons' : IDL.Opt(IDL.Bool),
+    'neuron_ids' : IDL.Vec(IDL.Nat64),
+    'page_number' : IDL.Opt(IDL.Nat64),
+    'include_empty_neurons_readable_by_caller' : IDL.Opt(IDL.Bool),
+    'neuron_subaccounts' : IDL.Opt(
+      IDL.Vec(IDL.Record({ 'subaccount' : IDL.Vec(IDL.Nat8) }))
+    ),
+    'include_neurons_readable_by_caller' : IDL.Bool,
+  });
+  const DissolveState = IDL.Variant({
+    'DissolveDelaySeconds' : IDL.Nat64,
+    'WhenDissolvedTimestampSeconds' : IDL.Nat64,
+  });
+  const Followees = IDL.Record({ 'followees' : IDL.Vec(NeuronId) });
   const Neuron = IDL.Record({
     'id' : IDL.Opt(NeuronId),
     'staked_maturity_e8s_equivalent' : IDL.Opt(IDL.Nat64),
@@ -73,6 +84,7 @@ export const idlFactory = ({ IDL }) => {
     'total_pages_available' : IDL.Opt(IDL.Nat64),
   });
   return IDL.Service({
+    'get_neuron_info' : IDL.Func([IDL.Nat64], [NeuronInfoResult], ['query']),
     'list_neurons' : IDL.Func([ListNeurons], [ListNeuronsResponse], ['query']),
   });
 };
