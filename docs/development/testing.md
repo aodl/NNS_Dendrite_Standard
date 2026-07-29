@@ -31,20 +31,24 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 The Chromium gate uses `puppeteer-core` only as a development dependency and runs
 Chrome 144.0.7559.96 from the digest-pinned
 `ghcr.io/puppeteer/puppeteer:24.36.0` image. It serves the exact production export
-and executes four independent scenarios: 1440×1000 desktop; 1440×1000 with Chrome
+and executes five independent scenarios: 1440×1000 desktop; 1440×1000 with Chrome
 DevTools Protocol `Emulation.setPageScaleFactor` set to 2 and the resulting visual
 viewport scale asserted as actual 200% page scale; a separately labelled 720×500
-CSS-pixel `200%-equivalent reflow viewport` at page scale 1; and 390×844 mobile.
+CSS-pixel `200%-equivalent reflow viewport` at page scale 1; 390×844 mobile; and a
+320×844 narrow CSS reflow.
 It captures bounded JSON evidence and
 screenshots under `dist/browser-qualification`, fails on page/console errors or
 material page overflow, and keyboard-focuses the copy, refresh, and Verify controls.
 It records emulated screen and CSS viewport dimensions, device pixel ratio,
 visual-viewport dimensions and scale, overflow, visible text/control counts, and
 keyboard evidence. It also proves one primary row per distinct rule ID, the 15-topic
-default-rule summary, all 15 instances after keyboard expansion, hidden empty group
-headings under filtering, rejects preliminary controller passes, follows
-section navigation without changing the neuron route, opens every lower disclosure at
-every layout, and repeats overflow checks after interaction.
+default-rule summary, all 15 instances after keyboard expansion, Enter and Space
+operation, whole-row pointer behavior and its interactive-child safeguards, hidden empty
+group headings under filtering, and rejects preliminary controller passes. It opens both
+major lower sections and a one-level technical-evidence disclosure at every layout and
+repeats overflow checks after interaction. Bounded desktop screenshots cover the header
+and overall result, collapsed and expanded rule states, attention filtering, managers,
+topic delegation, and technical evidence.
 Each scenario independently requires at least one fixed-Governance v3 `query`, expected
 query-signature `read_state`, no update endpoint, no unexpected canister, zero
 production Dendrite requests, and zero interaction-triggered requests. Captured

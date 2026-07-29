@@ -45,23 +45,33 @@ transaction controls and never satisfies transaction final preflight.
 The report presentation consumes the `ComplianceReport` without changing it. A
 presentation-only model groups entries by exact `rule_id`, retains every entry, orders
 topic instances canonically, and chooses the aggregate status using `Fail`, standard
-update required, indeterminate, warning, then pass precedence. The page orders header,
-overall result and distinct-rule status counts, one canonical row per Standard rule,
-key characteristics, managers, topic delegation, and technical evidence. Multi-entry
-disclosures show the reviewed explanation and aggregate result followed by every exact
-topic evaluation, message, observed/expected value, related neuron, technical ID, and
-expandable raw values. The complete unaggregated rule table and raw report remain in
-technical evidence. Unknown future IDs use an explicit technical fallback. Policy states
+update required, indeterminate, warning, then pass precedence. The page orders its flat
+header, overall result and distinct-rule status counts, visible key characteristics, one
+canonical table row per Standard rule, managers, topic delegation, and technical
+evidence. The rule result remains visible while its supporting details are collapsed.
+Multi-entry detail rows show the reviewed explanation and aggregate result followed by
+every exact topic evaluation, message, observed/expected value, and related neuron in a
+compact internal table. The technical rule ID, complete unaggregated rule table, and raw
+report remain in technical evidence. Unknown future IDs use an explicit technical
+fallback. Policy states
 remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
 `Standard update required`; only the preliminary presentation calls the three
 controller-dependent indeterminate states `Requires verification`.
 
-Rule filters use aggregate status, hide empty group headings, and keep row expansion
-and lower-section expansion as ephemeral DOM state. They never alter the route,
-report, evaluator, or network. Semantic section targets provide
-Overview, Rules, Characteristics, Managers, Delegation, and Evidence navigation. The
-rules section is open and primary; lower sections have evidence-derived collapsed
-summaries and keep unavailable or source-failure importance visible.
+The sole optional `Attention only` control uses aggregate status and hides empty group
+headings. Row and lower-section expansion remain ephemeral DOM state. These controls
+never alter the route, report, evaluator, or network. Semantic section IDs remain valid
+anchor targets, but the prior sticky section-navigation toolbar is removed. Managers and
+topic delegation each have one disclosure level; technical evidence is a normal section
+whose child disclosures are not nested in an outer accordion.
+
+The visual system uses a local system-font stack, a seven-step spacing scale, two
+non-pill radii, a pale canvas, white and subtle surfaces, strong text, restrained green
+accent, and distinct pass, fail, warning, and indeterminate colours. Status always pairs
+an icon with text and has no rule-row pill. Preliminary or stale reports reserve the
+single filled primary action for `Verify on-chain`; current consensus demotes repeat
+verification and `Refresh preliminary` is always quiet. Whitespace and dividers replace
+decorative shadows, nested cards, and filled disclosure controls.
 
 Each preliminary load and consensus verification has a unique operation owner bound to
 the route generation and canonical neuron ID. Route changes, landing transitions,

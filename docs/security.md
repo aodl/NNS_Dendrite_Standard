@@ -27,12 +27,15 @@ strict CSP, and no third-party runtime content.
 
 The rules interface preserves policy status as visible text; check, cross, question,
 warning, and update symbols are decorative and hidden from assistive technology.
-Native buttons expose `aria-expanded` and controlled regions, section links retain
-visible focus, and shortened related-neuron IDs retain full accessible labels and copy
-values. Responsive rows wrap status and long titles without page overflow, touch
-targets remain at least 44 CSS pixels, and motion is disabled when reduced motion is
-requested. Filtering, disclosure, and section navigation issue no network request and
-persist no preference.
+Each native row-disclosure button exposes `aria-expanded` and `aria-controls`; pointer
+activation across the summary row delegates to that button without turning the table row
+into an ARIA button. Links, copy controls, and text selection do not toggle a row.
+Repeated copy actions use 44-pixel icon targets with complete accessible names and
+transient `aria-live` feedback. Responsive rows wrap status and long titles without page
+overflow, all frequent targets are at least 44 CSS pixels, focus uses a two-pixel
+high-contrast perimeter, and reduced-motion and forced-colour modes are supported.
+Filtering, disclosure, and copy interaction issue no network request and persist no
+preference.
 
 Preliminary analysis adds a separate anonymous query boundary. Its generated actor
 exposes only `list_neurons`, fixes Governance as the destination, explicitly requests

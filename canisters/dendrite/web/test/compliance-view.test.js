@@ -21,8 +21,18 @@ class FakeNode {
     this.attributes = {};
     this.hidden = false;
     this.className = "";
+    this.focused = false;
+    this.classList = {
+      add: (name) => { if (!this.className.split(" ").includes(name)) this.className = `${this.className} ${name}`.trim(); },
+      remove: (name) => { this.className = this.className.split(" ").filter((item) => item !== name).join(" "); },
+    };
   }
-  append(...nodes) { this.children.push(...nodes); }
+  append(...nodes) {
+    for (const node of nodes) {
+      if (node && typeof node === "object") node.parentNode = this;
+      this.children.push(node);
+    }
+  }
   replaceChildren(...nodes) { this.children = [...nodes]; }
   addEventListener(name, listener) { (this.listeners[name] ??= []).push(listener); }
   dispatch(name, event = { preventDefault() {} }) {
@@ -30,12 +40,18 @@ class FakeNode {
     for (const listener of this.listeners[name] ?? []) result = listener(event);
     return result;
   }
-  click() { return this.dispatch("click"); }
+  click() { return this.dispatch("click", { target: this, preventDefault() {} }); }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   getAttribute(name) { return this.attributes[name] ?? null; }
+  focus() { this.focused = true; }
+  closest(selector) {
+    const tags = selector.split(",").map((item) => item.trim());
+    return tags.includes(this.tag) ? this : this.parentNode?.closest?.(selector);
+  }
 }
 
 const walk = (node, predicate, result = []) => {
+  if (node === undefined || node === null) return result;
   if (predicate(node)) result.push(node);
   for (const child of node.children ?? []) walk(child, predicate, result);
   return result;
@@ -129,6 +145,17 @@ function reviveProjection(value, field) {
 const fullyCompliantReport = () => reviveProjection(
   parityFixtures.find((fixture) => fixture.name === "fully_compliant").projection,
 );
+const cssSource = readFileSync("canisters/dendrite/web/src/styles.css", "utf8");
+const hexToken = (name) => cssSource.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"))[1];
+const luminance = (hex) => {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255)
+    .map((value) => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+  return .2126 * channels[0] + .7152 * channels[1] + .0722 * channels[2];
+};
+const contrast = (left, right) => {
+  const values = [luminance(left), luminance(right)].sort((a, b) => b - a);
+  return (values[0] + .05) / (values[1] + .05);
+};
 
 function render(verificationKind = "Consensus", options = {}) {
   const prior = globalThis.document;
@@ -158,6 +185,18 @@ test("policy status vocabulary has distinct visible text and decorative icons", 
     assert.ok(icons.length, icon);
     assert.ok(icons.every((node) => node.attributes["aria-hidden"] === "true"));
   }
+});
+
+test("visual tokens meet text, icon, control, and focus contrast requirements", () => {
+  const canvas = hexToken("canvas"), surface = hexToken("surface");
+  for (const name of ["text", "text-muted", "accent", "pass", "fail", "warning", "indeterminate"]) {
+    assert(contrast(hexToken(name), name === "text" ? canvas : surface) >= 4.5, name);
+  }
+  for (const name of ["divider-strong", "accent", "pass", "fail", "warning", "indeterminate", "focus"]) {
+    assert(contrast(hexToken(name), surface) >= 3, name);
+  }
+  assert.match(cssSource, /prefers-reduced-motion/);
+  assert.match(cssSource, /forced-colors:\s*active/);
 });
 
 test("rules render once in canonical order with a safe future-rule fallback", () => {
@@ -205,12 +244,14 @@ test("fully compliant parity report renders 29 rules from all 43 policy evaluati
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const root = new FakeNode("main");
   try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
-  assert.equal(walk(root, (node) => node.className?.includes?.("rule-row ")).length, 29);
+  assert.equal(walk(root, (node) => node.className?.includes?.("rule-summary-row")).length, 29);
   assert.equal(byText(root, "Uncommitted topic follows alpha-vote").length, 1);
-  assert.ok(byText(root, "Pass · 15 of 15 topics pass").length);
-  const region = byAttribute(root, "aria-label", "Uncommitted topic follows alpha-vote details")[0];
-  assert.equal(walk(region, (node) => node.className === "rule-instance").length, 15);
-  assert.equal(walk(root, (node) => node.tag === "tr").length, 44);
+  assert.ok(byText(root, "15 topic evaluations").length);
+  const toggle = byAttribute(root, "aria-label", "Show details for Uncommitted topic follows alpha-vote")[0];
+  const detail = walk(root, (node) => node.id === toggle.attributes["aria-controls"])[0];
+  toggle.click();
+  assert.equal(walk(detail, (node) => node.tag === "tbody")[0].children.length, 15);
+  assert.equal(source.rules.length, 43);
   assert.ok(byText(root, "29 Standard rules · 43 policy evaluations").length);
 });
 
@@ -229,84 +270,117 @@ test("mixed aggregates expose precedence, safe future IDs, and verification term
   assert.match(aggregateSummary(future, "Consensus"), /^Standard update required/);
 });
 
-test("rule disclosure exposes policy evidence, topic, Dendrite link, and copy control", () => {
+test("rule table has labelled columns, quiet chevrons, and no nested detail disclosure", async () => {
   let copied;
   const root = render("Consensus", { copyText: (value) => { copied = value; } });
   const toggle = byAttribute(root, "aria-label", "Show details for Target is a known neuron")[0];
   assert.equal(toggle.tag, "button");
+  assert.equal(toggle.type, "button");
   assert.equal(toggle.attributes["aria-expanded"], "false");
-  const region = byAttribute(root, "aria-label", "Target is a known neuron details")[0];
-  assert.equal(region.hidden, true);
+  const detail = walk(root, (node) => node.id === toggle.attributes["aria-controls"])[0];
+  assert.equal(detail.hidden, true);
+  assert.equal(walk(root, (node) => node.tag === "table" && node.className === "rule-table").length, 6);
+  for (const heading of ["Rule", "Result"]) assert.ok(byText(root, heading).length);
+  assert.ok(byAttribute(root, "aria-label", "Details").length);
+  assert.equal(byText(root, "+").length + byText(root, "−").length, 0);
+  assert.ok(walk(toggle, (node) => node.className === "chevron").length);
   toggle.click();
   assert.equal(toggle.attributes["aria-expanded"], "true");
-  assert.equal(region.hidden, false);
-  assert.ok(byText(region, "missing metadata").length);
-  assert.ok(byText(region, "valid known_neuron_data").length);
-  assert.ok(byText(region, "4 — Governance").length);
-  const link = byAttribute(region, "aria-label", "Open Dendrite report for neuron 18422777432977120264")[0];
+  assert.equal(detail.hidden, false);
+  assert.equal(walk(detail, (node) => node.tag === "details").length, 0);
+  assert.equal(byAttribute(detail, "role", "region").length, 0);
+  assert.ok(byText(detail, "missing metadata").length);
+  assert.ok(byText(detail, "valid known_neuron_data").length);
+  assert.ok(byText(detail, "4 — Governance").length);
+  const link = byAttribute(detail, "aria-label", "Open Dendrite report for neuron 18422777432977120264")[0];
   assert.equal(link.href, "#/neuron/18422777432977120264");
-  byAttribute(region, "aria-label", "Copy 18422777432977120264")[0].click();
+  await byAttribute(detail, "aria-label", "Copy neuron ID: 18422777432977120264")[0].click();
   assert.equal(copied, "18422777432977120264");
   toggle.click();
   assert.equal(toggle.attributes["aria-expanded"], "false");
 });
 
-test("filters and bulk disclosures change only transient presentation state", () => {
+test("complete summary row toggles except for controls and text selection", () => {
+  const root = render();
+  const toggle = byAttribute(root, "aria-label", "Show details for Target is a known neuron")[0];
+  const row = walk(root, (node) => node.attributes?.["data-rule-id"] === "DENDRITE-KNOWN-002")[0];
+  const nestedCopy = byAttribute(row.parentNode, "aria-label", "Copy neuron ID: 18422777432977120264")[0];
+  row.dispatch("click", { target: nestedCopy });
+  assert.equal(toggle.attributes["aria-expanded"], "false");
+  const priorSelection = globalThis.getSelection;
+  globalThis.getSelection = () => ({ toString: () => "selected text" });
+  row.dispatch("click", { target: row });
+  assert.equal(toggle.attributes["aria-expanded"], "false");
+  globalThis.getSelection = () => ({ toString: () => "" });
+  row.dispatch("click", { target: row });
+  assert.equal(toggle.attributes["aria-expanded"], "true");
+  assert.equal(toggle.focused, true);
+  row.dispatch("click", { target: row });
+  assert.equal(toggle.attributes["aria-expanded"], "false");
+  globalThis.getSelection = priorSelection;
+});
+
+test("one attention filter changes only transient presentation state", () => {
   const source = report();
   const snapshot = JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value);
   const prior = globalThis.document;
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const root = new FakeNode("main");
   try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
-  const rows = walk(root, (node) => node.className?.includes?.("rule-row "));
-  byText(root, "Needs attention")[0].click();
+  const rows = walk(root, (node) => node.className?.includes?.("rule-summary-row"));
+  const filter = walk(root, (node) => node.className === "button-quiet attention-filter")[0];
+  assert.ok(filter);
+  assert.equal(walk(root, (node) => node.className?.includes?.("attention-filter")).length, 1);
+  for (const removed of ["All", "Needs attention", "Failed", "Passed", "Expand attention", "Collapse all"]) {
+    assert.equal(byText(root, removed).length, 0);
+  }
+  filter.click();
   assert.equal(rows.filter((row) => !row.hidden).length, 4);
   const groups = walk(root, (node) => node.className === "rule-group");
   const knownGroup = groups.find((group) => byText(group, "Target and committed topics").length);
   assert.equal(knownGroup.hidden, false);
-  byText(root, "Failed")[0].click();
-  assert.equal(rows.filter((row) => !row.hidden).length, 1);
   assert.equal(groups.find((group) => byText(group, "Evidence integrity").length).hidden, true);
-  byText(root, "Passed")[0].click();
-  assert.equal(rows.filter((row) => !row.hidden).length, 3);
-  byText(root, "Expand attention")[0].click();
-  assert.equal(byAttribute(root, "aria-expanded", "true").filter((node) => node.className === "rule-toggle").length, 0);
-  byText(root, "All")[0].click();
+  filter.click();
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.ok(groups.every((group) => !group.hidden));
-  byText(root, "Expand attention")[0].click();
-  assert.equal(byAttribute(root, "aria-expanded", "true").filter((node) => node.className === "rule-toggle").length, 4);
-  byText(root, "Collapse all")[0].click();
-  assert.equal(byAttribute(root, "aria-expanded", "true").filter((node) => node.className === "rule-toggle").length, 0);
   assert.equal(JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot);
 });
 
 test("preliminary controller uncertainty is verification-required and never pass or fail", () => {
   const root = render("Preliminary");
-  const controllerRegion = byAttribute(root, "aria-label", "Controller canister is inspectable details")[0];
-  const row = walk(root, (node) => node.children?.includes?.(controllerRegion))[0];
+  const row = walk(root, (node) => node.attributes?.["data-rule-id"] === "DENDRITE-CONTROL-001")[0];
   assert.ok(byText(row, "Requires verification").length);
   assert.equal(byText(row, "Pass").length, 0);
   assert.equal(byText(row, "Fail").length, 0);
   assert.ok(byText(root, "Preliminary public evidence is not a compliant verdict. Controller blackhole rules require a current consensus verification.").length);
 });
 
-test("section order, useful summaries, empty states, navigation, and disclosures are accessible", () => {
+test("header action hierarchy and flat section structure are accessible", () => {
+  const preliminary = render("Preliminary", {
+    onRefreshPreliminary() {},
+    onVerifyConsensus() {},
+  });
+  assert.equal(walk(preliminary, (node) => node.className?.includes?.("button-primary")).length, 1);
+  assert.ok(byText(preliminary, "Verify on-chain")[0].className.includes("button-primary"));
+  assert.ok(byText(preliminary, "Refresh preliminary")[0].className.includes("button-quiet"));
+  assert.equal(walk(preliminary, (node) => node.className === "section-navigation").length, 0);
+  const consensus = render("Consensus", { onVerifyConsensus() {} });
+  assert.equal(walk(consensus, (node) => node.className?.includes?.("button-primary")).length, 0);
+
   const root = render();
   const sectionIds = walk(root, (node) => ["overview", "rules", "characteristics", "managers", "delegation", "evidence"].includes(node.id))
     .map((node) => node.id);
-  assert.deepEqual(sectionIds, ["overview", "rules", "characteristics", "managers", "delegation", "evidence"]);
-  for (const href of ["#overview", "#rules", "#characteristics", "#managers", "#delegation", "#evidence"]) {
-    assert.equal(walk(root, (node) => node.href === href).length, 1);
-  }
-  assert.ok(byText(root, "Key characteristics — 9 metrics").length);
-  assert.ok(byText(root, "Managers — 1 listed, evidence unavailable").length);
-  assert.ok(byText(root, "Topic delegation — 2 configurations across 2 topics").length);
-  assert.ok(byText(root, "Technical evidence — report, sources and raw values · 1 source failures").length);
-  const sectionToggle = byText(root, "Managers — 1 listed, evidence unavailable")[0];
+  assert.deepEqual(sectionIds, ["overview", "characteristics", "rules", "managers", "delegation", "evidence"]);
+  assert.ok(byText(root, "Key characteristics").length);
+  assert.equal(walk(root, (node) => node.className === "metrics")[0].children.length, 9);
+  const sectionToggle = walk(root, (node) =>
+    node.className === "section-title" && node.textContent === "Managers")[0].parentNode;
   assert.equal(sectionToggle.attributes["aria-expanded"], "false");
   sectionToggle.click();
   assert.equal(sectionToggle.attributes["aria-expanded"], "true");
+  assert.equal(walk(root, (node) => node.id === "evidence")[0].tag, "section");
+  assert.equal(walk(root, (node) => node.id === "evidence")[0].parentNode?.tag === "details", false);
+  assert.equal(walk(walk(root, (node) => node.id === "evidence")[0], (node) => node.tag === "details").length, 6);
 
   const empty = report();
   empty.managers = [];

@@ -4,6 +4,7 @@ export const variantName = (value) => Object.keys(value ?? {})[0] ?? "Unknown";
 const optional = (value, fallback = "Unavailable") => value?.[0] ?? fallback;
 const principalText = (principal) => principal?.toText?.() ?? String(principal);
 const ids = (values) => values.map(String).join(", ") || "None";
+const attribute = (node, name) => node.getAttribute?.(name) ?? node.attributes?.[name] ?? null;
 
 export const TOPIC_LABELS = new Map([
   [0, "CatchAll"], [1, "Neuron Management"], [2, "Exchange Rate"],
@@ -144,17 +145,35 @@ const formatIcp = (e8s) => {
 function badge(text, kind) {
   return element("span", text, `badge badge-${kind}`);
 }
-function copyButton(value, label, copyText) {
-  const button = element("button", label, "copy-button");
+function announceCopy(announcer, value) {
+  if (!announcer) return;
+  announcer.textContent = "";
+  globalThis.setTimeout?.(() => { announcer.textContent = `Copied ${value}`; }, 0);
+}
+function copyButton(value, label, copyText, announcer) {
+  const button = document.createElement("button");
+  button.className = "button-icon copy-button";
   button.type = "button";
   button.title = String(value);
-  button.setAttribute("aria-label", `Copy ${value}`);
-  button.addEventListener("click", () => copyText?.(String(value)));
+  button.setAttribute("aria-label", `${label}: ${value}`);
+  const icon = element("span", "", "icon icon-copy");
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon);
+  button.addEventListener("click", async () => {
+    try {
+      await copyText?.(String(value));
+      button.classList?.add?.("copy-complete");
+      announceCopy(announcer, String(value));
+      globalThis.setTimeout?.(() => button.classList?.remove?.("copy-complete"), 1_500);
+    } catch {
+      if (announcer) announcer.textContent = "Copy failed";
+    }
+  });
   return button;
 }
-function metric(label, value, hint) {
+function metric(label, value, hint, className = "") {
   const node = document.createElement("div");
-  node.className = "metric-card";
+  node.className = `metric ${className}`.trim();
   const description = document.createElement("dd");
   if (value?.tagName || value?.tag) description.append(value);
   else description.textContent = String(value);
@@ -164,8 +183,12 @@ function metric(label, value, hint) {
 }
 function details(summary, children, className = "") {
   const node = document.createElement("details");
-  node.className = className;
-  node.append(element("summary", summary), ...children);
+  node.className = `evidence-disclosure ${className}`.trim();
+  const label = document.createElement("summary");
+  const chevron = element("span", "", "chevron");
+  chevron.setAttribute("aria-hidden", "true");
+  label.append(element("span", summary), chevron);
+  node.append(label, ...children);
   return node;
 }
 function technicalTable(report) {
@@ -200,49 +223,54 @@ export function sortedFindings(rules) {
     .sort((left, right) => (severity[variantName(left.status)] ?? 9) - (severity[variantName(right.status)] ?? 9));
 }
 
-function renderFinding(rule) {
-  const status = variantName(rule.status);
-  const card = document.createElement("article");
-  card.className = `finding finding-${status.toLowerCase()}`;
-  card.append(element("h3", ruleTitle(rule.rule_id)), badge(status, status.toLowerCase()), element("p", rule.message));
-  const facts = document.createElement("dl");
-  if (rule.observed?.length) facts.append(metric("Observed", rule.observed[0]));
-  if (rule.expected?.length) facts.append(metric("Expected", rule.expected[0]));
-  if (rule.relevant_topic?.length) facts.append(metric("Topic", topicLabel(rule.relevant_topic[0])));
-  if (rule.related_neuron_ids.length) {
-    const links = document.createElement("div");
-    links.className = "related-neurons";
-    for (const id of rule.related_neuron_ids) links.append(safeHttpsLink(String(id), `https://dashboard.internetcomputer.org/neuron/${id}`));
-    facts.append(metric("Related neurons", links));
+function renderManagers(report, copyText, announcer) {
+  const table = document.createElement("table");
+  table.className = "manager-table responsive-table";
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  for (const name of ["Manager", "Evidence", "Controller", "Hotkeys", "Readiness"]) {
+    const cell = element("th", name);
+    cell.setAttribute("scope", "col");
+    heading.append(cell);
   }
-  if (facts.children.length) card.append(facts);
-  card.append(details("Technical rule", [element("code", rule.rule_id)]));
-  return card;
-}
-
-function renderManagers(report, copyText) {
-  const section = document.createElement("section");
-  section.className = "manager-grid";
+  head.append(heading);
+  const body = document.createElement("tbody");
   for (const manager of report.managers) {
-    const card = document.createElement("article");
-    card.className = "manager-card";
+    const row = document.createElement("tr");
     const id = manager.neuron_id.toString();
-    card.append(
-      element("h3", manager.known_neuron?.[0]?.name ?? `Manager ${id}`),
-      safeHttpsLink(id, `https://dashboard.internetcomputer.org/neuron/${id}`),
-      badge(variantName(manager.evidence_status), variantName(manager.evidence_status).toLowerCase()),
+    const managerCell = document.createElement("th");
+    managerCell.setAttribute("scope", "row");
+    managerCell.setAttribute("data-label", "Manager");
+    managerCell.append(
+      element("span", manager.known_neuron?.[0]?.name ?? `Manager ${id}`, "row-primary"),
+      safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`),
     );
+    const evidence = document.createElement("td");
+    evidence.setAttribute("data-label", "Evidence");
+    evidence.append(statusText(variantName(manager.evidence_status)));
     const controller = manager.controller?.[0];
-    const facts = document.createElement("dl");
-    facts.append(metric("Controller", controller ? shortPrincipal(controller) : "Unavailable"));
-    if (controller) card.append(copyButton(principalText(controller), "Copy controller", copyText));
-    facts.append(metric("Hotkeys", manager.hot_keys.length ? manager.hot_keys.map(shortPrincipal).join(" · ") : "None"));
-    facts.append(metric("Management followees", ids(manager.neuron_management_followees ?? [])));
-    facts.append(metric("Omega-ready topics", manager.omega_ready_topics?.length ? manager.omega_ready_topics.map((topic) => TOPIC_LABELS.get(topic) ?? topic).join(" · ") : "None"));
-    card.append(facts);
-    section.append(card);
+    const controllerCell = document.createElement("td");
+    controllerCell.setAttribute("data-label", "Controller");
+    controllerCell.append(element("span", controller ? shortPrincipal(controller) : "Unavailable"));
+    if (controller) controllerCell.append(copyButton(
+      principalText(controller), "Copy controller", copyText, announcer,
+    ));
+    const hotkeys = element("td", manager.hot_keys.length
+      ? manager.hot_keys.map(shortPrincipal).join(" · ") : "None");
+    hotkeys.setAttribute("data-label", "Hotkeys");
+    const readiness = document.createElement("td");
+    readiness.setAttribute("data-label", "Readiness");
+    readiness.append(
+      element("span", `Management: ${ids(manager.neuron_management_followees ?? [])}`),
+      element("span", `Omega-ready: ${manager.omega_ready_topics?.length
+        ? manager.omega_ready_topics.map((topic) => TOPIC_LABELS.get(topic) ?? topic).join(" · ")
+        : "None"}`, "table-support"),
+    );
+    row.append(managerCell, evidence, controllerCell, hotkeys, readiness);
+    body.append(row);
   }
-  return section;
+  table.append(head, body);
+  return table;
 }
 
 export function groupTopics(report) {
@@ -333,8 +361,17 @@ let disclosureSequence = 0;
 const disclosureId = (prefix) => `${prefix}-${++disclosureSequence}`;
 function statusNode(rule, verificationKind) {
   const presentation = statusPresentation(variantName(rule.status), verificationKind, rule.rule_id);
+  return statusText(presentation.label, presentation);
+}
+function statusText(status, suppliedPresentation) {
+  const evidencePresentation = {
+    Found: { label: "Found", icon: "✓", kind: "pass" },
+    ConfirmedMissing: { label: "Confirmed missing", icon: "×", kind: "fail" },
+    Unavailable: { label: "Unavailable", icon: "?", kind: "indeterminate" },
+  };
+  const presentation = suppliedPresentation ?? evidencePresentation[status] ?? statusPresentation(status);
   const node = document.createElement("span");
-  node.className = `rule-status badge badge-${presentation.kind}`;
+  node.className = `status-text status-${presentation.kind}`;
   const icon = element("span", presentation.icon, "status-icon");
   icon.setAttribute("aria-hidden", "true");
   node.append(icon, element("span", presentation.label));
@@ -356,7 +393,7 @@ export function aggregateSummary(aggregate, verificationKind) {
   const count = status === "Pass" ? aggregate.evaluationCount : matching;
   return `${label} · ${count} of ${aggregate.evaluationCount} ${unit}${aggregate.evaluationCount === 1 ? "" : "s"} ${statusVerb(status)}`;
 }
-function relatedNeuronChip(value, copyText) {
+function relatedNeuronChip(value, copyText, announcer) {
   const id = String(value);
   const chip = document.createElement("span");
   chip.className = "neuron-chip";
@@ -365,15 +402,12 @@ function relatedNeuronChip(value, copyText) {
   link.textContent = shortNeuronId(id);
   link.title = id;
   link.setAttribute("aria-label", `Open Dendrite report for neuron ${id}`);
-  chip.append(link, copyButton(id, "Copy", copyText));
+  chip.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
   return chip;
 }
-function ruleDetails(rule, verificationKind, copyText) {
+function ruleDetails(rule, verificationKind, copyText, announcer) {
   const region = document.createElement("div");
-  region.id = disclosureId("rule-detail");
   region.className = "rule-detail";
-  region.setAttribute("role", "region");
-  region.setAttribute("aria-label", `${ruleTitle(rule.rule_id)} details`);
   region.append(
     element("p", ruleDescription(rule.rule_id), "rule-explanation"),
     element("p", rule.message, "rule-message"),
@@ -385,263 +419,314 @@ function ruleDetails(rule, verificationKind, copyText) {
   if (rule.related_neuron_ids.length) {
     const chips = document.createElement("div");
     chips.className = "neuron-chips";
-    for (const id of rule.related_neuron_ids) chips.append(relatedNeuronChip(id, copyText));
+    for (const id of rule.related_neuron_ids) {
+      chips.append(relatedNeuronChip(id, copyText, announcer));
+    }
     facts.append(metric("Related neurons", chips));
   }
   const source = verificationKind === "Consensus"
-    ? "Live consensus-backed Dendrite report"
+    ? "live consensus result from the Dendrite verifier"
     : "Preliminary browser query; controller evidence requires consensus verification";
   facts.append(
     metric("Evidence source", source),
     metric("Technical rule ID", element("code", rule.rule_id)),
   );
   region.append(facts);
-  if (rule.observed?.length || rule.expected?.length || rule.related_neuron_ids.length) {
-    region.append(details("Complete raw values", [element("pre", safeJson({
-      observed: rule.observed,
-      expected: rule.expected,
-      relevant_topic: rule.relevant_topic,
-      related_neuron_ids: rule.related_neuron_ids,
-    }))]));
-  }
   return region;
 }
-function aggregateRuleDetails(aggregate, verificationKind, copyText) {
+function aggregateRuleDetails(aggregate, verificationKind, copyText, announcer) {
   if (aggregate.evaluationCount === 1) {
-    return ruleDetails(aggregate.entries[0], verificationKind, copyText);
+    return ruleDetails(aggregate.entries[0], verificationKind, copyText, announcer);
   }
   const region = document.createElement("div");
-  region.id = disclosureId("rule-detail");
   region.className = "rule-detail";
-  region.setAttribute("role", "region");
-  region.setAttribute("aria-label", `${aggregate.title} details`);
   region.append(
     element("p", aggregate.description, "rule-explanation"),
     element("p", aggregateSummary(aggregate, verificationKind), "aggregate-status-summary"),
   );
-  const list = document.createElement("ol");
-  list.className = "rule-instance-list";
+  const table = document.createElement("table");
+  table.className = "rule-instance-table responsive-table";
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  for (const name of ["Topic", "Result", "Message", "Observed", "Expected", "Related neurons"]) {
+    const cell = element("th", name);
+    cell.setAttribute("scope", "col");
+    heading.append(cell);
+  }
+  head.append(heading);
+  const body = document.createElement("tbody");
   for (const entry of aggregate.entries) {
-    const item = document.createElement("li");
-    item.className = "rule-instance";
-    const heading = document.createElement("div");
-    heading.className = "rule-instance-heading";
-    heading.append(
-      element("h5", entry.relevant_topic?.length ? topicLabel(entry.relevant_topic[0]) : "General evaluation"),
-      statusNode(entry, verificationKind),
-    );
-    item.append(heading, element("p", entry.message, "rule-message"));
-    const facts = document.createElement("dl");
-    if (entry.observed?.length) facts.append(metric("Observed value", entry.observed[0]));
-    if (entry.expected?.length) facts.append(metric("Expected value", entry.expected[0]));
+    const row = document.createElement("tr");
+    const topic = element("th", entry.relevant_topic?.length
+      ? topicLabel(entry.relevant_topic[0]) : "General evaluation");
+    topic.setAttribute("scope", "row");
+    topic.setAttribute("data-label", "Topic");
+    const result = document.createElement("td");
+    result.setAttribute("data-label", "Result");
+    result.append(statusNode(entry, verificationKind));
+    const message = element("td", entry.message);
+    message.setAttribute("data-label", "Message");
+    const observed = element("td", optional(entry.observed, "—"));
+    observed.setAttribute("data-label", "Observed");
+    const expected = element("td", optional(entry.expected, "—"));
+    expected.setAttribute("data-label", "Expected");
+    const related = document.createElement("td");
+    related.setAttribute("data-label", "Related neurons");
     if (entry.related_neuron_ids.length) {
       const chips = document.createElement("div");
       chips.className = "neuron-chips";
-      for (const id of entry.related_neuron_ids) chips.append(relatedNeuronChip(id, copyText));
-      facts.append(metric("Related neurons", chips));
+      for (const id of entry.related_neuron_ids) {
+        chips.append(relatedNeuronChip(id, copyText, announcer));
+      }
+      related.append(chips);
+    } else {
+      related.textContent = "—";
     }
-    if (facts.children.length) item.append(facts);
-    item.append(details("Complete raw values", [element("pre", safeJson({
-      observed: entry.observed,
-      expected: entry.expected,
-      relevant_topic: entry.relevant_topic,
-      related_neuron_ids: entry.related_neuron_ids,
-    }))]));
-    list.append(item);
+    row.append(topic, result, message, observed, expected, related);
+    body.append(row);
   }
-  region.append(
-    list,
-    element("p", "", "technical-rule-label"),
-  );
+  table.append(head, body);
+  region.append(table, element("p", "", "technical-rule-label"));
   region.children[region.children.length - 1].append(
     "Technical rule ID: ",
     element("code", aggregate.rule_id),
   );
   return region;
 }
-function renderRuleRow(rule, verificationKind, copyText) {
+function collapsedRuleSupport(rule) {
   const status = variantName(rule.status);
-  const row = document.createElement("li");
-  row.className = `rule-row rule-${status.toLowerCase()}`;
-  row.dataset && (row.dataset.status = status);
-  row.setAttribute("data-status", status);
-  row.setAttribute("data-rule-id", rule.rule_id);
-  const region = aggregateRuleDetails(rule, verificationKind, copyText);
-  const heading = document.createElement("div");
-  heading.className = "rule-row-heading";
-  const toggle = disclosureButton("Show details", region, false, "rule-toggle");
-  toggle.setAttribute("aria-label", `Show details for ${ruleTitle(rule.rule_id)}`);
+  if (rule.evaluationCount === 1) {
+    return attentionStatus(status) ? rule.entries[0].message : "";
+  }
+  if (status === "Pass") return `${rule.evaluationCount} topic evaluations`;
+  const matching = rule.entries.filter((entry) => variantName(entry.status) === status).length;
+  const verb = status === "Fail" ? "fail"
+    : status === "Warning" ? "have warnings"
+      : status === "StandardUpdateRequired" ? "require a Standard update"
+        : "require verification";
+  return `${matching} of ${rule.evaluationCount} topic evaluations ${verb}`;
+}
+function renderRuleRows(rule, verificationKind, copyText, announcer) {
+  const status = variantName(rule.status);
+  const summaryRow = document.createElement("tr");
+  summaryRow.className = `rule-summary-row rule-${status.toLowerCase()}`;
+  summaryRow.setAttribute("data-status", status);
+  summaryRow.setAttribute("data-rule-id", rule.rule_id);
+  const detailRow = document.createElement("tr");
+  detailRow.className = "rule-detail-row";
+  detailRow.hidden = true;
+  detailRow.id = disclosureId("rule-detail");
+  const disclosureCell = document.createElement("td");
+  disclosureCell.className = "rule-disclosure-cell";
+  const toggle = document.createElement("button");
+  toggle.className = "button-disclosure rule-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", detailRow.id);
+  toggle.setAttribute("aria-label", `Show details for ${rule.title}`);
+  const chevron = element("span", "", "chevron");
+  chevron.setAttribute("aria-hidden", "true");
+  toggle.append(chevron);
+  const ruleCell = document.createElement("th");
+  ruleCell.className = "rule-name-cell";
+  ruleCell.setAttribute("scope", "row");
   const summary = document.createElement("div");
   summary.className = "rule-summary";
   summary.append(element("h4", rule.title));
-  if (rule.evaluationCount > 1) {
-    summary.append(element("p", aggregateSummary(rule, verificationKind), "rule-reason"));
-  } else if (attentionStatus(status)) {
-    summary.append(element("p", rule.entries[0].message, "rule-reason"));
-  }
-  heading.append(toggle, summary, statusNode(rule, verificationKind));
+  const support = collapsedRuleSupport(rule);
+  if (support) summary.append(element("p", support, "rule-reason"));
+  ruleCell.append(summary);
+  const statusCell = document.createElement("td");
+  statusCell.className = "rule-result-cell";
+  statusCell.append(statusNode(rule, verificationKind));
+  disclosureCell.append(toggle);
+  summaryRow.append(disclosureCell, ruleCell, statusCell);
+  const detailCell = document.createElement("td");
+  detailCell.colSpan = 3;
+  detailCell.setAttribute("colspan", "3");
+  detailCell.append(aggregateRuleDetails(rule, verificationKind, copyText, announcer));
+  detailRow.append(detailCell);
   toggle.addEventListener("click", () => {
-    const expanded = toggle.attributes?.["aria-expanded"] === "true"
-      || toggle.getAttribute?.("aria-expanded") === "true";
-    toggle.textContent = expanded ? "Hide details" : "Show details";
-    toggle.setAttribute("aria-label", `${expanded ? "Hide" : "Show"} details for ${ruleTitle(rule.rule_id)}`);
+    const expanded = attribute(toggle, "aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    toggle.setAttribute("aria-label", `${expanded ? "Show" : "Hide"} details for ${rule.title}`);
+    detailRow.hidden = expanded;
   });
-  row.append(heading, region);
-  return row;
+  summaryRow.addEventListener("click", (event) => {
+    if (event.target === toggle || event.target?.closest?.("a, button, input, select, textarea")) return;
+    if (globalThis.getSelection?.()?.toString()) return;
+    toggle.click();
+    toggle.focus();
+  });
+  return { rule, summaryRow, detailRow, toggle };
 }
-function renderRules(report, verificationKind, copyText) {
+function renderRules(report, verificationKind, copyText, announcer) {
   const section = document.createElement("section");
   section.id = "rules";
   section.className = "rules-section";
   section.append(element("h2", "Standard rules"));
   const controls = document.createElement("div");
   controls.className = "rule-controls";
-  controls.setAttribute("aria-label", "Filter and expand standard rules");
+  controls.setAttribute("aria-label", "Filter standard rules");
   const count = element("p", "", "rule-count");
   count.setAttribute("aria-live", "polite");
   const list = document.createElement("div");
   list.className = "rule-groups";
   const rows = [];
   const groupSections = [];
-  let currentGroup;
-  let groupList;
   for (const rule of aggregateRules(report.rules)) {
     const group = canonicalGroup(rule.rule_id);
-    if (group !== currentGroup) {
+    let current = groupSections[groupSections.length - 1];
+    if (!current || current.name !== group) {
       const groupSection = document.createElement("section");
       groupSection.className = "rule-group";
       groupSection.append(element("h3", group));
-      groupList = document.createElement("ul");
-      groupList.className = "rule-list";
-      groupSection.append(groupList);
+      const table = document.createElement("table");
+      table.className = "rule-table";
+      const head = document.createElement("thead");
+      const heading = document.createElement("tr");
+      const disclosureHeading = element("th", "");
+      disclosureHeading.setAttribute("scope", "col");
+      disclosureHeading.setAttribute("aria-label", "Details");
+      const ruleHeading = element("th", "Rule");
+      ruleHeading.setAttribute("scope", "col");
+      const resultHeading = element("th", "Result");
+      resultHeading.setAttribute("scope", "col");
+      heading.append(disclosureHeading, ruleHeading, resultHeading);
+      head.append(heading);
+      const body = document.createElement("tbody");
+      table.append(head, body);
+      groupSection.append(table);
       list.append(groupSection);
-      groupSections.push({ section: groupSection, rows: [] });
-      currentGroup = group;
+      current = { name: group, section: groupSection, body, rows: [] };
+      groupSections.push(current);
     }
-    const row = renderRuleRow(rule, verificationKind, copyText);
-    rows.push({ rule, row });
-    groupSections[groupSections.length - 1].rows.push(row);
-    groupList.append(row);
+    const rendered = renderRuleRows(rule, verificationKind, copyText, announcer);
+    rows.push(rendered);
+    current.rows.push(rendered);
+    current.body.append(rendered.summaryRow, rendered.detailRow);
   }
-  let active = "All";
-  const filters = [
-    ["All", () => true],
-    ["Needs attention", (status) => attentionStatus(status)],
-    ["Failed", (status) => status === "Fail"],
-    ["Passed", (status) => status === "Pass"],
-  ];
-  const apply = (label, predicate) => {
-    active = label;
+  const attentionCount = rows.filter(({ rule }) => attentionStatus(variantName(rule.status))).length;
+  let attentionOnly = false;
+  const apply = () => {
     let visible = 0;
-    for (const { rule, row } of rows) {
-      row.hidden = !predicate(variantName(rule.status));
-      if (!row.hidden) visible += 1;
+    for (const { rule, summaryRow, detailRow, toggle } of rows) {
+      const hidden = attentionOnly && !attentionStatus(variantName(rule.status));
+      summaryRow.hidden = hidden;
+      detailRow.hidden = hidden || attribute(toggle, "aria-expanded") !== "true";
+      if (!hidden) visible += 1;
     }
     for (const group of groupSections) {
-      group.section.hidden = !group.rows.some((row) => !row.hidden);
+      group.section.hidden = !group.rows.some(({ summaryRow }) => !summaryRow.hidden);
     }
-    for (const button of filterButtons) button.setAttribute("aria-pressed", String(button.textContent === active));
-    count.textContent = `${active} filter · ${visible} of ${rows.length} Standard rules visible`;
+    count.textContent = `${visible} of ${rows.length} Standard rules visible`;
   };
-  const filterButtons = filters.map(([label, predicate]) => {
-    const button = element("button", label, "secondary rule-filter");
+  if (attentionCount) {
+    const button = document.createElement("button");
+    button.className = "button-quiet attention-filter";
     button.type = "button";
-    button.setAttribute("aria-pressed", String(label === active));
-    button.addEventListener("click", () => apply(label, predicate));
+    button.setAttribute("aria-pressed", "false");
+    button.append(
+      element("span", "", "filter-check"),
+      element("span", `Attention only (${attentionCount})`),
+    );
+    button.addEventListener("click", () => {
+      attentionOnly = !attentionOnly;
+      button.setAttribute("aria-pressed", String(attentionOnly));
+      apply();
+    });
     controls.append(button);
-    return button;
-  });
-  const setExpanded = (predicate, expanded) => {
-    for (const { rule, row } of rows) {
-      if (row.hidden || !predicate(variantName(rule.status))) continue;
-      const toggle = row.children[0].children[0];
-      const current = toggle.attributes?.["aria-expanded"] === "true"
-        || toggle.getAttribute?.("aria-expanded") === "true";
-      if (current !== expanded) {
-        if (typeof toggle.dispatch === "function") toggle.dispatch("click");
-        else toggle.click();
-      }
-    }
-  };
-  const expandAttention = element("button", "Expand attention", "secondary");
-  expandAttention.type = "button";
-  expandAttention.addEventListener("click", () => setExpanded(attentionStatus, true));
-  const collapseAll = element("button", "Collapse all", "secondary");
-  collapseAll.type = "button";
-  collapseAll.addEventListener("click", () => setExpanded(() => true, false));
-  controls.append(expandAttention, collapseAll);
+  }
   section.append(controls, count, list);
-  apply("All", () => true);
+  apply();
   return section;
 }
 
 function expandableSection(id, title, summary, content, expanded = false, importance = "") {
   const section = document.createElement("section");
   section.id = id;
-  section.className = `page-section ${importance}`.trim();
+  section.className = `major-section ${importance}`.trim();
   const region = document.createElement("div");
   region.id = disclosureId(`${id}-content`);
   region.className = "section-content";
-  region.setAttribute("role", "region");
-  region.setAttribute("aria-label", title);
   region.append(...content);
   const heading = document.createElement("h2");
-  const button = disclosureButton(`${title} — ${summary}`, region, expanded, "section-toggle");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button-disclosure section-toggle";
+  button.setAttribute("aria-expanded", String(expanded));
+  button.setAttribute("aria-controls", region.id);
+  button.append(
+    element("span", title, "section-title"),
+    element("span", summary, "section-summary"),
+    element("span", "", "chevron"),
+  );
+  button.children[2].setAttribute("aria-hidden", "true");
+  region.hidden = !expanded;
+  button.addEventListener("click", () => {
+    const open = attribute(button, "aria-expanded") === "true";
+    button.setAttribute("aria-expanded", String(!open));
+    region.hidden = open;
+  });
   heading.append(button);
   section.append(heading, region);
   return section;
 }
-function renderTopics(report, copyText) {
-  const list = document.createElement("div");
-  list.className = "topic-groups";
+function renderTopics(report, copyText, announcer) {
+  const table = document.createElement("table");
+  table.className = "delegation-table responsive-table";
+  const head = document.createElement("thead");
+  const heading = document.createElement("tr");
+  for (const name of ["Configuration", "Topics", "Result"]) {
+    const cell = element("th", name);
+    cell.setAttribute("scope", "col");
+    heading.append(cell);
+  }
+  head.append(heading);
+  const body = document.createElement("tbody");
   for (const group of groupTopics(report)) {
-    const card = document.createElement("article");
-    card.className = "topic-group";
+    const row = document.createElement("tr");
     const noun = group.kind === "Delegates" ? "delegate" : "followee";
-    card.append(
-      element("h3", `${group.values.length} ${noun}${group.values.length === 1 ? "" : "s"}`),
-      element("p", `${group.topics.length} topic${group.topics.length === 1 ? "" : "s"} share this configuration`, "muted"),
-    );
-    const labels = document.createElement("ul");
-    for (const topic of group.topics) labels.append(element("li", topicLabel(topic)));
+    const configuration = document.createElement("th");
+    configuration.setAttribute("scope", "row");
+    configuration.setAttribute("data-label", "Configuration");
+    configuration.append(element("span",
+      `${group.values.length} ${noun}${group.values.length === 1 ? "" : "s"}`, "row-primary"));
     const chips = document.createElement("div");
     chips.className = "neuron-chips";
     for (const value of group.values) {
       const id = String(value);
-      const chip = document.createElement("span");
-      chip.className = "neuron-chip";
       const link = safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`);
       link.title = id;
       link.setAttribute("aria-label", `Neuron ${id}`);
-      chip.append(link, copyButton(id, "Copy", copyText));
-      chips.append(chip);
+      chips.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
     }
+    configuration.append(chips);
+    const topics = document.createElement("td");
+    topics.setAttribute("data-label", "Topics");
+    topics.append(
+      element("span", `${group.topics.length} topic${group.topics.length === 1 ? "" : "s"}`, "row-primary"),
+      element("span", group.topics.map(topicLabel).join(" · "), "table-support"),
+    );
     const topicSet = new Set(group.topics);
     const relevant = report.rules.filter((rule) => rule.relevant_topic?.length
       && topicSet.has(rule.relevant_topic[0])
       && variantName(rule.status) !== "Pass");
-    const statuses = document.createElement("div");
-    statuses.className = "topic-statuses";
-    if (!relevant.length) statuses.append(badge("No topic findings", "pass"));
-    else for (const rule of relevant) {
+    const result = document.createElement("td");
+    result.setAttribute("data-label", "Result");
+    if (!relevant.length) result.append(element("span", "No findings", "muted"));
+    else for (const rule of sortedFindings(relevant)) {
       const status = variantName(rule.status);
-      statuses.append(
-        badge(status, status.toLowerCase()),
+      result.append(
+        statusText(status),
         element("p", `${ruleTitle(rule.rule_id)}: ${rule.message}`, "topic-warning"),
       );
     }
-    card.append(
-      labels,
-      chips,
-      statuses,
-      details("Complete IDs and topic paths", [
-        element("p", `${group.kind}: ${ids(group.values)}`),
-        element("p", `Topics: ${group.topics.map(topicLabel).join(" · ")}`),
-      ]),
-    );
-    list.append(card);
+    row.append(configuration, topics, result);
+    body.append(row);
   }
-  return list;
+  table.append(head, body);
+  return table;
 }
 
 export const PRELIMINARY_CONTROLLER_RULES = Object.freeze(new Set([
@@ -671,24 +756,44 @@ export function renderReport(root, viewModel, options = {}) {
     stale: false,
   };
   const target = report.target?.[0], known = target?.known_neuron?.[0];
+  const announcer = element("p", "", "sr-only copy-announcer");
+  announcer.setAttribute("aria-live", "polite");
+  announcer.setAttribute("aria-atomic", "true");
+  root.append(announcer);
   const header = document.createElement("header");
   header.className = "report-header";
   const title = document.createElement("div");
-  title.append(element("p", "NNS Dendrite analysis", "eyebrow"), element("h1", known?.name ?? `Neuron ${report.neuron_id}`), element("p", `Neuron ${report.neuron_id}`, "muted"));
+  const idLine = document.createElement("p");
+  idLine.className = "neuron-id";
+  idLine.append(
+    element("span", `Neuron ${report.neuron_id}`),
+    copyButton(report.neuron_id, "Copy neuron ID", options.copyText, announcer),
+  );
+  title.append(
+    element("p", "NNS Dendrite analysis", "eyebrow"),
+    element("h1", known?.name ?? `Neuron ${report.neuron_id}`),
+    idLine,
+  );
   const state = document.createElement("div");
+  state.className = "verification-state";
   const verificationText = stale ? "Verification stale" : verificationKind === "Consensus" ? "Consensus verified" : error ? "Consensus unavailable" : "Preliminary";
   state.append(badge(verificationText, stale ? "stale" : verificationKind.toLowerCase()));
-  if (verificationKind === "Consensus") state.append(element("span", "live consensus result", "muted"));
-  if (verificationKind === "Consensus") state.append(element("p", checkedAtUtc(report.checked_at_timestamp_seconds), "muted"));
-  header.append(title, state, copyButton(report.neuron_id, "Copy neuron ID", options.copyText));
+  if (verificationKind === "Consensus") {
+    state.append(element("span", checkedAtUtc(report.checked_at_timestamp_seconds), "verification-time"));
+  }
+  header.append(title, state);
   const actions = document.createElement("div");
   actions.className = "report-actions";
   if (options.onRefreshPreliminary) {
-    const refresh = element("button", options.preliminaryLoading ? "Refreshing public evidence…" : "Refresh preliminary");
+    const refresh = element("button",
+      options.preliminaryLoading ? "Refreshing public evidence…" : "Refresh preliminary",
+      "button-quiet action-refresh");
     refresh.type = "button"; refresh.disabled = Boolean(options.preliminaryLoading); refresh.addEventListener("click", options.onRefreshPreliminary); actions.append(refresh);
   }
   if (options.onVerifyConsensus) {
-    const verify = element("button", options.consensusLoading ? "Verifying on-chain…" : "Verify on-chain", "secondary");
+    const verifyClass = verificationKind === "Consensus" && !stale ? "button-quiet" : "button-primary";
+    const verify = element("button", options.consensusLoading ? "Verifying on-chain…" : "Verify on-chain",
+      `${verifyClass} action-verify`);
     verify.type = "button"; verify.disabled = Boolean(options.consensusLoading); verify.addEventListener("click", options.onVerifyConsensus); actions.append(verify);
   }
   header.append(actions);
@@ -727,26 +832,6 @@ export function renderReport(root, viewModel, options = {}) {
   }
   root.append(overview);
 
-  const navigation = document.createElement("nav");
-  navigation.className = "section-navigation";
-  navigation.setAttribute("aria-label", "Neuron report sections");
-  for (const [label, id] of [
-    ["Overview", "overview"], ["Rules", "rules"], ["Characteristics", "characteristics"],
-    ["Managers", "managers"], ["Delegation", "delegation"], ["Evidence", "evidence"],
-  ]) {
-    const link = document.createElement("a");
-    link.href = `#${id}`;
-    link.textContent = label;
-    link.addEventListener("click", (event) => {
-      const target = document.getElementById?.(id);
-      if (!target?.scrollIntoView) return;
-      event.preventDefault();
-      target.scrollIntoView();
-    });
-    navigation.append(link);
-  }
-  root.append(navigation, renderRules(report, verificationKind, options.copyText));
-
   const metrics = document.createElement("dl");
   metrics.className = "metrics";
   const controller = report.controller?.[0];
@@ -761,7 +846,11 @@ export function renderReport(root, viewModel, options = {}) {
     metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Requires on-chain verification"),
     metric("Verification level", verificationKind === "Consensus" ? "Consensus verified" : "Preliminary"),
   );
-  root.append(expandableSection("characteristics", "Key characteristics", `${metrics.children.length} metrics`, [metrics]));
+  const characteristics = document.createElement("section");
+  characteristics.id = "characteristics";
+  characteristics.className = "characteristics-section";
+  characteristics.append(element("h2", "Key characteristics"), metrics);
+  root.append(characteristics, renderRules(report, verificationKind, options.copyText, announcer));
 
   const managerStatuses = report.managers.map((manager) => variantName(manager.evidence_status));
   const managersUnavailable = managerStatuses.some((status) => status === "Unavailable");
@@ -774,7 +863,7 @@ export function renderReport(root, viewModel, options = {}) {
         ? `${report.managers.length} listed, missing evidence`
         : `${report.managers.length} found, evidence available`;
   const managerContent = report.managers.length
-    ? [renderManagers(report, options.copyText)]
+    ? [renderManagers(report, options.copyText, announcer)]
     : [element("p", "No manager evidence is available in this report.", "empty-state")];
   root.append(expandableSection("managers", "Managers", managerSummary, managerContent, false,
     managersUnavailable || managersMissing ? "section-important" : ""));
@@ -788,7 +877,7 @@ export function renderReport(root, viewModel, options = {}) {
     ? `${topicGroups.length} configurations across ${topicCount} topics`
     : "no topic configurations";
   root.append(expandableSection("delegation", "Topic delegation", delegationSummary,
-    topicCount ? [renderTopics(report, options.copyText)] : [
+    topicCount ? [renderTopics(report, options.copyText, announcer)] : [
       element("p", "No topic delegation evidence is present in this report.", "empty-state"),
     ]));
 
@@ -814,10 +903,15 @@ export function renderReport(root, viewModel, options = {}) {
     details(`Source failures (${report.source_failures.length})`, [element("pre", safeJson(report.source_failures))]),
     details("Raw report", [element("pre", safeJson(report))]),
   );
-  const evidenceImportance = report.source_failures.length ? "section-important" : "";
-  root.append(expandableSection("evidence", "Technical evidence",
-    report.source_failures.length
-      ? `report, sources and raw values · ${report.source_failures.length} source failures`
-      : "report, sources and raw values",
-    [technical], false, evidenceImportance));
+  const evidenceSection = document.createElement("section");
+  evidenceSection.id = "evidence";
+  evidenceSection.className = `technical-section ${report.source_failures.length ? "section-important" : ""}`.trim();
+  evidenceSection.append(element("h2", "Technical evidence"));
+  if (report.source_failures.length) {
+    evidenceSection.append(element("p",
+      `${report.source_failures.length} source failure${report.source_failures.length === 1 ? "" : "s"} recorded`,
+      "source-failure-summary"));
+  }
+  evidenceSection.append(technical);
+  root.append(evidenceSection);
 }

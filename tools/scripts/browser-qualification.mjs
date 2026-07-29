@@ -39,6 +39,7 @@ try {
     { name: "desktop-actual-page-scale-200-percent", width: 1440, height: 1000, pageScaleFactor: 2 },
     { name: "desktop-200-percent-equivalent-reflow", width: 720, height: 500 },
     { name: "mobile", width: 390, height: 844 },
+    { name: "narrow-320-css-pixels", width: 320, height: 844 },
   ]) {
     const context = await browser.createBrowserContext();
     const page = await context.newPage();
@@ -81,8 +82,8 @@ try {
       rules: document.querySelector("#rules")?.getBoundingClientRect().top,
       managers: document.querySelector("#managers")?.getBoundingClientRect().top,
       delegation: document.querySelector("#delegation")?.getBoundingClientRect().top,
-      ruleCount: document.querySelectorAll(".rule-row").length,
-      distinctRuleCount: new Set([...document.querySelectorAll(".rule-row")]
+      ruleCount: document.querySelectorAll(".rule-summary-row").length,
+      distinctRuleCount: new Set([...document.querySelectorAll(".rule-summary-row")]
         .map((node) => node.getAttribute("data-rule-id"))).size,
     }));
     assert.equal(hierarchy.ruleCount, hierarchy.distinctRuleCount, "primary rows are not distinct by rule ID");
@@ -91,21 +92,80 @@ try {
       `unexpected section hierarchy: ${JSON.stringify(hierarchy)}`);
     const initialRequestCount = requests.length;
     const routeBeforeNavigation = page.url();
-    const defaultSelector = '.rule-row[data-rule-id="DENDRITE-DEFAULT-001"]';
+    const presentation = await page.evaluate(() => {
+      const disclosure = document.querySelector(".rule-toggle");
+      const disclosureStyle = getComputedStyle(disclosure);
+      const primaryActions = [...document.querySelectorAll(".report-actions .button-primary")]
+        .filter((node) => !node.hidden);
+      const result = document.querySelector(".rule-result-cell");
+      const resultStyle = getComputedStyle(result);
+      const simpleRow = document.querySelector(".rule-summary-row");
+      const before = simpleRow.getBoundingClientRect();
+      simpleRow.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      const after = simpleRow.getBoundingClientRect();
+      return {
+        disclosureBackground: disclosureStyle.backgroundColor,
+        disclosureBorderWidth: disclosureStyle.borderWidth,
+        hasChevron: Boolean(disclosure.querySelector(".chevron")),
+        plusMinusText: [...document.querySelectorAll(".rule-toggle")]
+          .some((node) => /^[+-]$/.test(node.textContent.trim())),
+        primaryHeaderActions: primaryActions.length,
+        resultAlignment: resultStyle.textAlign,
+        hoverShift: Math.max(
+          Math.abs(before.x - after.x), Math.abs(before.y - after.y),
+          Math.abs(before.width - after.width), Math.abs(before.height - after.height),
+        ),
+        nestedRuleDisclosures: document.querySelectorAll(".rule-detail-row details").length,
+        ruleRegions: document.querySelectorAll(".rule-detail-row [role=region]").length,
+        stickyNavigation: document.querySelectorAll(".section-navigation").length,
+        toolbarControls: document.querySelectorAll(".rule-controls button").length,
+      };
+    });
+    assert.match(presentation.disclosureBackground, /rgba?\(0, 0, 0, 0\)/);
+    assert.equal(presentation.disclosureBorderWidth, "0px");
+    assert.equal(presentation.hasChevron, true);
+    assert.equal(presentation.plusMinusText, false);
+    assert.equal(presentation.primaryHeaderActions, 1);
+    assert.equal(presentation.nestedRuleDisclosures, 0);
+    assert.equal(presentation.ruleRegions, 0);
+    assert.equal(presentation.stickyNavigation, 0);
+    assert(presentation.toolbarControls <= 1);
+    assert(presentation.hoverShift <= 0.1, `row hover shifted layout: ${presentation.hoverShift}`);
+    if (scenario.width >= 720) assert.equal(presentation.resultAlignment, "right");
+    const defaultSelector = '.rule-summary-row[data-rule-id="DENDRITE-DEFAULT-001"]';
     const defaultSummary = await page.$eval(`${defaultSelector} .rule-reason`, (node) => node.textContent);
-    assert.match(defaultSummary, /\d+ of \d+ topics/);
+    assert.match(defaultSummary, /\d+ topic evaluations/);
     await page.focus(`${defaultSelector} .rule-toggle`);
     await page.keyboard.press("Enter");
     assert.equal(await page.$eval(`${defaultSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")), "true");
-    const defaultInstances = await page.$$eval(`${defaultSelector} .rule-instance`, (nodes) => nodes.length);
-    assert(defaultInstances > 1, "default rule did not expose its topic instances");
+    const defaultInstances = await page.$$eval(`${defaultSelector} + .rule-detail-row .rule-instance-table tbody tr`,
+      (nodes) => nodes.length);
+    assert(defaultInstances > 1, "default rule did not expose all topic instances");
+    await page.keyboard.press("Space");
+    assert.equal(await page.$eval(`${defaultSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")), "false");
+    const simpleSelector = ".rule-summary-row";
+    await page.click(`${simpleSelector} .rule-name-cell`);
+    assert.equal(await page.$eval(`${simpleSelector} .rule-toggle`, (node) => ({
+      expanded: node.getAttribute("aria-expanded"),
+      focused: document.activeElement === node,
+    })).then(({ expanded, focused }) => `${expanded}:${focused}`), "true:true");
+    const nestedLink = await page.$(`${simpleSelector} + .rule-detail-row a`);
+    if (nestedLink) {
+      const beforeNested = await page.$eval(`${simpleSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded"));
+      await nestedLink.evaluate((node) => node.addEventListener("click", (event) => event.preventDefault(), { once: true }));
+      await nestedLink.click();
+      assert.equal(await page.$eval(`${simpleSelector} .rule-toggle`, (node) => node.getAttribute("aria-expanded")),
+        beforeNested, "nested link toggled its rule row");
+    }
+    const copy = await page.$(".copy-button");
+    if (copy) await copy.click();
     const initialGroupCount = await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length);
-    await page.click(".rule-filter:nth-of-type(2)");
-    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /Needs attention filter/);
-    assert(await page.$$eval(".rule-row:not([hidden])", (nodes) => nodes.length) > 0);
+    await page.click(".attention-filter");
+    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /\d+ of \d+ Standard rules visible/);
+    assert(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length) > 0);
     assert(await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length) < initialGroupCount,
       "filtered-out group headings remained visible");
-    const preliminaryControllers = await page.$$eval(".rule-row", (nodes) => nodes
+    const preliminaryControllers = await page.$$eval(".rule-summary-row", (nodes) => nodes
       .filter((node) => /Controller canister/.test(node.textContent))
       .map((node) => node.textContent));
     assert(preliminaryControllers.length >= 3);
@@ -113,16 +173,37 @@ try {
       assert.match(controllerText, /Requires verification/);
       assert.doesNotMatch(controllerText, /\bPass\b/);
     }
-    await page.click('.section-navigation a[href="#rules"]');
-    assert.equal(page.url(), routeBeforeNavigation, "section navigation changed the neuron route");
-    assert(Math.abs(await page.$eval("#rules", (node) =>
-      node.getBoundingClientRect().top - (visualViewport?.offsetTop ?? 0))) < 100);
-    for (const id of ["characteristics", "managers", "delegation", "evidence"]) {
+    for (const id of ["managers", "delegation"]) {
       const selector = `#${id} .section-toggle`;
       assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "false");
       await page.focus(selector);
       await page.keyboard.press("Enter");
       assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "true");
+    }
+    const evidenceDisclosure = "#evidence .evidence-disclosure:first-of-type";
+    await page.click(`${evidenceDisclosure} > summary`);
+    assert.equal(await page.$eval(evidenceDisclosure, (node) => node.open), true);
+    assert.equal(page.url(), routeBeforeNavigation, "presentation interactions changed the neuron route");
+    if (scenario.name === "desktop") {
+      for (const [name, setup] of [
+        ["header-overall", async () => page.evaluate(() => scrollTo(0, 0))],
+        ["all-rules-collapsed", async () => {
+          await page.click(".attention-filter");
+          await page.evaluate(() => document.querySelector("#rules").scrollIntoView());
+        }],
+        ["simple-rule-expanded", async () => page.evaluate(() => document.querySelector(".rule-summary-row").scrollIntoView())],
+        ["multi-topic-rule-expanded", async () => {
+          await page.click(`${defaultSelector} .rule-toggle`);
+          await page.evaluate((selector) => document.querySelector(selector).scrollIntoView(), defaultSelector);
+        }],
+        ["attention-only", async () => page.click(".attention-filter")],
+        ["managers-expanded", async () => page.evaluate(() => document.querySelector("#managers").scrollIntoView())],
+        ["topic-delegation-expanded", async () => page.evaluate(() => document.querySelector("#delegation").scrollIntoView())],
+        ["technical-evidence-expanded", async () => page.evaluate(() => document.querySelector("#evidence").scrollIntoView())],
+      ]) {
+        await setup();
+        await page.screenshot({ path: join(evidenceDirectory, `desktop-${name}.png`) });
+      }
     }
     assert.equal(requests.length, initialRequestCount,
       "rendering, filtering, expansion, or section navigation triggered a network request");
@@ -145,10 +226,20 @@ try {
         const box = node.getBoundingClientRect();
         return box.width > 0 && box.height > 0;
       }).length,
+      minimumFrequentTarget: Math.min(...[...document.querySelectorAll(".rule-toggle, .copy-button")]
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          return box.width > 0 && box.height > 0;
+        }).map((node) => {
+          const box = node.getBoundingClientRect();
+          return Math.min(box.width, box.height);
+        })),
     }));
     const overflow = measurements.overflow;
     assert(overflow.document <= 1 && overflow.body <= 1, `material horizontal overflow: ${JSON.stringify(overflow)}`);
     assert(measurements.visibleText > 0 && measurements.visibleControls > 0, "text or controls are not visible");
+    assert(measurements.minimumFrequentTarget >= 44,
+      `frequent icon target below 44 CSS pixels: ${measurements.minimumFrequentTarget}`);
     if (scenario.pageScaleFactor) {
       assert(measurements.pageScale >= 1.99 && measurements.pageScale <= 2.01,
         `actual page scale was not 200%: ${measurements.pageScale}`);
@@ -163,10 +254,12 @@ try {
       const focused = await page.evaluate(() => ({
         tag: document.activeElement?.tagName,
         text: document.activeElement?.textContent?.trim().slice(0, 80),
-        name: document.activeElement?.getAttribute("name"),
+        name: document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.getAttribute("name"),
       }));
       focusEvidence.push(focused);
-      requiredFocus.delete(focused.text);
+      for (const required of requiredFocus) {
+        if (focused.text === required || focused.name?.startsWith(required)) requiredFocus.delete(required);
+      }
     }
     assert.deepEqual([...requiredFocus], []);
     await page.screenshot({ path: join(evidenceDirectory, `${scenario.name}.png`), fullPage: true });
@@ -179,6 +272,7 @@ try {
       overflow,
       measurements,
       hierarchy,
+      presentation,
       defaultSummary,
       defaultInstances,
       interactionRequests: requests.length - initialRequestCount,
