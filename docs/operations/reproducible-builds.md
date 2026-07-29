@@ -72,6 +72,13 @@ Governance query and signature-verification `read_state` only to
 requests. Anonymous ingress remains proved by the separate actor-construction unit
 test, not inferred from missing HTTP headers.
 
+The guarded anonymous `upgrade` dry-run verified the candidate binding and every
+release checksum, observed the installed historical aggregation module
+`f8556ca1b5d8345b734b95241e0c1aad887f3b1d826d6d3a6a4b9f79ff63efd6`,
+tolerated the expected anonymous controller-settings rejection, printed the exact
+intended upgrade command, and exited with `dry-run complete; no write performed`.
+It made no lifecycle or NNS write.
+
 ## Aggregated-rule upgrade candidate — 2026-07-29
 
 This candidate was subsequently deployed and is preserved as historical release
