@@ -5,6 +5,30 @@
 Only an operator-supplied real deployment result may change this into completed
 evidence. Never include private identity or authentication material.
 
+## Evidence-specific rule diagnostics upgrade — 2026-07-29
+
+| Field | Recorded value |
+| --- | --- |
+| Release Git commit | `694e1c2a47f3a2fc238b9b3799748610ca22b274` |
+| Lifecycle client | `dfx 0.27.0` |
+| Operator identity | `codex_local` |
+| Operator identity principal | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae` |
+| Deployment mode | `upgrade` |
+| Exact upgrade command | `DFX_IDENTITY=codex_local DFX_WARNING=-mainnet_plaintext_identity dfx canister install hp4av-oiaaa-aaaar-qcaha-cai --network ic --mode upgrade --wasm dist/release/dendrite.wasm` |
+| Controllers before and after | `amzih-bssz4-twanl-zf6nr-bqsnn-d7rlt-eerbc-oe7vv-uggn5-3naqo-3ae`, `zkkkd-i34qc-367ln-e2u7o-ezznu-dkfqh-gtfvz-cviph-6qa4v-evtfs-wqe` |
+| Cycles balance before | `5_337_452_178_658` |
+| Cycles balance after | `5_315_097_916_637` |
+| Freezing threshold before and after | `7_776_000` seconds |
+| Previous module hash | `8fec1ba048185e9020b815d0dadc499b5305550ff7f27f314885b2acc17278cd` |
+| Installed module hash | `5b20aa2aa7b3d3b6706698bbd75dfaf6775a96d27c744fd230e7fd709ba448eb` |
+| Release `SHA256SUMS` hash | `05b0a2f6340e8912a46cfa78d8f54591f1c330d74a3968eb4ed8a22481d3ecbb` |
+| Asset-manifest hash | `c1e36dbff3b8240e32fe9878e86cdcb716bedeb3dc558f412a8f9e88b0cfad2b` |
+| Generated application hash | `16a88df940fd5e9140f12806e367f907c5f152c16b9ea56b853f6163c08f1e46` |
+| Generated stylesheet hash | `f4bde1b2f8652ece1ea245507bc42455c547b026ef0cb9b94e46cebe55bac235` |
+| Deployment verification timestamp | `2026-07-29T20:18:12Z` |
+| Verification | Installed module hash matched the canonical Wasm; `/`, `/asset-manifest.json`, `/.well-known/ii-alternative-origins`, and both generated assets returned certified HTTP 200 responses. |
+| Notes | No controller, freezing threshold, authentication configuration, or other setting changed; no transaction gate, cycle transfer, or NNS mutation was performed. |
+
 ## Certified controller-evidence upgrade — 2026-07-29
 
 | Field | Recorded value |
