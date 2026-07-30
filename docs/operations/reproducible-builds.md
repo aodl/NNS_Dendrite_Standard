@@ -31,6 +31,60 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Direct Standard rules candidate — 2026-07-30
+
+This candidate is not deployed. It advances the catalogue to
+`nns-dendrite/1.1-draft` and exposes only 25 substantive rules in six explicit
+groups. The three former report-integrity entries and the reference-neuron metadata
+check are internal invariants rather than scored neuron rules. The compliant fixture
+contains 39 policy evaluations. Alpha-vote and omega-reject are fetched only when
+configured as a manager or committed delegate, reducing the derived dependency bound
+to 270.
+
+Every normal report disclosure starts collapsed, including Managers, Topic
+delegation, all rule groups and rows, Neuron characteristics, Raw report, and idle
+Management. Status filtering never expands a group. Section summaries and group
+counts are right aligned. Proposal-based dissolution is described through the
+security consequence of `not_for_profit = false`.
+
+Two clean local builds were byte-identical. Two forced-clean `--no-cache`
+`linux/amd64` Docker exports had identical file sets, byte-identical files, and
+identical deterministic manifests.
+
+- Canonical raw Wasm SHA-256:
+  `74f6090a729fa467908985c8ef8adc415e237fdf2e6eda8fa7d6a68a0aade972`
+- Same-toolchain local raw Wasm SHA-256:
+  `9e6b0bde5dee001fdbdc687578006c7923bb3b18c296624003f1aaf486f23abe`
+- Frontend tree SHA-256:
+  `31aa60d91ea15dbe94f0ce5d242c0ea3adacb6a3aa2f1b0db432aaa994d5aa4e`
+- Asset manifest SHA-256:
+  `15cab4649d2e415b15d5b1bf9d6628859249b69dabdc60737913adaf64da4bd2`
+- Build configuration SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- `SHA256SUMS` SHA-256:
+  `9989b8c9f4c87f85807c6f1ada8c58e8bfb2890938d1144f4a49edbdc73684f7`
+- SBOM checksum manifest SHA-256:
+  `9388482d89ea9f3018bd282981f3402cd52d8a7e6e8168023055b579669db603`
+- Chromium evidence tree SHA-256:
+  `454b3840226804f5e2502bff56038b2f8dd3cf3fb26a4d05c9ac23b2bad21b7c`
+
+The generated assets are `generated/app.b621ba522c99801f.js` and
+`generated/styles.1ebbbb16b0d22189.css`. Chrome 144.0.7559.96 passed desktop,
+actual 200% page scale, 200%-equivalent reflow, mobile, and 320-pixel reflow with zero
+overflow, console errors, page errors, interaction requests, Dendrite requests, and
+`/call` requests. Pass was `rgb(19, 121, 91)` and fail was
+`rgb(180, 35, 24)` for filters and group totals; verdict colours matched their status
+tokens.
+
+The matrix passed 159 frontend tests, 60 Rust unit tests, 3 PocketIC scenarios, and
+all 38 Rust/browser parity fixtures. Frontend coverage was 95.50% lines, 86.59%
+branches, and 92.98% functions. Rust workspace line coverage was 90.13%; the rule
+engine reached 99.68% lines and 95.10% branches. Security scanning, production
+dependency isolation, interface and declaration drift, transaction-IDL equality, npm
+audit, and SBOM generation passed with the existing documented exceptions.
+`check_neuron` remains confined to separate fresh transaction-review and final-
+submission preflights. No lifecycle write or NNS mutation was performed.
+
 ## Final neuron-report hierarchy candidate — 2026-07-30
 
 This candidate is not deployed. It renders one route-loaded public report in the order

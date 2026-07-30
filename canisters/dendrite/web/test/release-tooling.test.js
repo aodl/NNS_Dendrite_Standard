@@ -44,7 +44,7 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   const yaml = readFileSync("icp.yaml", "utf8");
   assert.match(yaml, /type: "@dfinity\/prebuilt@v2\.0\.0"/);
   assert.match(yaml, /path: dist\/release\/dendrite\.wasm/);
-  assert.match(yaml, /sha256: 72d10ba0de7b414f20de1c38fa68a120ad5a98ee0c41aa8d6f0229807a344dcf/);
+  assert.match(yaml, /sha256: 74f6090a729fa467908985c8ef8adc415e237fdf2e6eda8fa7d6a68a0aade972/);
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 
@@ -71,7 +71,7 @@ test("production frontend manifest names existing generated assets", () => {
 });
 
 test("removed public report actions and modes are absent from source and production assets", () => {
-  const forbidden = /Refresh live analysis|Verify on-chain|Consensus verified|Consensus unavailable|Verification stale|Live analysis|Attention only|Technical evidence|Check again|Rerun current Dendrite report|report-action-toolbar|report-actions/;
+  const forbidden = /Refresh live analysis|Verify on-chain|Consensus verified|Consensus unavailable|Verification stale|Live analysis|Attention only|Technical evidence|Check again|Rerun current Dendrite report|report-action-toolbar|report-actions|nns-dendrite\/1\.0-draft|DENDRITE-DATA-00[123]|DENDRITE-NM-005|Voting anchors|voting anchors|Data completeness|Locked and active posture|Controller and target settings|Neuron Management managers|Non-committed following|Not-for-profit is disabled/;
   const sources = readdirSync("canisters/dendrite/web/src", { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
     .map((entry) => join("canisters/dendrite/web/src", entry.name));
@@ -81,8 +81,10 @@ test("removed public report actions and modes are absent from source and product
     join("canisters/dendrite/public", manifest["styles.css"]),
   ];
   for (const file of [...sources, ...assets]) {
-    assert.doesNotMatch(readFileSync(file, "utf8"), forbidden, file);
+    const text = readFileSync(file, "utf8");
+    assert.doesNotMatch(text, forbidden, file);
   }
+  assert.match(readFileSync(assets[0], "utf8"), /nns-dendrite\/1\.1-draft/);
 });
 
 test("frontend documentation URLs resolve to retained documents", () => {
