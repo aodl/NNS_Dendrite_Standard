@@ -29,7 +29,6 @@
     entry("DENDRITE-CONTROL-003", compliant ? "Pass" : "Fail",
       compliant ? "controller canister has no controllers" : "controller canister retains 1 controller",
       compliant ? ["no controllers"] : ["1 controller: 2vxsx-fae"], ["no controllers"]),
-    entry("DENDRITE-DATA-001", "Pass", "every required lookup reached a terminal factual result"),
   ];
   renderReport(document.querySelector("#app"), {
     verificationKind: "Preliminary",
@@ -43,7 +42,7 @@
     report: {
       neuron_id: 42n,
       overall_status: { [compliant ? "Compliant" : "NonCompliant"]: null },
-      standard_version: "nns-dendrite/1.0-draft",
+      standard_version: "nns-dendrite/1.1-draft",
       source_revision: "d55a0f4d4edfabe49d8fd543aff473084cb741f2",
       checked_at_timestamp_seconds: 1000000n,
       quorum_threshold: [],

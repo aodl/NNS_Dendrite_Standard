@@ -55,7 +55,7 @@ The harness additionally serves a deterministic test-only report from a temporar
 qualification root. That page is excluded from production assets and exercises failed
 controller-module and retained-controller-list diagnostics, direct compliant and
 non-compliant verdicts, exact Dashboard links, requirement/outcome separation, group
-totals, severity-aware defaults, child-state clearing, filter behaviour, and zero
+totals, collapsed defaults, child-state clearing, filter behaviour, and zero
 disclosure/filter/copy network requests.
 Each scenario independently requires at least one fixed-Governance v3 `query`, expected
 query-signature `read_state`, no update endpoint, no unexpected canister, zero
@@ -67,10 +67,11 @@ Identity or sends an NNS mutation.
 
 The Rust unit suite deterministically regenerates
 `canisters/dendrite/web/test/fixtures/evaluator.json`. Its 38 cases record Rust overall
-status, quorum and every rule status with stable names and timestamps. Frontend tests
+status, quorum and every direct rule status with stable names and timestamps. The
+fully compliant fixture has exactly 39 evaluations and 25 distinct rules. Frontend tests
 apply the same named mutations to BigInt-safe browser evidence and require exact
 policy-field equality. The cases cover compliant, missing/unavailable/contradictory
-evidence, target posture, manager cardinality and availability, anchor/default/committed
+evidence, target posture, manager cardinality and availability, exact alpha/default/committed
 following, quorum, controller evidence, source failures, and standard-update semantics.
 
 Frontend state and presentation tests separately prove that every rule occurs once in

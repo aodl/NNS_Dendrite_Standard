@@ -1,10 +1,12 @@
 #![forbid(unsafe_code)]
 
 use candid::{CandidType, Deserialize, Principal};
+#[cfg(test)]
+use dendrite_types::{ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID};
 use dendrite_types::{
-    ALPHA_VOTE_NEURON_ID, ComplianceReport, ControllerEvidence, EvaluationEvidence, KnownNeuron,
-    MAX_DEPENDENCY_NEURONS, NeuronEvidence, NeuronLookup, OMEGA_REJECT_NEURON_ID, SOURCE_REVISION,
-    SourceFailure, SourceFailureKind, evaluate,
+    ComplianceReport, ControllerEvidence, EvaluationEvidence, KnownNeuron, MAX_DEPENDENCY_NEURONS,
+    NeuronEvidence, NeuronLookup, SOURCE_REVISION, SourceFailure, SourceFailureKind, evaluate,
+    validate_evaluation_inputs,
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, NeuronInfo,
@@ -39,6 +41,7 @@ fn http_request(request: assets::HttpRequest) -> assets::HttpResponse {
 #[derive(Clone, Debug, CandidType, Deserialize)]
 pub enum DendriteError {
     InvalidNeuronId(String),
+    AnalysisFailed(String),
     GlobalRateLimit { retry_after_seconds: u64 },
     ConcurrencyLimit,
     DuplicateInFlight,
@@ -305,7 +308,7 @@ fn dependency_batches(ids: &[u64]) -> Vec<Vec<u64>> {
 }
 
 fn dependency_ids(target: &NeuronEvidence) -> Vec<u64> {
-    let mut requested = vec![ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
+    let mut requested = Vec::new();
     requested.extend(target.followees.get(&1).into_iter().flatten().copied());
     for topic in &target.committed_topics {
         requested.extend(target.followees.get(topic).into_iter().flatten().copied());
@@ -375,6 +378,15 @@ async fn collect_live(neuron_id: u64) -> Result<ComplianceReport, DendriteError>
     collect_with(&ProductionEvidenceClient, neuron_id, 0).await
 }
 
+fn evaluate_checked(
+    neuron_id: u64,
+    evidence: &EvaluationEvidence,
+) -> Result<ComplianceReport, DendriteError> {
+    validate_evaluation_inputs(evidence, SOURCE_REVISION)
+        .map_err(|message| DendriteError::AnalysisFailed(message.into()))?;
+    Ok(evaluate(neuron_id, evidence, SOURCE_REVISION))
+}
+
 async fn collect_with(
     client: &impl EvidenceClient,
     neuron_id: u64,
@@ -406,11 +418,17 @@ async fn collect_with(
                         (NeuronLookup::Unavailable, 0, 0)
                     }
                 },
-                None => (
-                    NeuronLookup::ConfirmedMissing,
-                    batch.unknown_committed_topics,
-                    0,
-                ),
+                None => {
+                    let timestamp = batch
+                        .neuron_infos
+                        .remove(&neuron_id)
+                        .map_or(0, |info| info.retrieved_at_timestamp_seconds);
+                    (
+                        NeuronLookup::ConfirmedMissing,
+                        batch.unknown_committed_topics,
+                        timestamp,
+                    )
+                }
             },
             Err(failure) => {
                 source_failures.push(failure);
@@ -451,7 +469,7 @@ async fn collect_with(
             source_failures,
             unknown_committed_topics: 0,
         };
-        return Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION));
+        return evaluate_checked(neuron_id, &evidence);
     };
     let requested = dependency_ids(target);
     let mut dependencies = BTreeMap::new();
@@ -542,7 +560,7 @@ async fn collect_with(
         source_failures,
         unknown_committed_topics,
     };
-    Ok(evaluate(neuron_id, &evidence, SOURCE_REVISION))
+    evaluate_checked(neuron_id, &evidence)
 }
 
 ic_cdk::export_candid!();
@@ -642,11 +660,31 @@ mod tests {
             message: message.into(),
         }
     }
+    fn assert_analysis_failed(result: Result<ComplianceReport, DendriteError>) {
+        assert!(
+            matches!(result, Err(DendriteError::AnalysisFailed(message)) if message.len() <= 256),
+            "expected a bounded analysis error"
+        );
+    }
     fn empty_neurons() -> ListNeuronsResponse {
         ListNeuronsResponse {
             neuron_infos: vec![],
             full_neurons: vec![],
             total_pages_available: Some(1),
+        }
+    }
+    fn missing_neuron(id: u64) -> ListNeuronsResponse {
+        ListNeuronsResponse {
+            neuron_infos: vec![(
+                id,
+                NeuronInfo {
+                    id: Some(NeuronId { id }),
+                    retrieved_at_timestamp_seconds: 1_000_000,
+                    known_neuron_data: None,
+                    visibility: None,
+                },
+            )],
+            ..empty_neurons()
         }
     }
     fn response(neurons: Vec<Neuron>) -> ListNeuronsResponse {
@@ -754,10 +792,6 @@ mod tests {
                     },
                 )
             })
-            .chain([
-                raw_neuron(ALPHA_VOTE_NEURON_ID, vec![]),
-                raw_neuron(OMEGA_REJECT_NEURON_ID, vec![]),
-            ])
             .collect::<Vec<_>>();
         FakeClient {
             neurons: TestRefCell::new(VecDeque::from([
@@ -793,7 +827,7 @@ mod tests {
             (101, vec![50, 50, 1]),
             (257, vec![50, 50, 50, 50, 50, 7]),
             (258, vec![50, 50, 50, 50, 50, 8]),
-            (272, vec![50, 50, 50, 50, 50, 22]),
+            (270, vec![50, 50, 50, 50, 50, 20]),
         ] {
             let ids: Vec<_> = (0..count).collect();
             let batches = dependency_batches(&ids);
@@ -843,7 +877,7 @@ mod tests {
         }));
     }
     #[test]
-    fn collector_evaluates_the_full_272_dependency_catch_all_graph() {
+    fn collector_evaluates_the_full_270_dependency_catch_all_graph() {
         let mut target_followees = Vec::new();
         for (topic_index, topic) in dendrite_types::RECOGNISED_TOPICS.into_iter().enumerate() {
             target_followees.push((
@@ -903,7 +937,7 @@ mod tests {
                     RecordedCall::CanisterInfo(_) => 0,
                 })
                 .collect::<Vec<_>>(),
-            vec![50, 50, 50, 50, 50, 22]
+            vec![50, 50, 50, 50, 50, 20]
         );
         assert_eq!(
             calls[7],
@@ -911,27 +945,17 @@ mod tests {
         );
     }
     #[test]
-    fn collector_transport_rejection_is_indeterminate() {
+    fn collector_transport_rejection_fails_report_construction() {
         let client = FakeClient {
             neurons: TestRefCell::new(VecDeque::from([Err(source_error("neurons rejected"))])),
             calls: TestRefCell::new(vec![]),
         };
-        let snapshot = block_on(collect_with(&client, 7, 1_000)).unwrap();
-        assert_eq!(
-            snapshot.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            snapshot
-                .source_failures
-                .iter()
-                .any(|failure| failure.message.contains("neurons rejected"))
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 7, 1_000)));
     }
     #[test]
     fn collector_records_missing_target_from_successful_response() {
         let client = FakeClient {
-            neurons: TestRefCell::new(VecDeque::from([Ok(empty_neurons())])),
+            neurons: TestRefCell::new(VecDeque::from([Ok(missing_neuron(7))])),
             calls: TestRefCell::new(vec![]),
         };
         let snapshot = block_on(collect_with(&client, 7, 1_000)).unwrap();
@@ -963,7 +987,7 @@ mod tests {
         assert_eq!(snapshot.quorum_threshold, Some(3));
         assert_eq!(snapshot.checked_at_timestamp_seconds, 1_000_000);
         assert_eq!(client.calls.borrow()[0], RecordedCall::List(vec![42]));
-        assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 7));
+        assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 5));
         assert_eq!(
             client.calls.borrow()[2],
             RecordedCall::CanisterInfo(Principal::from_slice(&[1]))
@@ -1013,15 +1037,7 @@ mod tests {
             .unwrap()
             .neuron_infos
             .clear();
-        let report = block_on(collect_with(&client, 42, 1)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert_eq!(
-            report.source_failures[0].kind,
-            SourceFailureKind::InvalidResponse
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1)));
 
         let client = compliant_client();
         let duplicate = client.neurons.borrow()[0].as_ref().unwrap().neuron_infos[0].clone();
@@ -1030,16 +1046,7 @@ mod tests {
             .unwrap()
             .neuron_infos
             .push(duplicate);
-        let report = block_on(collect_with(&client, 42, 1)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            report.source_failures[0]
-                .message
-                .contains("duplicate neuron-info")
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1)));
 
         let client = compliant_client();
         client.neurons.borrow_mut()[0]
@@ -1047,16 +1054,7 @@ mod tests {
             .unwrap()
             .neuron_infos[0]
             .0 = 99;
-        let report = block_on(collect_with(&client, 42, 1)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            report.source_failures[0]
-                .message
-                .contains("unexpected neuron-info")
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1)));
     }
     #[test]
     fn refresh_after_nns_snapshot_invalidates_the_target_batch() {
@@ -1066,21 +1064,7 @@ mod tests {
             .unwrap()
             .full_neurons[0]
             .voting_power_refreshed_timestamp_seconds = Some(1_000_001);
-        let report = block_on(collect_with(&client, 42, 1)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert_eq!(
-            report.source_failures[0].kind,
-            SourceFailureKind::InvalidResponse
-        );
-        assert!(
-            report
-                .rules
-                .iter()
-                .all(|rule| rule.status != dendrite_types::RuleStatus::Fail)
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1)));
     }
     #[test]
     fn collector_defective_graph_is_non_compliant() {
@@ -1128,7 +1112,7 @@ mod tests {
             rule.rule_id == "DENDRITE-NM-004"
                 && rule.status == dendrite_types::RuleStatus::Indeterminate
         }));
-        assert_eq!(snapshot.source_failures[0].affected_neuron_ids.len(), 7);
+        assert_eq!(snapshot.source_failures[0].affected_neuron_ids.len(), 5);
     }
     #[test]
     fn dependency_committed_topic_variants_are_ignored() {
@@ -1155,12 +1139,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .total_pages_available = Some(2);
-        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
-        assert_eq!(
-            snapshot.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(snapshot.source_failures[0].message.contains("page count"));
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
 
         let client = compliant_client();
         {
@@ -1169,16 +1148,7 @@ mod tests {
             target.cached_neuron_stake_e8s = 0;
             target.neuron_fees_e8s = 1;
         }
-        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
-        assert_eq!(
-            snapshot.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            snapshot.source_failures[0]
-                .message
-                .contains("stake arithmetic")
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
     }
     #[test]
     fn collector_unknown_committed_variant_requires_update() {
@@ -1275,43 +1245,24 @@ mod tests {
             .as_mut()
             .unwrap()
             .committed_topics = Some(vec![None; ic_clients::MAX_COMMITTED_TOPIC_WIRE_ENTRIES + 1]);
-        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
-        assert_eq!(
-            snapshot.source_failures[0].kind,
-            SourceFailureKind::ResponseTooLarge
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
     }
     #[test]
-    fn collector_over_limit_client_error_is_indeterminate() {
+    fn collector_over_limit_client_error_fails_report_construction() {
         let client = FakeClient {
             neurons: TestRefCell::new(VecDeque::from([Err(source_error(
                 "list_neurons response exceeds bound",
             ))])),
             calls: TestRefCell::new(vec![]),
         };
-        let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
-        assert_eq!(
-            snapshot.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            snapshot.source_failures[0]
-                .message
-                .contains("exceeds bound")
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
     }
     #[test]
     fn collector_uses_dependencies_even_when_target_has_no_known_data() {
         let mut target = raw_neuron(42, vec![]);
         target.known_neuron_data = None;
         let client = FakeClient {
-            neurons: TestRefCell::new(VecDeque::from([
-                Ok(response(vec![target])),
-                Ok(response(vec![
-                    raw_neuron(ALPHA_VOTE_NEURON_ID, vec![]),
-                    raw_neuron(OMEGA_REJECT_NEURON_ID, vec![]),
-                ])),
-            ])),
+            neurons: TestRefCell::new(VecDeque::from([Ok(response(vec![target]))])),
             calls: TestRefCell::new(vec![]),
         };
         let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
@@ -1322,11 +1273,11 @@ mod tests {
         assert!(snapshot.rules.iter().any(|rule| {
             rule.rule_id == "DENDRITE-KNOWN-002" && rule.status == dendrite_types::RuleStatus::Fail
         }));
-        assert_eq!(client.calls.borrow().len(), 2);
+        assert_eq!(client.calls.borrow().len(), 1);
     }
 
     #[test]
-    fn collector_decode_failure_remains_typed_and_indeterminate() {
+    fn collector_decode_failure_fails_report_construction() {
         let client = FakeClient {
             neurons: TestRefCell::new(VecDeque::from([Err(SourceError {
                 destination: ic_clients::NNS_GOVERNANCE,
@@ -1336,15 +1287,7 @@ mod tests {
             })])),
             calls: TestRefCell::new(vec![]),
         };
-        let report = block_on(collect_with(&client, 7, 1_000)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert_eq!(
-            report.source_failures[0].kind,
-            SourceFailureKind::DecodeFailed
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 7, 1_000)));
     }
 
     #[test]
@@ -1358,16 +1301,7 @@ mod tests {
             .full_neurons[0]
             .followees
             .push(duplicate);
-        let report = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
-        assert_eq!(
-            report.overall_status,
-            dendrite_types::ComplianceStatus::Indeterminate
-        );
-        assert!(
-            report.source_failures[0]
-                .message
-                .contains("duplicate topic")
-        );
+        assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
 
         let client = compliant_client();
         client.neurons.borrow_mut()[1]

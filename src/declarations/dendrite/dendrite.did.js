@@ -99,6 +99,7 @@ export const idlFactory = ({ IDL }) => {
   const DendriteError = IDL.Variant({
     'GlobalRateLimit' : IDL.Record({ 'retry_after_seconds' : IDL.Nat64 }),
     'InvalidNeuronId' : IDL.Text,
+    'AnalysisFailed' : IDL.Text,
     'LowCycles' : IDL.Null,
     'ConcurrencyLimit' : IDL.Null,
     'DuplicateInFlight' : IDL.Null,

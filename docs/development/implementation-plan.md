@@ -1,5 +1,24 @@
 # Aggressive simplification implementation plan
 
+## Direct Standard rules and collapsed disclosures
+
+Starting boundary: `84bb21d4a0fe7c583cdcc69639a7f5e63a457618`.
+
+- [x] Advance the normative identifier to `nns-dendrite/1.1-draft`.
+- [x] Remove the three report-integrity entries and the reference-neuron metadata
+  check from Rust/browser evaluator output, totals, fixtures, and overall status.
+- [x] Retain their fail-closed properties as report-construction and
+  dependency-to-rule invariants.
+- [x] Use 25 direct rules, 39 compliant-fixture evaluations, and six explicit groups.
+- [x] Stop adding alpha-vote and omega-reject solely as metadata dependencies; reduce
+  the derived graph bound to 270.
+- [x] Present proposal-based dissolution through the security effect of
+  `not_for_profit = false`.
+- [x] Start every normal report disclosure collapsed; filters never expand groups.
+- [x] Right-align section summaries and rule-group counts.
+- [ ] Regenerate the candidate assets and complete all release, reproducibility,
+  Chromium, scan, SBOM, and guarded no-write gates without deployment.
+
 ## Final neuron-report information hierarchy
 
 Starting boundary: `e4e3cdbd61eaf71148877858518e0cc2ba3aa5ff`.

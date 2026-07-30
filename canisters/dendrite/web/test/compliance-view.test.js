@@ -74,7 +74,8 @@ const statusRule = (rule_id, status, overrides = {}) => ({
   ...overrides,
 });
 const rules = [
-  statusRule("DENDRITE-DATA-003", "Pass"),
+  statusRule("DENDRITE-LOCK-001", "Pass"),
+  statusRule("DENDRITE-COMMIT-001", "Pass", { relevant_topic: [4] }),
   statusRule("DENDRITE-CONTROL-001", "Indeterminate"),
   statusRule("DENDRITE-KNOWN-002", "Fail", {
     observed: ["missing metadata"],
@@ -90,7 +91,7 @@ const rules = [
 const report = () => ({
   neuron_id: 42n,
   overall_status: { NonCompliant: null },
-  standard_version: "nns-dendrite/1.0-draft",
+  standard_version: "nns-dendrite/1.1-draft",
   source_revision: "d55a0f4d4edfabe49d8fd543aff473084cb741f2",
   checked_at_timestamp_seconds: 100n,
   quorum_threshold: [3],
@@ -207,6 +208,8 @@ test("visual tokens meet text, icon, control, and focus contrast requirements", 
   assert.match(cssSource, /\.rule-filter-fail\s*\{[^}]*color:\s*var\(--fail\)/s);
   assert.match(cssSource, /\.rule-group-counts \.status-pass\s*\{[^}]*color:\s*var\(--pass\)/s);
   assert.match(cssSource, /\.rule-group-counts \.status-fail\s*\{[^}]*color:\s*var\(--fail\)/s);
+  assert.match(cssSource, /\.section-summary\s*\{[^}]*justify-self:\s*end;[^}]*text-align:\s*right/s);
+  assert.match(cssSource, /\.rule-group-counts\s*\{[^}]*justify-self:\s*end;[^}]*text-align:\s*right/s);
 });
 
 test("rules render once in canonical order with a safe future-rule fallback", () => {
@@ -218,6 +221,37 @@ test("rules render once in canonical order with a safe future-rule fallback", ()
   for (const rule of rules) assert.equal(headings.filter((title) => title === ruleTitle(rule.rule_id)).length, 1);
   assert.equal(ruleTitle("FUTURE-RULE-900"), "Technical check: FUTURE-RULE-900");
   assert.match(ruleDescription("FUTURE-RULE-900"), /not yet described/);
+});
+
+test("the 1.1 direct-rule title catalogue is exact", () => {
+  const expected = {
+    "DENDRITE-KNOWN-001": "Neuron data is public",
+    "DENDRITE-KNOWN-002": "Neuron is registered as a known neuron",
+    "DENDRITE-KNOWN-003": "At least one topic is committed",
+    "DENDRITE-KNOWN-004": "Committed topics are recognised and unique",
+    "DENDRITE-LOCK-001": "Neuron is locked",
+    "DENDRITE-LOCK-002": "Dissolve delay is 2 years",
+    "DENDRITE-LOCK-003": "Effective stake is positive",
+    "DENDRITE-ACTIVE-001": "Voting power was refreshed within 6 months",
+    "DENDRITE-ACTIVE-002": "Deciding voting power equals potential voting power",
+    "DENDRITE-CONTROL-001": "Controller is a canister",
+    "DENDRITE-CONTROL-002": "Controller canister has no installed code",
+    "DENDRITE-CONTROL-003": "No principal controls the controller canister",
+    "DENDRITE-CONTROL-004": "Neuron has no hotkeys",
+    "DENDRITE-CONTROL-005": "Proposal-based dissolution is disabled",
+    "DENDRITE-NM-001": "There are 5–15 managers",
+    "DENDRITE-NM-002": "Manager list contains no duplicates",
+    "DENDRITE-NM-003": "Neuron is not its own manager",
+    "DENDRITE-NM-004": "Every manager is a public known neuron",
+    "DENDRITE-COMMIT-001": "Each committed topic has at least 3 delegates",
+    "DENDRITE-COMMIT-002": "No committed topic repeats a delegate",
+    "DENDRITE-COMMIT-003": "Every committed delegate is also a manager",
+    "DENDRITE-COMMIT-004": "Every committed delegate follows only omega-reject",
+    "DENDRITE-DEFAULT-001": "Every uncommitted topic follows only alpha-vote",
+    "DENDRITE-DEFAULT-002": "Catch-all follows only alpha-vote",
+    "DENDRITE-DEFAULT-003": "No unsupported topic code is configured",
+  };
+  for (const [id, title] of Object.entries(expected)) assert.equal(ruleTitle(id), title, id);
 });
 
 test("aggregation severity is documented and preserves every report entry", () => {
@@ -241,11 +275,11 @@ test("aggregation severity is documented and preserves every report entry", () =
   }
 });
 
-test("fully compliant parity report renders 29 rules from all 43 policy evaluations", () => {
+test("fully compliant parity report renders 25 rules from all 39 policy evaluations", () => {
   const source = fullyCompliantReport();
-  assert.equal(source.rules.length, 43);
+  assert.equal(source.rules.length, 39);
   const aggregates = aggregateRules(source.rules);
-  assert.equal(aggregates.length, 29);
+  assert.equal(aggregates.length, 25);
   const defaultRule = aggregates.find((rule) => rule.rule_id === "DENDRITE-DEFAULT-001");
   assert.equal(defaultRule.entries.length, 15);
   assert.equal(aggregateSummary(defaultRule, "Consensus"), "Pass · 15 of 15 topics pass");
@@ -254,17 +288,25 @@ test("fully compliant parity report renders 29 rules from all 43 policy evaluati
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const root = new FakeNode("main");
   try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
-  assert.equal(walk(root, (node) => node.className?.includes?.("rule-summary-row")).length, 29);
-  assert.equal(byText(root, "Uncommitted topic follows alpha-vote").length, 1);
+  assert.equal(walk(root, (node) => node.className?.includes?.("rule-summary-row")).length, 25);
+  assert.equal(byText(root, "Every uncommitted topic follows only alpha-vote").length, 1);
   assert.ok(byText(root, "15 topic evaluations").length);
-  const toggle = byAttribute(root, "aria-label", "Show details for Uncommitted topic follows alpha-vote")[0];
+  const toggle = byAttribute(root, "aria-label", "Show details for Every uncommitted topic follows only alpha-vote")[0];
   const detail = walk(root, (node) => node.id === toggle.attributes["aria-controls"])[0];
   toggle.click();
   assert.equal(walk(detail, (node) => node.tag === "tbody")[0].children.length, 15);
-  assert.equal(source.rules.length, 43);
-  assert.ok(byText(root, "All 29").length);
-  assert.ok(byText(root, "29 pass").length);
+  assert.equal(source.rules.length, 39);
+  assert.ok(byText(root, "All 25").length);
+  assert.ok(byText(root, "25 pass").length);
   assert.ok(byText(root, "0 fail").length);
+  for (const title of [
+    "Neuron identity and commitments",
+    "Lock and voting power",
+    "Control and immutability",
+    "Manager group",
+    "Committed-topic delegation",
+    "Default following",
+  ]) assert.equal(byText(root, title).length, 1, title);
 });
 
 test("shared status summaries count aggregate rules once and always show pass and fail", () => {
@@ -349,6 +391,24 @@ test("controller unavailable and missing-controller diagnostics never infer a re
   assert.match(missing.conciseReason, /did not report a controller canister/);
 });
 
+test("proposal-based dissolution diagnostics state the security consequence", () => {
+  const source = report();
+  for (const [value, status, phrase] of [
+    [false, "Pass", "disabled because not_for_profit is false"],
+    [true, "Fail", "could vote to start dissolving the neuron"],
+    [undefined, "Indeterminate", "proposal-based dissolution could not be assessed"],
+  ]) {
+    source.target[0].not_for_profit = value === undefined ? [] : [value];
+    const diagnostic = buildRuleDiagnostic({
+      report: source,
+      entry: statusRule("DENDRITE-CONTROL-005", status),
+      requirement: ruleDescription("DENDRITE-CONTROL-005"),
+    });
+    assert.match(diagnostic.conciseReason, new RegExp(phrase));
+    assert.equal(diagnostic.expectedItems[0], "not_for_profit = false");
+  }
+});
+
 test("every parity failure produces a factual diagnostic with safe structured fallback", () => {
   let failures = 0;
   for (const fixture of parityFixtures) {
@@ -394,13 +454,13 @@ test("mixed aggregates expose precedence, safe future IDs, and direct status ter
 test("rule table has labelled columns, quiet chevrons, and no nested detail disclosure", async () => {
   let copied;
   const root = render("Consensus", { copyText: (value) => { copied = value; } });
-  const toggle = byAttribute(root, "aria-label", "Show details for Target is a known neuron")[0];
+  const toggle = byAttribute(root, "aria-label", "Show details for Neuron is registered as a known neuron")[0];
   assert.equal(toggle.tag, "button");
   assert.equal(toggle.type, "button");
   assert.equal(toggle.attributes["aria-expanded"], "false");
   const detail = walk(root, (node) => node.id === toggle.attributes["aria-controls"])[0];
   assert.equal(detail.hidden, true);
-  assert.equal(walk(root, (node) => node.tag === "table" && node.className === "rule-table").length, 6);
+  assert.equal(walk(root, (node) => node.tag === "table" && node.className === "rule-table").length, 7);
   for (const heading of ["Rule", "Result"]) assert.ok(byText(root, heading).length);
   assert.ok(byAttribute(root, "aria-label", "Details").length);
   assert.equal(byText(root, "+").length + byText(root, "−").length, 0);
@@ -423,7 +483,7 @@ test("rule table has labelled columns, quiet chevrons, and no nested detail disc
 
 test("complete summary row toggles except for controls and text selection", () => {
   const root = render();
-  const toggle = byAttribute(root, "aria-label", "Show details for Target is a known neuron")[0];
+  const toggle = byAttribute(root, "aria-label", "Show details for Neuron is registered as a known neuron")[0];
   const row = walk(root, (node) => node.attributes?.["data-rule-id"] === "DENDRITE-KNOWN-002")[0];
   const nestedCopy = byAttribute(row.parentNode, "aria-label", "Copy neuron ID: 18422777432977120264")[0];
   row.dispatch("click", { target: nestedCopy });
@@ -457,7 +517,7 @@ test("single-select status filters change only transient presentation state", ()
   assert.equal(all.attributes["aria-pressed"], "true");
   assert.equal(pass.attributes["aria-pressed"], "false");
   assert.equal(fail.attributes["aria-pressed"], "false");
-  const passRow = rows.find((row) => row.attributes["data-rule-id"] === "DENDRITE-DATA-003");
+  const passRow = rows.find((row) => row.attributes["data-rule-id"] === "DENDRITE-LOCK-001");
   const passToggle = walk(passRow, (node) => node.className === "button-disclosure rule-toggle")[0];
   passToggle.click();
   assert.equal(passToggle.attributes["aria-expanded"], "true");
@@ -467,9 +527,10 @@ test("single-select status filters change only transient presentation state", ()
   assert.equal(rows.filter((row) => !row.hidden).length, 1);
   assert.equal(passToggle.attributes["aria-expanded"], "false");
   const groups = walk(root, (node) => node.className === "rule-group");
-  const knownGroup = groups.find((group) => byText(group, "Target and committed topics").length);
+  const knownGroup = groups.find((group) => byText(group, "Neuron identity and commitments").length);
   assert.equal(knownGroup.hidden, false);
-  assert.equal(groups.find((group) => byText(group, "Data completeness").length).hidden, true);
+  assert.equal(walk(knownGroup, (node) => node.className === "rule-group-toggle")[0].attributes["aria-expanded"], "false");
+  assert.equal(groups.find((group) => byText(group, "Manager group").length).hidden, true);
   assert.ok(byText(knownGroup, "1 pass").length);
   assert.ok(byText(knownGroup, "1 fail").length);
   fail.click();
@@ -477,27 +538,28 @@ test("single-select status filters change only transient presentation state", ()
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.ok(groups.every((group) => !group.hidden));
   pass.click();
-  assert.equal(rows.filter((row) => !row.hidden).length, 3);
+  assert.equal(rows.filter((row) => !row.hidden).length, 4);
   all.click();
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.equal(JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot);
 });
 
-test("rule groups disclose by severity and closing clears child expansion", () => {
+test("all direct rule groups start collapsed and closing clears child expansion", () => {
   const root = render();
   const groups = walk(root, (node) => node.className === "rule-group");
-  assert.equal(groups.length, 6);
-  const evidence = groups.find((group) => byText(group, "Data completeness").length);
-  const evidenceToggle = walk(evidence, (node) => node.className === "rule-group-toggle")[0];
-  assert.equal(evidenceToggle.attributes["aria-expanded"], "false");
-  assert.match(evidenceToggle.attributes["aria-label"], /1 pass, 0 fail/);
-  assert.equal(walk(evidenceToggle, (node) => node !== evidenceToggle && node.tag === "button").length, 0);
-  assert.ok(byText(evidence, "1 pass").length);
-  assert.ok(byText(evidence, "0 fail").length);
-  const target = groups.find((group) => byText(group, "Target and committed topics").length);
+  assert.equal(groups.length, 7);
+  for (const group of groups) {
+    const toggle = walk(group, (node) => node.className === "rule-group-toggle")[0];
+    assert.equal(toggle.attributes["aria-expanded"], "false");
+    assert.equal(walk(toggle, (node) => node !== toggle && node.tag === "button").length, 0);
+  }
+  const target = groups.find((group) => byText(group, "Neuron identity and commitments").length);
   const groupToggle = walk(target, (node) => node.className === "rule-group-toggle")[0];
-  assert.equal(groupToggle.attributes["aria-expanded"], "true");
-  const child = byAttribute(target, "aria-label", "Show details for Target is a known neuron")[0];
+  assert.match(groupToggle.attributes["aria-label"], /1 pass, 1 fail/);
+  assert.ok(byText(target, "1 pass").length);
+  assert.ok(byText(target, "1 fail").length);
+  groupToggle.click();
+  const child = byAttribute(target, "aria-label", "Show details for Neuron is registered as a known neuron")[0];
   child.click();
   assert.equal(child.attributes["aria-expanded"], "true");
   groupToggle.click();
@@ -562,9 +624,9 @@ test("report header has direct verdicts, no actions, and the final section hiera
   assert.equal(walk(root, (node) => node.className === "metrics")[0].children.length, 7);
   const sectionToggle = walk(root, (node) =>
     node.className === "section-title" && node.textContent === "Managers")[0].parentNode;
-  assert.equal(sectionToggle.attributes["aria-expanded"], "true");
-  sectionToggle.click();
   assert.equal(sectionToggle.attributes["aria-expanded"], "false");
+  sectionToggle.click();
+  assert.equal(sectionToggle.attributes["aria-expanded"], "true");
   const characteristics = walk(root, (node) => node.id === "characteristics")[0];
   assert.equal(walk(characteristics, (node) => node.className?.includes?.("section-toggle"))[0].attributes["aria-expanded"], "false");
   const raw = walk(root, (node) => node.id === "raw-report")[0];

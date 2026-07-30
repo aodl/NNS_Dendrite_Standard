@@ -49,9 +49,11 @@ requirements and are rendered after the outcome explanation. A presentation-only
 aggregation model groups entries by exact `rule_id`, retains every entry, orders
 topic instances canonically, and chooses the aggregate status using `Fail`, standard
 update required, indeterminate, warning, then pass precedence. The page order is
-identity header, direct verdict, Managers, Topic delegation, Standard rules, collapsed
-Neuron characteristics, collapsed Raw report, and collapsed Management. The rule
-result remains visible while its supporting details are collapsed.
+identity header, direct verdict, Managers, Topic delegation, Standard rules, Neuron
+characteristics, Raw report, and Management. Managers, Topic delegation, all six rule
+groups, every rule row, Neuron characteristics, Raw report, and idle Management start
+collapsed. The rule result remains visible in the right-aligned group counts while its
+supporting rows are collapsed.
 Multi-entry detail rows show the reviewed explanation and aggregate result followed by
 every exact topic evaluation, message, observed/expected value, and related neuron in a
 compact internal table. The technical rule ID remains in each rule detail; one compact
@@ -62,10 +64,9 @@ remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
 
 The distinct-rule totals are native, single-select `aria-pressed` filters for All,
 Pass, Fail, and nonzero additional statuses. Filtering hides nonmatching rows and empty
-groups, opens matching groups, closes hidden child rows, and never changes complete
-group totals. Every group is a native-button
-disclosure: all-pass groups default closed, while fail, standard-update, indeterminate,
-or warning groups default open. Closing a group clears every
+groups, leaves visible disclosure state unchanged, never opens a group, closes hidden
+child rows, and never changes complete group totals. Every group is a native-button
+disclosure and starts closed regardless of severity. Closing a group clears every
 child rule disclosure. One shared summary model counts each aggregate once, always
 shows pass and fail (including zero), and records the distinct-rule total.
 Row, group, and lower-section expansion remain ephemeral DOM state. These controls

@@ -23,35 +23,31 @@ export const TOPIC_LABELS = new Map([
 export const topicLabel = (code) => `${code} — ${TOPIC_LABELS.get(code) ?? "Unknown topic"}`;
 
 export const RULE_TITLES = Object.freeze({
-  "DENDRITE-KNOWN-001": "Target neuron is public",
-  "DENDRITE-KNOWN-002": "Target is a known neuron",
-  "DENDRITE-KNOWN-003": "Committed topics exist",
-  "DENDRITE-KNOWN-004": "Committed topics are valid",
-  "DENDRITE-LOCK-001": "Target is not dissolving",
-  "DENDRITE-LOCK-002": "Maximum dissolve delay",
-  "DENDRITE-LOCK-003": "Positive effective stake",
-  "DENDRITE-ACTIVE-001": "Voting power is fresh",
-  "DENDRITE-ACTIVE-002": "Voting power is fully effective",
-  "DENDRITE-CONTROL-001": "Controller canister is inspectable",
-  "DENDRITE-CONTROL-002": "Controller canister has no Wasm",
-  "DENDRITE-CONTROL-003": "Controller canister has no controllers",
-  "DENDRITE-CONTROL-004": "Target has no hotkeys",
-  "DENDRITE-CONTROL-005": "Not-for-profit is disabled",
-  "DENDRITE-NM-001": "Manager count is valid",
-  "DENDRITE-NM-002": "Managers are distinct",
-  "DENDRITE-NM-003": "Target does not manage itself",
-  "DENDRITE-NM-004": "Managers are known neurons",
-  "DENDRITE-NM-005": "Voting anchors are known",
-  "DENDRITE-COMMIT-001": "Committed topic has enough delegates",
-  "DENDRITE-COMMIT-002": "Committed delegates are distinct",
-  "DENDRITE-COMMIT-003": "Committed delegates are managers",
-  "DENDRITE-COMMIT-004": "Delegates follow omega-reject",
-  "DENDRITE-DEFAULT-001": "Uncommitted topic follows alpha-vote",
-  "DENDRITE-DEFAULT-002": "CatchAll follows alpha-vote",
-  "DENDRITE-DEFAULT-003": "Following topics are recognised",
-  "DENDRITE-DATA-001": "Required data is available",
-  "DENDRITE-DATA-002": "Report source information is complete",
-  "DENDRITE-DATA-003": "Missing data is not treated as passing",
+  "DENDRITE-KNOWN-001": "Neuron data is public",
+  "DENDRITE-KNOWN-002": "Neuron is registered as a known neuron",
+  "DENDRITE-KNOWN-003": "At least one topic is committed",
+  "DENDRITE-KNOWN-004": "Committed topics are recognised and unique",
+  "DENDRITE-LOCK-001": "Neuron is locked",
+  "DENDRITE-LOCK-002": "Dissolve delay is 2 years",
+  "DENDRITE-LOCK-003": "Effective stake is positive",
+  "DENDRITE-ACTIVE-001": "Voting power was refreshed within 6 months",
+  "DENDRITE-ACTIVE-002": "Deciding voting power equals potential voting power",
+  "DENDRITE-CONTROL-001": "Controller is a canister",
+  "DENDRITE-CONTROL-002": "Controller canister has no installed code",
+  "DENDRITE-CONTROL-003": "No principal controls the controller canister",
+  "DENDRITE-CONTROL-004": "Neuron has no hotkeys",
+  "DENDRITE-CONTROL-005": "Proposal-based dissolution is disabled",
+  "DENDRITE-NM-001": "There are 5–15 managers",
+  "DENDRITE-NM-002": "Manager list contains no duplicates",
+  "DENDRITE-NM-003": "Neuron is not its own manager",
+  "DENDRITE-NM-004": "Every manager is a public known neuron",
+  "DENDRITE-COMMIT-001": "Each committed topic has at least 3 delegates",
+  "DENDRITE-COMMIT-002": "No committed topic repeats a delegate",
+  "DENDRITE-COMMIT-003": "Every committed delegate is also a manager",
+  "DENDRITE-COMMIT-004": "Every committed delegate follows only omega-reject",
+  "DENDRITE-DEFAULT-001": "Every uncommitted topic follows only alpha-vote",
+  "DENDRITE-DEFAULT-002": "Catch-all follows only alpha-vote",
+  "DENDRITE-DEFAULT-003": "No unsupported topic code is configured",
 });
 export const ruleTitle = (id) => RULE_TITLES[id] ?? `Technical check: ${id}`;
 export const RULE_DESCRIPTIONS = Object.freeze({
@@ -68,34 +64,29 @@ export const RULE_DESCRIPTIONS = Object.freeze({
   "DENDRITE-CONTROL-002": "The controller canister must have no installed Wasm module.",
   "DENDRITE-CONTROL-003": "The controller canister must have no controllers.",
   "DENDRITE-CONTROL-004": "The target raw hotkey list must be empty.",
-  "DENDRITE-CONTROL-005": "The target must not be marked not-for-profit.",
+  "DENDRITE-CONTROL-005": "The neuron must have not_for_profit = false so that a Neuron Management proposal cannot start dissolving it.",
   "DENDRITE-NM-001": "Neuron Management must contain between five and fifteen managers.",
   "DENDRITE-NM-002": "The raw manager identifiers must be distinct.",
   "DENDRITE-NM-003": "The target must not list itself as a manager.",
   "DENDRITE-NM-004": "Every manager must be a full public known neuron.",
-  "DENDRITE-NM-005": "The alpha-vote and omega-reject anchors must both be known.",
   "DENDRITE-COMMIT-001": "Each committed topic must have at least three delegates.",
   "DENDRITE-COMMIT-002": "Each committed topic's raw delegate identifiers must be distinct.",
   "DENDRITE-COMMIT-003": "Every committed delegate must also be a known manager.",
-  "DENDRITE-COMMIT-004": "Every committed delegate must follow only omega-reject on that topic.",
-  "DENDRITE-DEFAULT-001": "Every recognised uncommitted concrete topic must follow only alpha-vote.",
-  "DENDRITE-DEFAULT-002": "CatchAll must follow only alpha-vote.",
+  "DENDRITE-COMMIT-004": "Every committed delegate must follow only Omega-reject — neuron 18422777432977120264 on that topic.",
+  "DENDRITE-DEFAULT-001": "Every recognised uncommitted concrete topic must follow only Alpha-vote — neuron 2947465672511369.",
+  "DENDRITE-DEFAULT-002": "Catch-all must follow only Alpha-vote — neuron 2947465672511369.",
   "DENDRITE-DEFAULT-003": "Every non-empty following topic code must be recognised by the standard.",
-  "DENDRITE-DATA-001": "Every required lookup must end as found or confirmed missing.",
-  "DENDRITE-DATA-002": "The report must include its standard, source, timestamp, and bounded failures.",
-  "DENDRITE-DATA-003": "No rule may pass when evidence required by that rule is unavailable.",
 });
 export const ruleDescription = (id) => RULE_DESCRIPTIONS[id]
   ?? "This rule is not yet described by this interface; inspect its report message and raw evidence.";
 
 export const RULE_GROUPS = Object.freeze([
-  ["Target and committed topics", "DENDRITE-KNOWN-"],
-  ["Locked and active posture", "DENDRITE-LOCK-", "DENDRITE-ACTIVE-"],
-  ["Controller and target settings", "DENDRITE-CONTROL-"],
-  ["Neuron Management managers", "DENDRITE-NM-"],
-  ["Committed delegation", "DENDRITE-COMMIT-"],
-  ["Non-committed following", "DENDRITE-DEFAULT-"],
-  ["Data completeness", "DENDRITE-DATA-"],
+  ["Neuron identity and commitments", ["DENDRITE-KNOWN-001", "DENDRITE-KNOWN-002", "DENDRITE-KNOWN-003", "DENDRITE-KNOWN-004"]],
+  ["Lock and voting power", ["DENDRITE-LOCK-001", "DENDRITE-LOCK-002", "DENDRITE-LOCK-003", "DENDRITE-ACTIVE-001", "DENDRITE-ACTIVE-002"]],
+  ["Control and immutability", ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003", "DENDRITE-CONTROL-004", "DENDRITE-CONTROL-005"]],
+  ["Manager group", ["DENDRITE-NM-001", "DENDRITE-NM-002", "DENDRITE-NM-003", "DENDRITE-NM-004"]],
+  ["Committed-topic delegation", ["DENDRITE-COMMIT-001", "DENDRITE-COMMIT-002", "DENDRITE-COMMIT-003", "DENDRITE-COMMIT-004"]],
+  ["Default following", ["DENDRITE-DEFAULT-001", "DENDRITE-DEFAULT-002", "DENDRITE-DEFAULT-003"]],
 ]);
 
 const STATUS_PRESENTATION = Object.freeze({
@@ -268,8 +259,8 @@ const shortNeuronId = (value) => {
 };
 
 const attentionStatus = (status) => status !== "Pass";
-const canonicalGroup = (ruleId) => RULE_GROUPS.find(([, ...prefixes]) =>
-  prefixes.some((prefix) => ruleId.startsWith(prefix)))?.[0] ?? "Additional rules";
+const canonicalGroup = (ruleId) => RULE_GROUPS.find(([, ruleIds]) =>
+  ruleIds.includes(ruleId))?.[0] ?? "Additional Standard rules";
 export function canonicalRules(rules) {
   const positions = new Map(Object.keys(RULE_TITLES).map((id, index) => [id, index]));
   return [...rules].sort((left, right) => {
@@ -614,7 +605,13 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   const section = document.createElement("section");
   section.id = "rules";
   section.className = "rules-section";
-  section.append(element("h2", "Standard rules"));
+  const heading = document.createElement("div");
+  heading.className = "rules-heading";
+  heading.append(
+    element("h2", "Standard rules"),
+    element("span", `${aggregateRules(report.rules).length} rules`, "section-summary"),
+  );
+  section.append(heading);
   const filters = document.createElement("div");
   filters.className = "rule-filters";
   filters.setAttribute("role", "group");
@@ -669,8 +666,7 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     const countsText = SUMMARY_STATUSES.map(([label]) => label)
       .filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
       .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
-    const expanded = summary.Fail > 0 || summary.Indeterminate > 0 || summary.Warning > 0
-      || summary["Standard update required"] > 0;
+    const expanded = false;
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "rule-group-toggle";
@@ -699,7 +695,6 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     group.heading.append(toggle);
     group.toggle = toggle;
     group.summary = summary;
-    group.defaultExpanded = expanded;
   }
   const filterDefinitions = [
     { key: "All", count: totalSummary.totalDistinctRules, label: "All", icon: undefined, kind: "all" },
@@ -717,7 +712,6 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     }] : []),
   ];
   let activeFilter = "All";
-  let allModeGroupState;
   const buttons = new Map();
   const closeRow = ({ rule, detailRow, toggle }) => {
     toggle.setAttribute("aria-expanded", "false");
@@ -742,13 +736,7 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     for (const group of groupSections) {
       const matching = group.rows.some(({ summaryRow }) => !summaryRow.hidden);
       group.section.hidden = !matching;
-      if (!matching) {
-        setGroupExpanded(group, false);
-      } else if (activeFilter !== "All") {
-        setGroupExpanded(group, true);
-      } else {
-        setGroupExpanded(group, allModeGroupState?.get(group) ?? group.defaultExpanded);
-      }
+      if (!matching) setGroupExpanded(group, false);
     }
     for (const [key, button] of buttons) {
       button.setAttribute("aria-pressed", String(key === activeFilter));
@@ -768,11 +756,6 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     button.append(element("span", `${definition.key === "All" ? "All" : definition.count} ${definition.key === "All" ? definition.count : definition.label}`));
     button.addEventListener("click", () => {
       const next = activeFilter === definition.key && definition.key !== "All" ? "All" : definition.key;
-      if (activeFilter === "All" && next !== "All") {
-        allModeGroupState = new Map(groupSections.map((group) => [
-          group, attribute(group.toggle, "aria-expanded") === "true",
-        ]));
-      }
       activeFilter = next;
       apply();
     });
@@ -984,7 +967,7 @@ export function renderReport(root, viewModel, options = {}) {
     "Managers",
     managerSummary,
     managerContent,
-    Boolean(unavailableManagers || missingManagers),
+    false,
     unavailableManagers || missingManagers ? "section-important" : "",
   ));
 
@@ -1004,7 +987,7 @@ export function renderReport(root, viewModel, options = {}) {
   root.append(expandableSection("delegation", "Topic delegation", delegationSummary,
     topicCount ? [renderTopics(report, options.copyText, announcer)] : [
       element("p", "No topic configurations are listed.", "empty-state"),
-    ], Boolean(topicIssues), topicIssues ? "section-important" : ""));
+    ], false, topicIssues ? "section-important" : ""));
 
   root.append(renderRules(report, verificationKind, provenance, options.copyText, announcer));
 

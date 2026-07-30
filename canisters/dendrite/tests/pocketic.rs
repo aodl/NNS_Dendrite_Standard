@@ -1,4 +1,5 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal, Reserved};
+use dendrite::DendriteError;
 use dendrite_types::{ComplianceReport, ComplianceStatus, ManagerEvidenceStatus};
 use ic_clients::NNS_GOVERNANCE;
 use pocket_ic::{PocketIc, PocketIcBuilder};
@@ -302,10 +303,14 @@ fn public_api_certified_http_and_upgrade_work_anonymously() {
             Encode!(&7_u64).unwrap(),
         )
         .unwrap();
-    let report = Decode!(&checked, Result<ComplianceReport, Reserved>)
+    let error = Decode!(&checked, Result<ComplianceReport, DendriteError>)
         .unwrap()
-        .unwrap();
-    assert_eq!(report.overall_status, ComplianceStatus::Indeterminate);
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        DendriteError::AnalysisFailed(message)
+            if message == "NNS evidence snapshot timestamp is invalid"
+    ));
     pic.upgrade_canister(canister, wasm, Encode!().unwrap(), None)
         .unwrap();
     let reply = pic

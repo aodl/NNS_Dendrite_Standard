@@ -465,12 +465,14 @@ try {
   assert.equal(failureErrors.length, 0, failureErrors.join("\n"));
   assert.match(await page.$eval("#overview", (node) => node.textContent),
     /Neuron 42 is not compliant with the NNS Dendrite Standard/);
-  assert.match(await page.$eval(".rule-filter-pass", (node) => node.textContent), /3 pass/);
+  assert.match(await page.$eval(".rule-filter-pass", (node) => node.textContent), /2 pass/);
   assert.match(await page.$eval(".rule-filter-fail", (node) => node.textContent), /2 fail/);
   assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
-  const knownGroup = await page.$('.rule-group-toggle[aria-label^="Target and committed topics"]');
+  const knownGroup = await page.$('.rule-group-toggle[aria-label^="Neuron identity and commitments"]');
   assert.equal(await knownGroup.evaluate((node) => node.getAttribute("aria-expanded")), "false");
-  const controllerGroup = await page.$('.rule-group-toggle[aria-label^="Controller and target settings"]');
+  const controllerGroup = await page.$('.rule-group-toggle[aria-label^="Control and immutability"]');
+  assert.equal(await controllerGroup.evaluate((node) => node.getAttribute("aria-expanded")), "false");
+  await controllerGroup.click();
   assert.equal(await controllerGroup.evaluate((node) => node.getAttribute("aria-expanded")), "true");
   for (const id of ["DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]) {
     const selector = `.rule-summary-row[data-rule-id="${id}"]`;
@@ -489,7 +491,7 @@ try {
   assert.match(failureText, /Why it failed/);
   assert.match(failureText, /requirement/i);
   assert.match(failureText, /2vxsx-fae/);
-  await page.click('.rule-group-toggle[aria-label^="Controller and target settings"]');
+  await page.click('.rule-group-toggle[aria-label^="Control and immutability"]');
   assert.equal(await page.$eval('.rule-summary-row[data-rule-id="DENDRITE-CONTROL-002"] .rule-toggle',
     (node) => node.getAttribute("aria-expanded")), "false");
   assert.equal(failureRequests.length, 0, "failure-fixture disclosures triggered a network request");

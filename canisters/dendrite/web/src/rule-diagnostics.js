@@ -119,6 +119,16 @@ export function buildOutcomeExplanation({
     }
     return `Governance confirmed that no known-neuron metadata is registered for neuron ${report.neuron_id}.`;
   }
+  if (ruleId === "DENDRITE-CONTROL-005") {
+    const setting = option(report.target)?.not_for_profit?.[0];
+    if (status === "Pass") {
+      return "Proposal-based dissolution is disabled because not_for_profit is false.";
+    }
+    if (status === "Fail" && setting === true) {
+      return "Proposal-based dissolution is enabled because not_for_profit is true. The manager group could vote to start dissolving the neuron.";
+    }
+    return "The not_for_profit setting was unavailable, so proposal-based dissolution could not be assessed.";
+  }
   if (status === "Fail" && observedItems.length && expectedItems.length) {
     return `${observedItems.join("; ")}; expected ${expectedItems.join("; ")}.`;
   }
@@ -177,7 +187,7 @@ const structuredValues = (report, entry) => {
     case "DENDRITE-CONTROL-004":
       return [set(observed, `${plural(target?.hot_keys?.length ?? 0, "hotkey")}${target?.hot_keys?.length ? `: ${target.hot_keys.map(principalText).join(", ")}` : ""}`), set(expected, "no hotkeys")];
     case "DENDRITE-CONTROL-005":
-      return [set(observed, target?.not_for_profit?.length ? String(target.not_for_profit[0]) : "not_for_profit unavailable"), set(expected, "false")];
+      return [set(observed, target?.not_for_profit?.length ? `not_for_profit = ${target.not_for_profit[0]}` : "not_for_profit = unavailable"), set(expected, "not_for_profit = false")];
     case "DENDRITE-NM-001":
       return [set(observed, plural(managers.length, "manager")), set(expected, "5 to 15 managers")];
     case "DENDRITE-NM-002": {
@@ -186,10 +196,6 @@ const structuredValues = (report, entry) => {
     }
     case "DENDRITE-NM-003":
       return [set(observed, managers.includes(String(report.neuron_id)) ? `target neuron ${report.neuron_id} appears as a manager` : "target is absent from manager list"), set(expected, "target is not its own manager")];
-    case "DENDRITE-DATA-001": {
-      const unavailable = report.managers?.filter((manager) => variantName(manager.evidence_status) === "Unavailable").map((manager) => String(manager.neuron_id)) ?? [];
-      return [set(observed, unavailable.length ? `unavailable lookup IDs: ${unavailable.join(", ")}` : "all required lookups reached a factual result"), set(expected, "every lookup found or confirmed missing")];
-    }
     default:
       return [observed, expected];
   }

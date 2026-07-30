@@ -2,7 +2,7 @@ export const ALPHA_VOTE_NEURON_ID = 2_947_465_672_511_369n;
 export const OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264n;
 export const SOURCE_REVISION = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 export const RECOGNISED_TOPICS = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18]);
-export const MAX_DEPENDENCY_NEURONS = RECOGNISED_TOPICS.length * 15 + 2;
+export const MAX_DEPENDENCY_NEURONS = RECOGNISED_TOPICS.length * 15;
 export const MAX_METADATA_TIMESTAMP_SKEW_SECONDS = 300n;
 export const MAX_METADATA_CONCURRENCY = 8;
 
@@ -383,7 +383,7 @@ export function createNeuronLoader({ listNeurons, getNeuronInfo }) {
 }
 
 export function deriveDependencyIds(target) {
-  const ids = [ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID];
+  const ids = [];
   ids.push(...(target.followees.get(1) ?? []));
   for (const topic of target.committedTopics) ids.push(...(target.followees.get(topic) ?? []));
   const unique = [...new Map(ids.map((id) => [idKey(id), id])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);

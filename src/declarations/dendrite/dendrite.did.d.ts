@@ -32,6 +32,7 @@ export interface ControllerSummary {
 }
 export type DendriteError = { 'GlobalRateLimit' : { 'retry_after_seconds' : bigint } } |
   { 'InvalidNeuronId' : string } |
+  { 'AnalysisFailed' : string } |
   { 'LowCycles' : null } |
   { 'ConcurrencyLimit' : null } |
   { 'DuplicateInFlight' : null };

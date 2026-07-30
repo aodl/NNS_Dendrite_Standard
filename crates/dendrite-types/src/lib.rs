@@ -11,7 +11,7 @@ mod topics;
 pub use model::*;
 pub use topics::*;
 
-pub const STANDARD_VERSION: &str = "nns-dendrite/1.0-draft";
+pub const STANDARD_VERSION: &str = "nns-dendrite/1.1-draft";
 pub const SOURCE_REVISION: &str = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 pub const ALPHA_VOTE_NEURON_ID: u64 = 2_947_465_672_511_369;
 pub const OMEGA_REJECT_NEURON_ID: u64 = 18_422_777_432_977_120_264;
@@ -89,8 +89,20 @@ fn dependent_rule(
     result
 }
 
-fn provenance_complete(evidence: &EvaluationEvidence, source_revision: &str) -> bool {
-    evidence.now_seconds > 0 && !source_revision.is_empty() && evidence.source_failures.len() <= 32
+pub fn validate_evaluation_inputs(
+    evidence: &EvaluationEvidence,
+    source_revision: &str,
+) -> Result<(), &'static str> {
+    if evidence.now_seconds == 0 {
+        return Err("NNS evidence snapshot timestamp is invalid");
+    }
+    if source_revision != SOURCE_REVISION {
+        return Err("report source revision is inconsistent");
+    }
+    if evidence.source_failures.len() > 32 {
+        return Err("report source failures exceed the bounded report limit");
+    }
+    Ok(())
 }
 
 pub fn parse_canonical_neuron_id(value: &str) -> Result<u64, &'static str> {
@@ -108,6 +120,10 @@ pub fn evaluate(
     evidence: &EvaluationEvidence,
     source_revision: &str,
 ) -> ComplianceReport {
+    assert!(
+        validate_evaluation_inputs(evidence, source_revision).is_ok(),
+        "evaluation inputs must satisfy report-construction invariants"
+    );
     let now = evidence.now_seconds;
     let mut out = Vec::new();
     let target = match &evidence.target {
@@ -124,37 +140,6 @@ pub fn evaluate(
                 missing.message = "target existence could not be established".into();
             }
             out.push(missing);
-            let mut complete = rule(
-                now,
-                "DENDRITE-DATA-001",
-                matches!(evidence.target, NeuronLookup::ConfirmedMissing),
-                "target lookup reached a terminal factual result",
-            );
-            if matches!(evidence.target, NeuronLookup::Unavailable) {
-                complete.status = RuleStatus::Indeterminate;
-            }
-            out.push(complete);
-            let mut provenance = rule(
-                now,
-                "DENDRITE-DATA-002",
-                provenance_complete(evidence, source_revision),
-                "timestamped fixed-source provenance is present",
-            );
-            if now == 0 {
-                provenance.status = RuleStatus::Indeterminate;
-                provenance.message = "NNS evidence snapshot timestamp was unavailable".into();
-            }
-            out.push(provenance);
-            let mut inferred = rule(
-                now,
-                "DENDRITE-DATA-003",
-                matches!(evidence.target, NeuronLookup::ConfirmedMissing),
-                "missing evidence was not inferred as passing",
-            );
-            if matches!(evidence.target, NeuronLookup::Unavailable) {
-                inferred.status = RuleStatus::Indeterminate;
-            }
-            out.push(inferred);
             return finish(
                 neuron_id,
                 evidence,
@@ -468,17 +453,16 @@ pub fn evaluate(
         now,
         "DENDRITE-CONTROL-005",
         target.not_for_profit == Some(false),
-        "not-for-profit exception is disabled",
-        format!(
-            "not_for_profit is {}; expected false",
-            target
-                .not_for_profit
-                .map_or_else(|| "unavailable".into(), |value| value.to_string())
-        ),
+        "Proposal-based dissolution is disabled because not_for_profit is false.",
+        if target.not_for_profit == Some(true) {
+            "Proposal-based dissolution is enabled because not_for_profit is true. The manager group could vote to start dissolving the neuron.".into()
+        } else {
+            "The not_for_profit setting was unavailable, so proposal-based dissolution could not be assessed.".into()
+        },
         target
             .not_for_profit
-            .map_or_else(|| "unavailable".into(), |value| value.to_string()),
-        "false",
+            .map_or_else(|| "not_for_profit = unavailable".into(), |value| format!("not_for_profit = {value}")),
+        "not_for_profit = false",
     ));
     let managers = target.followees.get(&1).cloned().unwrap_or_default();
     out.push(evidenced_rule(
@@ -559,21 +543,6 @@ pub fn evaluate(
         }),
         "every manager is a current known neuron",
     ));
-    out.push(dependent_rule(
-        now,
-        "DENDRITE-NM-005",
-        [ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID]
-            .into_iter()
-            .map(|id| {
-                let lookup = evidence.dependencies.get(&id);
-                (
-                    id,
-                    lookup_known(lookup).is_some(),
-                    matches!(lookup, Some(NeuronLookup::Unavailable) | None),
-                )
-            }),
-        "alpha-vote and omega-reject remain known",
-    ));
     for topic in target
         .committed_topics
         .iter()
@@ -622,7 +591,7 @@ pub fn evaluate(
             .expect("delegate-manager rule was just added");
         result.relevant_topic = Some(topic);
         result.related_neuron_ids = delegates.clone();
-        result.expected = Some("all delegates are raw Neuron Management managers".into());
+        result.expected = Some("all delegates are listed managers".into());
         out.push(dependent_rule(
             now,
             "DENDRITE-COMMIT-004",
@@ -640,7 +609,9 @@ pub fn evaluate(
         let result = out.last_mut().expect("delegate-follow rule was just added");
         result.relevant_topic = Some(topic);
         result.related_neuron_ids = delegates.clone();
-        result.expected = Some(format!("exact singleton [{OMEGA_REJECT_NEURON_ID}]"));
+        result.expected = Some(format!(
+            "Omega-reject — neuron {OMEGA_REJECT_NEURON_ID} only"
+        ));
     }
     for topic in RECOGNISED_TOPICS {
         if topic != 0 && topic != 1 && !target.committed_topics.contains(&topic) {
@@ -653,7 +624,7 @@ pub fn evaluate(
             let result = out.last_mut().expect("default-follow rule was just added");
             result.relevant_topic = Some(topic);
             result.related_neuron_ids = target.followees.get(&topic).cloned().unwrap_or_default();
-            result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
+            result.expected = Some(format!("Alpha-vote — neuron {ALPHA_VOTE_NEURON_ID} only"));
         }
     }
     out.push(rule(
@@ -665,7 +636,7 @@ pub fn evaluate(
     let result = out.last_mut().expect("CatchAll-follow rule was just added");
     result.relevant_topic = Some(0);
     result.related_neuron_ids = target.followees.get(&0).cloned().unwrap_or_default();
-    result.expected = Some(format!("exact singleton [{ALPHA_VOTE_NEURON_ID}]"));
+    result.expected = Some(format!("Alpha-vote — neuron {ALPHA_VOTE_NEURON_ID} only"));
     let unknown = target
         .followees
         .iter()
@@ -680,70 +651,46 @@ pub fn evaluate(
         unknown_rule.status = RuleStatus::StandardUpdateRequired;
     }
     out.push(unknown_rule);
-    let any_unavailable = evidence
-        .dependencies
-        .values()
-        .any(|lookup| matches!(lookup, NeuronLookup::Unavailable));
-    let mut complete = rule(
-        now,
-        "DENDRITE-DATA-001",
-        !any_unavailable,
-        "every required lookup reached a terminal factual result",
-    );
-    if any_unavailable {
-        complete.status = RuleStatus::Indeterminate;
-    }
-    out.push(complete);
-    out.push(rule(
-        now,
-        "DENDRITE-DATA-002",
-        provenance_complete(evidence, source_revision),
-        "timestamped fixed-source provenance is present",
-    ));
-    let unavailable_pass = out.iter().any(|result| {
-        result.status == RuleStatus::Pass
+    for result in &mut out {
+        let metadata_dependent = metadata_failure.is_some()
             && matches!(
                 result.rule_id.as_str(),
-                "DENDRITE-NM-004"
-                    | "DENDRITE-NM-005"
+                "DENDRITE-COMMIT-001"
+                    | "DENDRITE-COMMIT-002"
                     | "DENDRITE-COMMIT-003"
                     | "DENDRITE-COMMIT-004"
-            )
-            && result.related_neuron_ids.iter().any(|id| {
-                matches!(
-                    evidence.dependencies.get(id),
-                    Some(NeuronLookup::Unavailable)
-                )
-            })
-    });
-    out.push(rule(
-        now,
-        "DENDRITE-DATA-003",
-        !unavailable_pass,
-        "no unavailable lookup was inferred as passing",
-    ));
-    for result in &mut out {
-        let unavailable = match result.rule_id.as_str() {
-            "DENDRITE-LOCK-001" => target.dissolving.is_none(),
-            "DENDRITE-LOCK-002" => target.dissolve_delay_seconds.is_none(),
-            "DENDRITE-LOCK-003" => target.effective_stake_e8s.is_none(),
-            "DENDRITE-ACTIVE-001" => target.voting_power_refreshed_timestamp_seconds.is_none(),
-            "DENDRITE-ACTIVE-002" => {
-                target.potential_voting_power.is_none() || target.deciding_voting_power.is_none()
-            }
-            "DENDRITE-CONTROL-001" | "DENDRITE-CONTROL-002" | "DENDRITE-CONTROL-003" => {
-                target.controller.is_some()
-                    && evidence
-                        .controller
-                        .as_ref()
-                        .is_none_or(|value| !value.call_succeeded)
-            }
-            "DENDRITE-CONTROL-005" => target.not_for_profit.is_none(),
-            _ => false,
-        };
+                    | "DENDRITE-DEFAULT-001"
+            );
+        let unavailable = metadata_dependent
+            || match result.rule_id.as_str() {
+                "DENDRITE-LOCK-001" => target.dissolving.is_none(),
+                "DENDRITE-LOCK-002" => target.dissolve_delay_seconds.is_none(),
+                "DENDRITE-LOCK-003" => target.effective_stake_e8s.is_none(),
+                "DENDRITE-ACTIVE-001" => target.voting_power_refreshed_timestamp_seconds.is_none(),
+                "DENDRITE-ACTIVE-002" => {
+                    target.potential_voting_power.is_none()
+                        || target.deciding_voting_power.is_none()
+                }
+                "DENDRITE-CONTROL-001" | "DENDRITE-CONTROL-002" | "DENDRITE-CONTROL-003" => {
+                    target.controller.is_some()
+                        && evidence
+                            .controller
+                            .as_ref()
+                            .is_none_or(|value| !value.call_succeeded)
+                }
+                "DENDRITE-CONTROL-005" => target.not_for_profit.is_none(),
+                _ => false,
+            };
         if unavailable {
             result.status = RuleStatus::Indeterminate;
-            result.message = format!("{}; mandatory evidence was unavailable", result.message);
+            result.message = if metadata_dependent {
+                "known-neuron metadata was unavailable; no topic-delegation result was inferred"
+                    .into()
+            } else if result.rule_id == "DENDRITE-CONTROL-005" {
+                "The not_for_profit setting was unavailable, so proposal-based dissolution could not be assessed.".into()
+            } else {
+                format!("{}; mandatory evidence was unavailable", result.message)
+            };
         }
     }
     let distinct_manager_count = managers.iter().copied().collect::<BTreeSet<_>>().len();
@@ -923,10 +870,7 @@ mod tests {
             followees,
         };
         let mut dependencies = BTreeMap::new();
-        for id in managers
-            .iter()
-            .chain([&ALPHA_VOTE_NEURON_ID, &OMEGA_REJECT_NEURON_ID])
-        {
+        for id in &managers {
             let mut manager_followees = BTreeMap::new();
             if managers[..3].contains(id) {
                 manager_followees.insert(4, vec![OMEGA_REJECT_NEURON_ID]);
@@ -1005,7 +949,20 @@ mod tests {
     #[test]
     fn fully_compliant_fixture_passes_every_mandatory_rule() {
         let snapshot = evaluate(42, &compliant_evidence(), SOURCE_REVISION);
+        let distinct_rules = snapshot
+            .rules
+            .iter()
+            .map(|rule| rule.rule_id.as_str())
+            .collect::<BTreeSet<_>>();
         assert_eq!(snapshot.overall_status, ComplianceStatus::Compliant);
+        assert_eq!(snapshot.rules.len(), 39);
+        assert_eq!(distinct_rules.len(), 25);
+        assert!(
+            distinct_rules
+                .iter()
+                .all(|id| !id.starts_with("DENDRITE-DATA-"))
+        );
+        assert!(!distinct_rules.contains("DENDRITE-NM-005"));
         assert!(
             snapshot
                 .rules
@@ -1031,6 +988,67 @@ mod tests {
             snapshot.committed_topics[0].delegate_ids,
             vec![100, 101, 102]
         );
+        assert!(
+            !snapshot
+                .managers
+                .iter()
+                .any(|manager| manager.neuron_id == ALPHA_VOTE_NEURON_ID
+                    || manager.neuron_id == OMEGA_REJECT_NEURON_ID)
+        );
+    }
+
+    fn assert_overall_matches_visible_rules(report: &ComplianceReport) {
+        let has_fail = report
+            .rules
+            .iter()
+            .any(|rule| rule.status == RuleStatus::Fail);
+        let has_update = report
+            .rules
+            .iter()
+            .any(|rule| rule.status == RuleStatus::StandardUpdateRequired);
+        let has_indeterminate = report
+            .rules
+            .iter()
+            .any(|rule| rule.status == RuleStatus::Indeterminate);
+        let expected = if has_fail {
+            ComplianceStatus::NonCompliant
+        } else if has_update {
+            ComplianceStatus::StandardUpdateRequired
+        } else if has_indeterminate {
+            ComplianceStatus::Indeterminate
+        } else {
+            ComplianceStatus::Compliant
+        };
+        assert_eq!(report.overall_status, expected);
+        if report.overall_status == ComplianceStatus::NonCompliant {
+            assert!(has_fail);
+        }
+        if report.overall_status == ComplianceStatus::Indeterminate {
+            assert!(has_indeterminate);
+        }
+        if report.overall_status == ComplianceStatus::Compliant {
+            assert!(!has_fail && !has_update && !has_indeterminate);
+        }
+    }
+
+    #[test]
+    fn overall_status_is_derived_only_from_visible_substantive_rules() {
+        for name in [
+            "fully_compliant",
+            "target_missing",
+            "target_unavailable",
+            "missing_known_neuron",
+            "not_for_profit",
+            "manager_unavailable",
+            "unknown_committed_topic",
+            "controller_unavailable",
+        ] {
+            let report = evaluate(42, &differential_case(name), SOURCE_REVISION);
+            assert_overall_matches_visible_rules(&report);
+            assert!(report.rules.iter().all(|rule| {
+                !rule.rule_id.starts_with("DENDRITE-DATA-") && rule.rule_id != "DENDRITE-NM-005"
+            }));
+        }
     }
 
     #[test]
@@ -1211,13 +1229,15 @@ mod tests {
         });
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
         assert_eq!(snapshot.overall_status, ComplianceStatus::Indeterminate);
-        assert!(
-            snapshot
-                .rules
-                .iter()
-                .any(|rule| rule.rule_id == "DENDRITE-DATA-001"
-                    && rule.status == RuleStatus::Indeterminate)
-        );
+        for rule_id in [
+            "DENDRITE-NM-004",
+            "DENDRITE-COMMIT-003",
+            "DENDRITE-COMMIT-004",
+        ] {
+            assert!(snapshot.rules.iter().any(|rule| {
+                rule.rule_id == rule_id && rule.status == RuleStatus::Indeterminate
+            }));
+        }
     }
     #[test]
     fn unknown_committed_variant_requires_standard_update() {
@@ -1328,14 +1348,9 @@ mod tests {
             .followees
             .insert(99, vec![]);
         let snapshot = evaluate(42, &evidence, SOURCE_REVISION);
-        for rule_id in ["DENDRITE-DEFAULT-003", "DENDRITE-DATA-001"] {
-            assert!(
-                snapshot
-                    .rules
-                    .iter()
-                    .any(|rule| { rule.rule_id == rule_id && rule.status == RuleStatus::Pass })
-            );
-        }
+        assert!(snapshot.rules.iter().any(|rule| {
+            rule.rule_id == "DENDRITE-DEFAULT-003" && rule.status == RuleStatus::Pass
+        }));
 
         let mut evidence = compliant_evidence();
         evidence
@@ -1494,10 +1509,6 @@ mod tests {
         e.dependencies.insert(100, NeuronLookup::ConfirmedMissing);
         assert_rule(e, "DENDRITE-NM-004", RuleStatus::Fail);
         let mut e = compliant_evidence();
-        e.dependencies
-            .insert(ALPHA_VOTE_NEURON_ID, NeuronLookup::ConfirmedMissing);
-        assert_rule(e, "DENDRITE-NM-005", RuleStatus::Fail);
-        let mut e = compliant_evidence();
         e.target
             .as_mut()
             .unwrap()
@@ -1594,17 +1605,172 @@ mod tests {
         );
     }
 
+    fn non_passing_rule_ids(evidence: &EvaluationEvidence) -> BTreeSet<String> {
+        evaluate(42, evidence, SOURCE_REVISION)
+            .rules
+            .into_iter()
+            .filter(|rule| rule.status != RuleStatus::Pass)
+            .map(|rule| rule.rule_id)
+            .collect()
+    }
+
     #[test]
-    fn evidence_provenance_requires_time_revision_and_bounded_failures() {
+    fn unavailable_inputs_affect_all_and_only_their_dependent_rules() {
+        let cases = [
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().known_data = None;
+                    evidence.target.as_mut().unwrap().committed_topics.clear();
+                    evidence.source_failures.push(SourceFailure {
+                        method: "get_neuron_info".into(),
+                        kind: SourceFailureKind::Rejected,
+                        message: "unavailable".into(),
+                        affected_neuron_ids: vec![42],
+                    });
+                    evidence
+                },
+                BTreeSet::from([
+                    "DENDRITE-KNOWN-002".to_string(),
+                    "DENDRITE-KNOWN-003".to_string(),
+                    "DENDRITE-KNOWN-004".to_string(),
+                    "DENDRITE-DEFAULT-001".to_string(),
+                ]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().dissolving = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-LOCK-001".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().dissolve_delay_seconds = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-LOCK-002".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().effective_stake_e8s = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-LOCK-003".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence
+                        .target
+                        .as_mut()
+                        .unwrap()
+                        .voting_power_refreshed_timestamp_seconds = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-ACTIVE-001".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().potential_voting_power = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-ACTIVE-002".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.target.as_mut().unwrap().not_for_profit = None;
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-CONTROL-005".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.controller = None;
+                    evidence
+                },
+                BTreeSet::from([
+                    "DENDRITE-CONTROL-001".to_string(),
+                    "DENDRITE-CONTROL-002".to_string(),
+                    "DENDRITE-CONTROL-003".to_string(),
+                ]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.dependencies.insert(104, NeuronLookup::Unavailable);
+                    evidence
+                },
+                BTreeSet::from(["DENDRITE-NM-004".to_string()]),
+            ),
+            (
+                {
+                    let mut evidence = compliant_evidence();
+                    evidence.dependencies.insert(100, NeuronLookup::Unavailable);
+                    evidence
+                },
+                BTreeSet::from([
+                    "DENDRITE-NM-004".to_string(),
+                    "DENDRITE-COMMIT-003".to_string(),
+                    "DENDRITE-COMMIT-004".to_string(),
+                ]),
+            ),
+        ];
+
+        for (evidence, expected) in cases {
+            assert_eq!(non_passing_rule_ids(&evidence), expected);
+            let report = evaluate(42, &evidence, SOURCE_REVISION);
+            assert!(report.rules.iter().all(|rule| {
+                rule.status != RuleStatus::Pass || !expected.contains(&rule.rule_id)
+            }));
+            assert_overall_matches_visible_rules(&report);
+        }
+    }
+
+    #[test]
+    fn factual_absence_fails_while_unavailability_is_indeterminate() {
+        for (lookup, expected) in [
+            (NeuronLookup::ConfirmedMissing, RuleStatus::Fail),
+            (NeuronLookup::Unavailable, RuleStatus::Indeterminate),
+        ] {
+            let mut evidence = compliant_evidence();
+            evidence.dependencies.insert(100, lookup);
+            let report = evaluate(42, &evidence, SOURCE_REVISION);
+            for rule_id in [
+                "DENDRITE-NM-004",
+                "DENDRITE-COMMIT-003",
+                "DENDRITE-COMMIT-004",
+            ] {
+                assert!(
+                    report
+                        .rules
+                        .iter()
+                        .any(|rule| rule.rule_id == rule_id && rule.status == expected)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn report_construction_invariants_reject_invalid_provenance() {
         let mut no_time = compliant_evidence();
         no_time.now_seconds = 0;
-        assert_rule(no_time, "DENDRITE-DATA-002", RuleStatus::Fail);
+        assert_eq!(
+            validate_evaluation_inputs(&no_time, SOURCE_REVISION),
+            Err("NNS evidence snapshot timestamp is invalid")
+        );
 
         let no_revision = compliant_evidence();
-        let report = evaluate(42, &no_revision, "");
-        assert!(report.rules.iter().any(|rule| {
-            rule.rule_id == "DENDRITE-DATA-002" && rule.status == RuleStatus::Fail
-        }));
+        assert_eq!(
+            validate_evaluation_inputs(&no_revision, ""),
+            Err("report source revision is inconsistent")
+        );
 
         let mut too_many_failures = compliant_evidence();
         too_many_failures.source_failures = (0..33)
@@ -1615,7 +1781,10 @@ mod tests {
                 affected_neuron_ids: vec![id],
             })
             .collect();
-        assert_rule(too_many_failures, "DENDRITE-DATA-002", RuleStatus::Fail);
+        assert_eq!(
+            validate_evaluation_inputs(&too_many_failures, SOURCE_REVISION),
+            Err("report source failures exceed the bounded report limit")
+        );
     }
 
     fn differential_case(name: &str) -> EvaluationEvidence {

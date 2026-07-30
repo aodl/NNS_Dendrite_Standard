@@ -10,10 +10,11 @@ public consensus-report mode. The public canister methods remain update
 `check_neuron` and query `http_request`.
 
 The neuron page names the known neuron, states the direct Standard verdict with its
-complete ID, and then presents Managers, Topic delegation, Standard rules, collapsed
-Neuron characteristics, collapsed Raw report, and collapsed Management. Distinct-rule
-status totals are the only rule filters. Rule-family disclosures show complete
-semantic-colour totals, collapse all-pass groups, and open groups needing attention.
+complete ID, and then presents Managers, Topic delegation, Standard rules, Neuron
+characteristics, Raw report, and Management. Every disclosure starts collapsed.
+Distinct-rule status totals are the only rule filters. The six direct rule-family
+disclosures show complete, right-aligned semantic-colour totals and never open merely
+because of a result or filter.
 Raw report copies exactly the displayed public `ComplianceReport` JSON. Internet
 Identity, authority, review, receipts, and transaction controls exist only inside
 Management. All presentation state is memory-only.

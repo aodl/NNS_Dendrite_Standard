@@ -175,7 +175,13 @@ form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); ali
 
 /* Standard rule table */
 .rules-section { margin-top: var(--space-12); }
-.rules-section > h2 { margin-bottom: var(--space-2); }
+.rules-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+.rules-heading > h2 { margin-bottom: var(--space-2); }
 .rule-filters {
   display: flex;
   flex-wrap: wrap;
@@ -225,6 +231,8 @@ form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); ali
 .rule-group-title { align-self: center; font-size: 1rem; font-weight: 650; }
 .rule-group-counts {
   align-self: center;
+  justify-self: end;
+  text-align: right;
   font-size: .82rem;
   font-weight: 500;
   white-space: nowrap;
@@ -372,7 +380,14 @@ table { width: 100%; border-collapse: collapse; }
 }
 .section-toggle:hover { background: var(--surface-subtle); }
 .section-title { font-size: 1.3rem; font-weight: 700; }
-.section-summary { align-self: center; color: var(--text-muted); font-size: .9rem; font-weight: 400; }
+.section-summary {
+  align-self: center;
+  justify-self: end;
+  color: var(--text-muted);
+  font-size: .9rem;
+  font-weight: 400;
+  text-align: right;
+}
 .section-toggle .chevron { justify-self: center; }
 .section-content { padding: var(--space-2) 0 0; }
 .section-important { border-top-color: var(--warning); }

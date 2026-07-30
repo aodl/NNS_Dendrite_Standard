@@ -5,7 +5,7 @@ import {
   SOURCE_REVISION,
 } from "./preliminary-evidence.js";
 
-export const STANDARD_VERSION = "nns-dendrite/1.0-draft";
+export const STANDARD_VERSION = "nns-dendrite/1.1-draft";
 export const MAX_DISSOLVE_DELAY_SECONDS = 63_115_200n;
 export const SIX_NOMINAL_MONTHS_SECONDS = 15_778_800n;
 
@@ -126,15 +126,16 @@ function finish(neuronId, evidence, managers, topics, quorum, rules) {
 
 export function evaluatePreliminary(neuronId, evidence) {
   const id = BigInt(neuronId);
+  if (evidence.nowSeconds <= 0n) {
+    throw new Error("Analysis failed: NNS evidence snapshot timestamp is invalid.");
+  }
+  if (evidence.sourceFailures.length > 32) {
+    throw new Error("Analysis failed: report source failures exceed the bounded report limit.");
+  }
   const rules = [];
   if (evidence.target.kind !== "Found") {
     const unavailable = evidence.target.kind === "Unavailable";
     rules.push(setStatus(rule("DENDRITE-KNOWN-001", false, unavailable ? "target existence could not be established" : "target neuron was not returned"), unavailable ? "Indeterminate" : "Fail"));
-    rules.push(setStatus(rule("DENDRITE-DATA-001", !unavailable, "target lookup reached a terminal factual result"), unavailable ? "Indeterminate" : "Pass"));
-    const provenance = rule("DENDRITE-DATA-002", evidence.nowSeconds > 0n && evidence.sourceFailures.length <= 32, "timestamped fixed-source provenance is present");
-    if (evidence.nowSeconds === 0n) setStatus(provenance, "Indeterminate", "NNS evidence snapshot timestamp was unavailable");
-    rules.push(provenance);
-    rules.push(setStatus(rule("DENDRITE-DATA-003", !unavailable, "missing evidence was not inferred as passing"), unavailable ? "Indeterminate" : "Pass"));
     return finish(id, evidence, [], [], undefined, rules);
   }
   const target = evidence.target.neuron;
@@ -241,9 +242,11 @@ export function evaluatePreliminary(neuronId, evidence) {
     target.hotKeys.length ? `${target.hotKeys.length} hotkey${target.hotKeys.length === 1 ? "" : "s"}: ${hotkeyText}` : "0 hotkeys",
     "no hotkeys"));
   rules.push(evidencedRule("DENDRITE-CONTROL-005", target.notForProfit === false,
-    "not-for-profit exception is disabled",
-    `not_for_profit is ${target.notForProfit ?? "unavailable"}; expected false`,
-    String(target.notForProfit ?? "unavailable"), "false"));
+    "Proposal-based dissolution is disabled because not_for_profit is false.",
+    target.notForProfit === true
+      ? "Proposal-based dissolution is enabled because not_for_profit is true. The manager group could vote to start dissolving the neuron."
+      : "The not_for_profit setting was unavailable, so proposal-based dissolution could not be assessed.",
+    `not_for_profit = ${target.notForProfit ?? "unavailable"}`, "not_for_profit = false"));
   const managers = target.followees.get(1) ?? [];
   rules.push(evidencedRule("DENDRITE-NM-001", managers.length >= 5 && managers.length <= 15,
     "there are five to fifteen raw managers",
@@ -269,10 +272,6 @@ export function evaluatePreliminary(neuronId, evidence) {
     const entry = lookup(evidence.dependencies, managerId);
     return [managerId, known(entry) !== undefined, !entry || entry.kind === "Unavailable"];
   }), "every manager is a current known neuron"));
-  rules.push(dependentRule("DENDRITE-NM-005", [ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID].map((anchorId) => {
-    const entry = lookup(evidence.dependencies, anchorId);
-    return [anchorId, known(entry) !== undefined, !entry || entry.kind === "Unavailable"];
-  }), "alpha-vote and omega-reject remain known"));
   for (const topic of [...new Set(target.committedTopics)].sort((a, b) => a - b)) {
     const delegates = target.followees.get(topic) ?? [];
     const count = rule("DENDRITE-COMMIT-001", delegates.length >= 3, "committed topic has at least three delegates");
@@ -283,38 +282,41 @@ export function evaluatePreliminary(neuronId, evidence) {
       const entry = lookup(evidence.dependencies, delegateId);
       return [delegateId, managers.includes(delegateId) && known(entry) !== undefined, managers.includes(delegateId) && (!entry || entry.kind === "Unavailable")];
     }), "committed delegates are managers and current known neurons");
-    managerRule.relevant_topic = [topic]; managerRule.related_neuron_ids = [...delegates]; managerRule.expected = ["all delegates are raw Neuron Management managers"]; rules.push(managerRule);
+    managerRule.relevant_topic = [topic]; managerRule.related_neuron_ids = [...delegates]; managerRule.expected = ["all delegates are listed managers"]; rules.push(managerRule);
     const omegaRule = dependentRule("DENDRITE-COMMIT-004", delegates.map((delegateId) => {
       const entry = lookup(evidence.dependencies, delegateId);
       return [delegateId, entry?.kind === "Found" && singleton(entry.neuron.followees.get(topic), OMEGA_REJECT_NEURON_ID), !entry || entry.kind === "Unavailable"];
     }), "each delegate follows omega-reject exactly");
-    omegaRule.relevant_topic = [topic]; omegaRule.related_neuron_ids = [...delegates]; omegaRule.expected = [`exact singleton [${OMEGA_REJECT_NEURON_ID}]`]; rules.push(omegaRule);
+    omegaRule.relevant_topic = [topic]; omegaRule.related_neuron_ids = [...delegates]; omegaRule.expected = [`Omega-reject — neuron ${OMEGA_REJECT_NEURON_ID} only`]; rules.push(omegaRule);
   }
   for (const topic of RECOGNISED_TOPICS) {
     if (topic === 0 || topic === 1 || target.committedTopics.includes(topic)) continue;
     const result = rule("DENDRITE-DEFAULT-001", singleton(target.followees.get(topic), ALPHA_VOTE_NEURON_ID), "non-committed topic follows alpha-vote exactly");
-    result.relevant_topic = [topic]; result.related_neuron_ids = target.followees.get(topic) ?? []; result.expected = [`exact singleton [${ALPHA_VOTE_NEURON_ID}]`]; rules.push(result);
+    result.relevant_topic = [topic]; result.related_neuron_ids = target.followees.get(topic) ?? []; result.expected = [`Alpha-vote — neuron ${ALPHA_VOTE_NEURON_ID} only`]; rules.push(result);
   }
   const catchAll = rule("DENDRITE-DEFAULT-002", singleton(target.followees.get(0), ALPHA_VOTE_NEURON_ID), "CatchAll follows alpha-vote exactly");
-  catchAll.relevant_topic = [0]; catchAll.related_neuron_ids = target.followees.get(0) ?? []; catchAll.expected = [`exact singleton [${ALPHA_VOTE_NEURON_ID}]`]; rules.push(catchAll);
+  catchAll.relevant_topic = [0]; catchAll.related_neuron_ids = target.followees.get(0) ?? []; catchAll.expected = [`Alpha-vote — neuron ${ALPHA_VOTE_NEURON_ID} only`]; rules.push(catchAll);
   const hasUnknown = [...target.followees].some(([topic, ids]) => ids.length > 0 && !RECOGNISED_TOPICS.includes(topic));
   rules.push(setStatus(rule("DENDRITE-DEFAULT-003", !hasUnknown, "no unknown non-empty following topics"), hasUnknown ? "StandardUpdateRequired" : "Pass"));
-  const anyUnavailable = [...evidence.dependencies.values()].some((entry) => entry.kind === "Unavailable");
-  rules.push(setStatus(rule("DENDRITE-DATA-001", !anyUnavailable, "every required lookup reached a terminal factual result"), anyUnavailable ? "Indeterminate" : "Pass"));
-  rules.push(rule("DENDRITE-DATA-002", evidence.nowSeconds > 0n && evidence.sourceFailures.length <= 32, "timestamped fixed-source provenance is present"));
-  const unavailablePass = rules.some((result) => statusName(result) === "Pass"
-    && ["DENDRITE-NM-004", "DENDRITE-NM-005", "DENDRITE-COMMIT-003", "DENDRITE-COMMIT-004"].includes(result.rule_id)
-    && result.related_neuron_ids.some((related) => lookup(evidence.dependencies, related)?.kind === "Unavailable"));
-  rules.push(rule("DENDRITE-DATA-003", !unavailablePass, "no unavailable lookup was inferred as passing"));
   for (const result of rules) {
-    const unavailable = result.rule_id === "DENDRITE-LOCK-001" ? target.dissolving === undefined
+    const metadataDependent = metadataFailure && (
+      result.rule_id.startsWith("DENDRITE-COMMIT-")
+      || result.rule_id === "DENDRITE-DEFAULT-001"
+    );
+    const unavailable = metadataDependent
+      || (result.rule_id === "DENDRITE-LOCK-001" ? target.dissolving === undefined
       : result.rule_id === "DENDRITE-LOCK-002" ? target.dissolveDelaySeconds === undefined
         : result.rule_id === "DENDRITE-LOCK-003" ? target.effectiveStakeE8s === undefined
           : result.rule_id === "DENDRITE-ACTIVE-001" ? target.votingPowerRefreshedTimestampSeconds === undefined
             : result.rule_id === "DENDRITE-ACTIVE-002" ? target.potentialVotingPower === undefined || target.decidingVotingPower === undefined
               : result.rule_id === "DENDRITE-CONTROL-005" ? target.notForProfit === undefined
-                : false;
-    if (unavailable) setStatus(result, "Indeterminate", `${result.message}; mandatory evidence was unavailable`);
+                : false);
+    if (unavailable) setStatus(result, "Indeterminate",
+      metadataDependent
+        ? "known-neuron metadata was unavailable; no topic-delegation result was inferred"
+        : result.rule_id === "DENDRITE-CONTROL-005"
+        ? "The not_for_profit setting was unavailable, so proposal-based dissolution could not be assessed."
+        : `${result.message}; mandatory evidence was unavailable`);
   }
   const distinctManagers = new Set(managers.map(key)).size;
   const quorum = distinctManagers === 0 ? undefined : Math.floor(distinctManagers / 2) + 1;

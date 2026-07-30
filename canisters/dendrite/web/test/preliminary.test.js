@@ -16,6 +16,7 @@ import {
   PreliminaryEvidenceError,
   collectPreliminaryEvidence,
   createNeuronLoader,
+  deriveDependencyIds,
   listNeuronsRequest,
   validateListNeuronsBatch,
 } from "../src/preliminary-evidence.js";
@@ -158,6 +159,20 @@ test("loader caches pending reads, batches sorted dependencies, and retries fail
   assert.deepEqual(requests, [[2n, 3n], [2n, 3n]]);
   loader.clear();
   assert.equal(loader.cache.size, 0);
+});
+
+test("dependency planning requests only configured managers and committed delegates", () => {
+  const target = {
+    committedTopics: [4],
+    followees: new Map([
+      [0, [ALPHA_VOTE_NEURON_ID]],
+      [1, [100n, 101n, 102n, 103n, 104n]],
+      [4, [100n, 101n, 102n]],
+    ]),
+  };
+  assert.deepEqual(deriveDependencyIds(target), [100n, 101n, 102n, 103n, 104n]);
+  assert(!deriveDependencyIds(target).includes(ALPHA_VOTE_NEURON_ID));
+  assert(!deriveDependencyIds(target).includes(OMEGA_REJECT_NEURON_ID));
 });
 
 test("dependency failures preserve typed bounded batch evidence", async () => {
@@ -343,7 +358,7 @@ const differentialEvidence = () => {
       effectiveStakeE8s: 100_000_000n, mintedStakeE8s: 100_000_000n, votingPowerRefreshedTimestampSeconds: 999_999n,
       potentialVotingPower: 10n, decidingVotingPower: 10n, committedTopics: [4], followees: following,
     } },
-    dependencies: new Map([...managers, ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID].map((id) => [id.toString(), found(id)])),
+    dependencies: new Map(managers.map((id) => [id.toString(), found(id)])),
     controller: { callSucceeded: true, moduleHash: undefined, controllers: [] },
     sourceFailures: [],
     unknownCommittedTopics: 0,
@@ -475,6 +490,26 @@ test("browser evaluator matches all deterministic Rust policy fixtures", () => {
   }
 });
 
+test("browser report-construction invariants fail with bounded analysis errors", () => {
+  const missingTimestamp = differentialEvidence();
+  missingTimestamp.nowSeconds = 0n;
+  assert.throws(
+    () => evaluatePreliminary(42n, missingTimestamp),
+    /Analysis failed: NNS evidence snapshot timestamp is invalid/,
+  );
+  const excessiveFailures = differentialEvidence();
+  excessiveFailures.sourceFailures = Array.from({ length: 33 }, () => ({
+    method: "list_neurons",
+    kind: "Rejected",
+    message: "unavailable",
+    affectedNeuronIds: [42n],
+  }));
+  assert.throws(
+    () => evaluatePreliminary(42n, excessiveFailures),
+    /Analysis failed: report source failures exceed the bounded report limit/,
+  );
+});
+
 class FakeNode {
   constructor(tag) { this.tag = tag; this.children = []; this.textContent = ""; this.listeners = {}; this.attributes = {}; }
   append(...nodes) { this.children.push(...nodes); }
@@ -494,7 +529,7 @@ const findNode = (root, predicate) => {
   }
 };
 const report = (id = 42n) => ({
-  standard_version: "nns-dendrite/1.0-draft", neuron_id: id, checked_at_timestamp_seconds: 100n,
+  standard_version: "nns-dendrite/1.1-draft", neuron_id: id, checked_at_timestamp_seconds: 100n,
   overall_status: { Indeterminate: null }, target: [], managers: [], committed_topics: [], non_committed_topics: [],
   controller: [], rules: [{ rule_id: "DENDRITE-CONTROL-001", status: { Indeterminate: null }, message: "requires on-chain verification", observed: [], expected: [], related_neuron_ids: [], relevant_topic: [] }],
   quorum_threshold: [], source_revision: "revision", source_failures: [],

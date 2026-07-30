@@ -2,7 +2,7 @@
 
 **Status:** normative browser-to-NNS management tranche
 
-**Standard identifier:** `nns-dendrite/1.0-draft`
+**Standard identifier:** `nns-dendrite/1.1-draft`
 
 **Pinned NNS source:** `d55a0f4d4edfabe49d8fd543aff473084cb741f2`
 
@@ -79,71 +79,67 @@ observed and expected values, optional topic code, and related neuron IDs. The r
 does not contain a digest, cache timestamp, stale flag, provenance graph, or flattened
 generic summary-field list.
 
-## 4. Mandatory standard rules
+## 4. Direct Standard rules
 
-### Target and committed topics
+The public catalogue contains only requirements of the neuron and its configured
+governance relationships. It has 25 distinct rules in six explicit groups; a topic
+rule may have multiple underlying evaluations without increasing the distinct-rule
+count.
 
-- `DENDRITE-KNOWN-001`: the target is returned as a full public neuron.
-- `DENDRITE-KNOWN-002`: the target has valid `known_neuron_data`.
-- `DENDRITE-KNOWN-003`: at least one committed concrete topic exists.
-- `DENDRITE-KNOWN-004`: committed topics are distinct, known, and exclude CatchAll
-  and Neuron Management. Known factual invalidity takes precedence over an unknown
-  variant; otherwise an unknown variant requires a standard update.
+### Neuron identity and commitments
 
-### Locked, active posture
+- `DENDRITE-KNOWN-001`: Neuron data is public.
+- `DENDRITE-KNOWN-002`: Neuron is registered as a known neuron.
+- `DENDRITE-KNOWN-003`: At least one topic is committed.
+- `DENDRITE-KNOWN-004`: Committed topics are recognised and unique.
 
-- `DENDRITE-LOCK-001`: target is not dissolving.
-- `DENDRITE-LOCK-002`: dissolve delay is exactly `63_115_200` seconds.
-- `DENDRITE-LOCK-003`: effective stake is positive.
-- `DENDRITE-ACTIVE-001`: voting power was refreshed within six nominal months.
-- `DENDRITE-ACTIVE-002`: deciding voting power equals positive potential voting power.
+### Lock and voting power
 
-### Controller and target settings
+- `DENDRITE-LOCK-001`: Neuron is locked.
+- `DENDRITE-LOCK-002`: Dissolve delay is 2 years.
+- `DENDRITE-LOCK-003`: Effective stake is positive.
+- `DENDRITE-ACTIVE-001`: Voting power was refreshed within 6 months.
+- `DENDRITE-ACTIVE-002`: Deciding voting power equals potential voting power.
 
-- `DENDRITE-CONTROL-001`: target controller exists and `canister_info` succeeds.
-- `DENDRITE-CONTROL-002`: controller canister has no Wasm module.
-- `DENDRITE-CONTROL-003`: controller canister has no controllers.
-- `DENDRITE-CONTROL-004`: target raw hotkey list is empty.
-- `DENDRITE-CONTROL-005`: target has `not_for_profit = false`.
+### Control and immutability
 
-### Neuron Management managers
+- `DENDRITE-CONTROL-001`: Controller is a canister.
+- `DENDRITE-CONTROL-002`: Controller canister has no installed code.
+- `DENDRITE-CONTROL-003`: No principal controls the controller canister.
+- `DENDRITE-CONTROL-004`: Neuron has no hotkeys.
+- `DENDRITE-CONTROL-005`: Proposal-based dissolution is disabled. The neuron must
+  have `not_for_profit = false` so that a Neuron Management proposal cannot start
+  dissolving it.
 
-- `DENDRITE-NM-001`: raw manager count is between 5 and 15.
-- `DENDRITE-NM-002`: raw manager IDs are distinct; never deduplicate first.
-- `DENDRITE-NM-003`: target is not its own manager.
-- `DENDRITE-NM-004`: every manager is returned as a full public known neuron with
-  valid `known_neuron_data`.
-- `DENDRITE-NM-005`: alpha-vote and omega-reject are each returned as full public
-  known neurons.
+### Manager group
 
-### Committed delegation
+- `DENDRITE-NM-001`: There are 5–15 managers.
+- `DENDRITE-NM-002`: Manager list contains no duplicates.
+- `DENDRITE-NM-003`: Neuron is not its own manager.
+- `DENDRITE-NM-004`: Every manager is a public known neuron.
 
-For each committed topic:
+### Committed-topic delegation
 
-- `DENDRITE-COMMIT-001`: raw delegate vector has at least three entries.
-- `DENDRITE-COMMIT-002`: raw delegate IDs are distinct.
-- `DENDRITE-COMMIT-003`: every delegate is a manager and is a full public known
-  neuron.
-- `DENDRITE-COMMIT-004`: every delegate follows exactly the singleton
-  `[18422777432977120264]` on that topic.
+- `DENDRITE-COMMIT-001`: Each committed topic has at least 3 delegates.
+- `DENDRITE-COMMIT-002`: No committed topic repeats a delegate.
+- `DENDRITE-COMMIT-003`: Every committed delegate is also a manager.
+- `DENDRITE-COMMIT-004`: Every committed delegate follows only omega-reject,
+  neuron `18422777432977120264`, on that topic.
 
-### Non-committed following
+### Default following
 
-- `DENDRITE-DEFAULT-001`: every recognised non-committed concrete topic other than
-  Neuron Management follows exactly `[2947465672511369]`.
-- `DENDRITE-DEFAULT-002`: CatchAll follows exactly `[2947465672511369]`.
-- `DENDRITE-DEFAULT-003`: an unknown non-empty following topic code requires a
-  standard update.
+- `DENDRITE-DEFAULT-001`: Every uncommitted topic follows only alpha-vote, neuron
+  `2947465672511369`.
+- `DENDRITE-DEFAULT-002`: Catch-all follows only alpha-vote, neuron
+  `2947465672511369`.
+- `DENDRITE-DEFAULT-003`: No unsupported topic code is configured.
 
-### Evidence integrity
-
-- `DENDRITE-DATA-001`: every required lookup reached terminal `Found` or
-  `ConfirmedMissing`; any `Unavailable` dependency is indeterminate.
-- `DENDRITE-DATA-002`: check timestamp, standard version, pinned source revision, and
-  bounded source-failure data are present. Fixed destinations are architectural
-  constants, not invented dynamic evidence.
-- `DENDRITE-DATA-003`: no rule whose required lookup is `Unavailable` passes by
-  default. A confirmed omission is complete factual evidence.
+Report integrity is an implementation invariant, not a scored neuron rule. Every
+unavailable lookup makes all and only its dependent substantive rules indeterminate;
+required unavailable data can never pass. Standard version, source revision,
+timestamp validity, source-failure bounds, and construction consistency are
+preconditions for a normal report. A broken precondition returns a bounded analysis
+error, including during transaction preflight, and never blames the neuron.
 
 Raw following vectors and map-like Candid vectors must remain intact until duplicate
 checks finish. Duplicate topic keys, duplicate target/dependency records, unexpected
@@ -164,8 +160,9 @@ future non-empty code require a standard update.
 
 The defensive graph proof includes every recognised topic list because an invalid
 target may commit CatchAll or Neuron Management. With 18 recognised topic lists, at
-most 15 followees per list, plus alpha-vote and omega-reject, the unique dependency set
-cannot exceed `18 * 15 + 2 = 272` IDs. The implementation derives this bound from the
+most 15 followees per list, the unique dependency set cannot exceed
+`18 * 15 = 270` IDs. Alpha-vote and omega-reject are not added solely as reference
+metadata dependencies. The implementation derives this bound from the
 recognised domain and followee limit rather than maintaining a bare literal.
 
 Known-neuron data is bounded in bytes exactly as in the pinned source: name 200,
@@ -208,12 +205,13 @@ a tiny heap-only abuse guard, which may reset on upgrade and is not publicly exp
 Use one narrow `EvidenceClient` trait with exactly:
 
 - `list_neurons(ids)`; and
+- `get_neuron_info(id)`; and
 - `canister_info(controller)`.
 
 Provide one fixed-destination production implementation and one recording fake for
 tests. No caller can supply a destination, method name, principal, or Candid blob.
 Production Governance calls go only to the compile-time NNS Governance principal and
-method `list_neurons`. Management calls go only to the management canister method
+methods `list_neurons` and `get_neuron_info`. Management calls go only to the management canister method
 `canister_info` with `num_requested_changes = 0`.
 
 Use a small checked-in reviewed Candid subset containing only exact wire types required
@@ -223,7 +221,8 @@ against the pinned upstream source.
 The `NeuronInfo` subset retains only `retrieved_at_timestamp_seconds`; additional
 upstream record fields are skipped by Candid decoding.
 
-Known-neuron status comes only from `Neuron.known_neuron_data`. Never call
+Known-neuron status comes only from the `known_neuron_data` returned for the exact
+requested neuron. Never call
 `list_known_neurons`, `get_network_economics_parameters`, proposal methods, or mutation
 methods.
 
@@ -239,11 +238,12 @@ response that omits a requested full public neuron is evidence, not a source fai
    neuron-info IDs, duplicates, topic keys, pinned collection bounds, stake arithmetic,
    and a nonzero matching target NNS snapshot timestamp.
 3. If a valid successful response omits the target, return a completed `NON_COMPLIANT`
-   report; if the call or batch is unavailable, return `INDETERMINATE`. In either case,
-   make no dependency or controller call.
+   report. If no valid NNS snapshot timestamp exists, return a bounded analysis error.
+   In either case, make no dependency or controller call.
 4. Otherwise preserve raw following vectors; extract raw managers and committed-topic
-   delegates; add alpha-vote and omega-reject; build the unique dependency set.
-5. Enforce the derived 272-dependency invariant.
+   delegates; build the unique dependency set. Do not add alpha-vote or omega-reject
+   solely to inspect their metadata.
+5. Enforce the derived 270-dependency invariant.
 6. Split dependencies into batches of at most 50 IDs and call `list_neurons` once per
    batch.
 7. Validate each batch atomically. Every requested ID becomes `Found`,
@@ -282,11 +282,12 @@ caching. Responses have correct MIME types, CSP, `X-Content-Type-Options`, refer
 permissions policies, frame restrictions, and HSTS where appropriate. No second asset
 canister or unrelated routing/compression/social-image machinery exists.
 
-The frontend validates a canonical non-zero decimal `u64`. Browser live analysis uses
+The frontend validates a canonical non-zero decimal `u64`. Its one route-loaded public
+report uses
 replica-signed Governance queries and fresh IC-certified controller system state.
-Explicit consensus verification calls `check_neuron(BigInt(id))`; it remains the only
-report that can authorize management controls. Refresh performs a new live analysis
-and invalidates prior consensus evidence. No result is labelled cached.
+There is no public refresh, verification, or consensus-report mode. `check_neuron`
+remains transaction-scoped: each exact review and each final submission performs a
+fresh fail-closed preflight before a direct browser-to-NNS update.
 
 All dynamic content uses constructed text nodes or `textContent`; never `innerHTML`.
 Validate HTTPS links, preserve keyboard access and responsive status/error rendering,
