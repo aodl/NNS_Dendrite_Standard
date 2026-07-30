@@ -123,7 +123,7 @@ test("manager authority uses exact parsed principals and unavailable never autho
   assert.equal(classifyManagerAuthority(manager("Found", [], [user]), user).role, "Hotkey");
   assert.equal(classifyManagerAuthority(manager("Found", [user], [user]), user).role, "Controller and hotkey");
   assert.equal(classifyManagerAuthority(manager("Found", [other], [other]), user).role, "No authority");
-  assert.equal(classifyManagerAuthority(manager("Unavailable", [user], [user]), user).role, "Evidence unavailable");
+  assert.equal(classifyManagerAuthority(manager("Unavailable", [user], [user]), user).role, "Unavailable");
   assert.equal(classifyManagerAuthority(manager("ConfirmedMissing", [user], [user]), user).role, "Manager not returned");
 });
 

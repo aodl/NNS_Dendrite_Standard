@@ -7,7 +7,7 @@ const matches = (left, right) => principal(left).compareTo(principal(right)) ===
 
 export function classifyManagerAuthority(manager, authenticatedPrincipal) {
   const status = variantName(manager.evidence_status);
-  if (status === "Unavailable") return { role: "Evidence unavailable", eligible: false };
+  if (status === "Unavailable") return { role: "Unavailable", eligible: false };
   if (status === "ConfirmedMissing") return { role: "Manager not returned", eligible: false };
   const controller = manager.controller?.[0];
   const isController = Boolean(controller && matches(controller, authenticatedPrincipal));
@@ -42,6 +42,6 @@ export function renderManagerAuthority(root, report, authenticatedPrincipal) {
   }
   root.append(
     table,
-    element("p", "Only a manager neuron's controller may add this principal as a hotkey. An existing hotkey cannot add another hotkey. Never add a hotkey to the target Dendrite neuron. Make any change externally, then use Check again; onboarding is not complete until the principal appears in a new live manager report."),
+    element("p", "Only a manager neuron's controller may add this principal as a hotkey. An existing hotkey cannot add another hotkey. Never add a hotkey to the target Dendrite neuron. Onboarding is not complete until a later route-loaded report shows the principal."),
   );
 }

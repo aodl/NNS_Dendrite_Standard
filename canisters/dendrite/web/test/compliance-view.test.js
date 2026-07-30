@@ -202,6 +202,11 @@ test("visual tokens meet text, icon, control, and focus contrast requirements", 
   }
   assert.match(cssSource, /prefers-reduced-motion/);
   assert.match(cssSource, /forced-colors:\s*active/);
+  assert.match(cssSource, /\.rule-filter\[aria-pressed="true"\][^{]*\{[^}]*border-width:\s*2px[^}]*box-shadow:/s);
+  assert.match(cssSource, /\.rule-filter-pass\s*\{[^}]*color:\s*var\(--pass\)/s);
+  assert.match(cssSource, /\.rule-filter-fail\s*\{[^}]*color:\s*var\(--fail\)/s);
+  assert.match(cssSource, /\.rule-group-counts \.status-pass\s*\{[^}]*color:\s*var\(--pass\)/s);
+  assert.match(cssSource, /\.rule-group-counts \.status-fail\s*\{[^}]*color:\s*var\(--fail\)/s);
 });
 
 test("rules render once in canonical order with a safe future-rule fallback", () => {
@@ -257,7 +262,9 @@ test("fully compliant parity report renders 29 rules from all 43 policy evaluati
   toggle.click();
   assert.equal(walk(detail, (node) => node.tag === "tbody")[0].children.length, 15);
   assert.equal(source.rules.length, 43);
-  assert.ok(byText(root, "29 Standard rules · 43 policy evaluations").length);
+  assert.ok(byText(root, "All 29").length);
+  assert.ok(byText(root, "29 pass").length);
+  assert.ok(byText(root, "0 fail").length);
 });
 
 test("shared status summaries count aggregate rules once and always show pass and fail", () => {
@@ -270,8 +277,8 @@ test("shared status summaries count aggregate rules once and always show pass an
   assert.equal(summary.totalDistinctRules, 2);
   assert.equal(summary.totalPolicyEvaluations, 3);
   assert.equal(summary.Fail, 1);
-  assert.equal(summary["Requires verification"], 1);
-  assert.equal(formatStatusSummary(summary), "0 pass · 1 fail · 1 requires verification");
+  assert.equal(summary.Indeterminate, 1);
+  assert.equal(formatStatusSummary(summary), "0 pass · 1 fail · 1 indeterminate");
 });
 
 test("controller diagnostics use structured evidence, exact links, and factual outcomes", () => {
@@ -332,7 +339,7 @@ test("controller unavailable and missing-controller diagnostics never infer a re
     requirement: ruleDescription("DENDRITE-CONTROL-001"),
   });
   assert.match(unavailable.conciseReason, /certificate was stale/);
-  assert.match(unavailable.conciseReason, /No pass was inferred/);
+  assert.match(unavailable.conciseReason, /could not be obtained/);
   source.target[0].controller = [];
   const missing = buildRuleDiagnostic({
     report: source,
@@ -369,12 +376,12 @@ test("every parity failure produces a factual diagnostic with safe structured fa
   assert(failures > 20, "focused parity failures were not exercised");
 });
 
-test("mixed aggregates expose precedence, safe future IDs, and verification terminology", () => {
+test("mixed aggregates expose precedence, safe future IDs, and direct status terminology", () => {
   const preliminary = aggregateRules([
     statusRule("DENDRITE-CONTROL-001", "Pass"),
     statusRule("DENDRITE-CONTROL-001", "Indeterminate"),
   ])[0];
-  assert.match(aggregateSummary(preliminary, "Preliminary"), /^Requires verification/);
+  assert.match(aggregateSummary(preliminary, "Preliminary"), /^Indeterminate/);
   const future = aggregateRules([
     statusRule("FUTURE-RULE-901", "Pass", { relevant_topic: [4] }),
     statusRule("FUTURE-RULE-901", "StandardUpdateRequired", { relevant_topic: [99] }),
@@ -434,7 +441,7 @@ test("complete summary row toggles except for controls and text selection", () =
   globalThis.getSelection = priorSelection;
 });
 
-test("one attention filter changes only transient presentation state", () => {
+test("single-select status filters change only transient presentation state", () => {
   const source = report();
   const snapshot = JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value);
   const prior = globalThis.document;
@@ -442,21 +449,37 @@ test("one attention filter changes only transient presentation state", () => {
   const root = new FakeNode("main");
   try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
   const rows = walk(root, (node) => node.className?.includes?.("rule-summary-row"));
-  const filter = walk(root, (node) => node.className === "button-quiet attention-filter")[0];
-  assert.ok(filter);
-  assert.equal(walk(root, (node) => node.className?.includes?.("attention-filter")).length, 1);
-  for (const removed of ["All", "Needs attention", "Failed", "Passed", "Expand attention", "Collapse all"]) {
-    assert.equal(byText(root, removed).length, 0);
-  }
-  filter.click();
-  assert.equal(rows.filter((row) => !row.hidden).length, 4);
+  const filters = walk(root, (node) => node.className?.split?.(" ").includes("rule-filter"));
+  assert.equal(filters.length, 6);
+  const all = filters.find((node) => node.className.includes("rule-filter-all"));
+  const pass = filters.find((node) => node.className.includes("rule-filter-pass"));
+  const fail = filters.find((node) => node.className.includes("rule-filter-fail"));
+  assert.equal(all.attributes["aria-pressed"], "true");
+  assert.equal(pass.attributes["aria-pressed"], "false");
+  assert.equal(fail.attributes["aria-pressed"], "false");
+  const passRow = rows.find((row) => row.attributes["data-rule-id"] === "DENDRITE-DATA-003");
+  const passToggle = walk(passRow, (node) => node.className === "button-disclosure rule-toggle")[0];
+  passToggle.click();
+  assert.equal(passToggle.attributes["aria-expanded"], "true");
+  fail.click();
+  assert.equal(fail.attributes["aria-pressed"], "true");
+  assert.equal(all.attributes["aria-pressed"], "false");
+  assert.equal(rows.filter((row) => !row.hidden).length, 1);
+  assert.equal(passToggle.attributes["aria-expanded"], "false");
   const groups = walk(root, (node) => node.className === "rule-group");
   const knownGroup = groups.find((group) => byText(group, "Target and committed topics").length);
   assert.equal(knownGroup.hidden, false);
-  assert.equal(groups.find((group) => byText(group, "Evidence integrity").length).hidden, true);
-  filter.click();
+  assert.equal(groups.find((group) => byText(group, "Data completeness").length).hidden, true);
+  assert.ok(byText(knownGroup, "1 pass").length);
+  assert.ok(byText(knownGroup, "1 fail").length);
+  fail.click();
+  assert.equal(all.attributes["aria-pressed"], "true");
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.ok(groups.every((group) => !group.hidden));
+  pass.click();
+  assert.equal(rows.filter((row) => !row.hidden).length, 3);
+  all.click();
+  assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.equal(JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot);
 });
 
@@ -464,10 +487,11 @@ test("rule groups disclose by severity and closing clears child expansion", () =
   const root = render();
   const groups = walk(root, (node) => node.className === "rule-group");
   assert.equal(groups.length, 6);
-  const evidence = groups.find((group) => byText(group, "Evidence integrity").length);
+  const evidence = groups.find((group) => byText(group, "Data completeness").length);
   const evidenceToggle = walk(evidence, (node) => node.className === "rule-group-toggle")[0];
   assert.equal(evidenceToggle.attributes["aria-expanded"], "false");
   assert.match(evidenceToggle.attributes["aria-label"], /1 pass, 0 fail/);
+  assert.equal(walk(evidenceToggle, (node) => node !== evidenceToggle && node.tag === "button").length, 0);
   assert.ok(byText(evidence, "1 pass").length);
   assert.ok(byText(evidence, "0 fail").length);
   const target = groups.find((group) => byText(group, "Target and committed topics").length);
@@ -484,21 +508,21 @@ test("rule groups disclose by severity and closing clears child expansion", () =
   assert.equal(byText(root, "Expand all").length + byText(root, "Collapse all").length, 0);
 });
 
-test("preliminary controller uncertainty is verification-required and never pass or fail", () => {
+test("controller uncertainty is directly undetermined and never pass or fail", () => {
   const root = render("Preliminary");
   const row = walk(root, (node) => node.attributes?.["data-rule-id"] === "DENDRITE-CONTROL-001")[0];
-  assert.ok(byText(row, "Requires verification").length);
+  assert.ok(byText(row, "Indeterminate").length);
   assert.equal(byText(row, "Pass").length, 0);
   assert.equal(byText(row, "Fail").length, 0);
-  assert.ok(byText(root, "A fresh transaction preflight is required before management actions.").length);
+  assert.equal(byText(root, "A fresh transaction preflight is required before management actions.").length, 0);
 });
 
-test("live and consensus provenance appears once without per-rule trust warnings", () => {
+test("source failures remain in the raw report without a Technical evidence section", () => {
   const prior = globalThis.document;
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   try {
-    const live = new FakeNode("main");
-    renderReport(live, {
+    const root = new FakeNode("main");
+    renderReport(root, {
       report: report(),
       verificationKind: "Preliminary",
       provenance: {
@@ -509,24 +533,20 @@ test("live and consensus provenance appears once without per-rule trust warnings
         },
       },
     });
-    const visibleText = (root) => walk(root, (node) => typeof node.textContent === "string")
-      .map((node) => node.textContent).join("\n");
-    const liveText = visibleText(live);
-    assert.match(liveText, /Neuron data: replica-signed NNS Governance query/);
-    assert.match(liveText, /Controller state: IC-certified/);
-    assert.match(liveText, /Evaluation: browser/);
-    assert.equal((liveText.match(/Controller state: IC-certified/g) ?? []).length, 1);
-    assert.doesNotMatch(liveText, /Preliminary browser query; controller evidence requires consensus verification/);
-
-    const consensus = new FakeNode("main");
-    renderReport(consensus, { report: report(), verificationKind: "Consensus" });
-    assert.match(visibleText(consensus), /replicated Dendrite verification/);
+    assert.equal(byText(root, "Technical evidence").length, 0);
+    for (const removed of [
+      "Verification metadata", "Raw target evidence", "Controller blackhole evidence",
+      "Complete rule table", "Source failures",
+    ]) assert.equal(byText(root, removed).length, 0);
+    const raw = walk(root, (node) => node.className === "raw-report-json")[0];
+    assert.match(raw.textContent, /"source_failures"/);
+    assert.match(raw.textContent, /"unavailable"/);
   } finally {
     globalThis.document = prior;
   }
 });
 
-test("report header has no generic actions and flat section structure is accessible", () => {
+test("report header has direct verdicts, no actions, and the final section hierarchy", async () => {
   const preliminary = render("Preliminary", {
     onRefreshPreliminary() {},
     onVerifyConsensus() {},
@@ -535,19 +555,26 @@ test("report header has no generic actions and flat section structure is accessi
   assert.equal(byText(preliminary, "Refresh live analysis").length, 0);
   assert.equal(walk(preliminary, (node) => node.className === "section-navigation").length, 0);
   const root = render();
-  const sectionIds = walk(root, (node) => ["overview", "rules", "characteristics", "managers", "delegation", "evidence"].includes(node.id))
+  const sectionIds = walk(root, (node) => ["overview", "rules", "characteristics", "managers", "delegation", "raw-report"].includes(node.id))
     .map((node) => node.id);
-  assert.deepEqual(sectionIds, ["overview", "characteristics", "rules", "managers", "delegation", "evidence"]);
-  assert.ok(byText(root, "Key characteristics").length);
-  assert.equal(walk(root, (node) => node.className === "metrics")[0].children.length, 9);
+  assert.deepEqual(sectionIds, ["overview", "managers", "delegation", "rules", "characteristics", "raw-report"]);
+  assert.ok(byText(root, "Neuron characteristics").length);
+  assert.equal(walk(root, (node) => node.className === "metrics")[0].children.length, 7);
   const sectionToggle = walk(root, (node) =>
     node.className === "section-title" && node.textContent === "Managers")[0].parentNode;
-  assert.equal(sectionToggle.attributes["aria-expanded"], "false");
-  sectionToggle.click();
   assert.equal(sectionToggle.attributes["aria-expanded"], "true");
-  assert.equal(walk(root, (node) => node.id === "evidence")[0].tag, "section");
-  assert.equal(walk(root, (node) => node.id === "evidence")[0].parentNode?.tag === "details", false);
-  assert.equal(walk(walk(root, (node) => node.id === "evidence")[0], (node) => node.tag === "details").length, 6);
+  sectionToggle.click();
+  assert.equal(sectionToggle.attributes["aria-expanded"], "false");
+  const characteristics = walk(root, (node) => node.id === "characteristics")[0];
+  assert.equal(walk(characteristics, (node) => node.className?.includes?.("section-toggle"))[0].attributes["aria-expanded"], "false");
+  const raw = walk(root, (node) => node.id === "raw-report")[0];
+  const rawToggle = walk(raw, (node) => node.className?.includes?.("section-toggle"))[0];
+  assert.equal(rawToggle.attributes["aria-expanded"], "false");
+  let copied;
+  const copyRoot = render("Preliminary", { copyText: async (value) => { copied = value; } });
+  const copy = byAttribute(copyRoot, "aria-label", "Copy raw report JSON")[0];
+  await copy.click();
+  assert.equal(copied, walk(copyRoot, (node) => node.className === "raw-report-json")[0].textContent);
 
   const empty = report();
   empty.managers = [];
@@ -557,6 +584,48 @@ test("report header has no generic actions and flat section structure is accessi
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const emptyRoot = new FakeNode("main");
   try { renderReport(emptyRoot, empty); } finally { globalThis.document = prior; }
-  assert.ok(byText(emptyRoot, "No manager evidence is available in this report.").length);
-  assert.ok(byText(emptyRoot, "No topic delegation evidence is present in this report.").length);
+  assert.ok(byText(emptyRoot, "No managers are listed.").length);
+  assert.ok(byText(emptyRoot, "No topic configurations are listed.").length);
+});
+
+test("all overall statuses use the exact complete-ID verdict wording and semantic colour class", () => {
+  const cases = [
+    ["Compliant", "Neuron 42 is compliant with the NNS Dendrite Standard.", "status-pass"],
+    ["NonCompliant", "Neuron 42 is not compliant with the NNS Dendrite Standard.", "status-fail"],
+    ["Indeterminate", "Compliance with the NNS Dendrite Standard could not be determined for neuron 42.", "status-indeterminate"],
+    ["StandardUpdateRequired", "Neuron 42 uses configuration not covered by this version of the NNS Dendrite Standard.", "status-standardupdaterequired"],
+  ];
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  try {
+    for (const [status, wording, className] of cases) {
+      const source = report();
+      source.overall_status = { [status]: null };
+      const root = new FakeNode("main");
+      renderReport(root, { report: source, verificationKind: "Preliminary" });
+      assert.ok(byText(root, wording).length, status);
+      const overview = walk(root, (node) => node.id === "overview")[0];
+      assert.ok(overview.className.includes(className), status);
+    }
+  } finally {
+    globalThis.document = prior;
+  }
+});
+
+test("manager and topic presentation uses direct statuses and concise summaries", () => {
+  const root = render();
+  const managers = walk(root, (node) => node.id === "managers")[0];
+  assert.ok(byText(managers, "1 manager · 1 unavailable").length);
+  assert.ok(byText(managers, "Status").length);
+  assert.ok(byText(managers, "Unavailable").length);
+  const delegation = walk(root, (node) => node.id === "delegation")[0];
+  assert.ok(byText(delegation, "2 configurations · 2 topics · 1 issue").length);
+  const source = report();
+  source.rules = source.rules.map((rule) => ({ ...rule, status: { Pass: null } }));
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  const passing = new FakeNode("main");
+  try { renderReport(passing, source); } finally { globalThis.document = prior; }
+  assert.ok(byText(passing, "Pass").length);
+  assert.equal(byText(passing, "No findings").length, 0);
 });

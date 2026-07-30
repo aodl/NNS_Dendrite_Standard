@@ -11,11 +11,8 @@ export const OUTCOME_LABELS = Object.freeze({
   StandardUpdateRequired: "Why a Standard update is required",
 });
 
-const statusLabel = (status, verificationKind, ruleId) =>
-  status === "Indeterminate" && verificationKind === "Preliminary"
-    && ruleId.startsWith("DENDRITE-CONTROL-")
-    ? "Requires verification"
-    : status === "StandardUpdateRequired" ? "Standard update required" : status;
+const statusLabel = (status) =>
+  status === "StandardUpdateRequired" ? "Standard update required" : status;
 
 const sourceFailureText = (report, relatedIds) => {
   const related = new Set(relatedIds.map(String));
@@ -37,9 +34,9 @@ const controllerReason = ({ report, entry, status, verificationKind, provenance 
   const controller = option(report.controller);
   const source = verificationKind === "Preliminary"
     ? provenance?.controllerEvidence?.kind === "certified-system-state"
-      ? "IC-certified live evidence"
-      : "certified live evidence was unavailable"
-    : "replicated Dendrite evidence";
+      ? "IC-certified system state"
+      : "IC-certified system state was unavailable"
+    : "the Dendrite canister";
   const failureReason = provenance?.controllerEvidence?.kind === "unavailable"
     ? String(provenance.controllerEvidence.reason).slice(0, 512)
     : sourceFailureText(report, entry.related_neuron_ids ?? [])[0];
@@ -55,11 +52,11 @@ const controllerReason = ({ report, entry, status, verificationKind, provenance 
   };
   if (entry.rule_id === "DENDRITE-CONTROL-001") {
     if (!principalString) {
-      result.reason = "The target neuron did not report a controller canister. The Standard requires a separately controlled controller canister whose final state can be verified.";
+      result.reason = "The target neuron did not report a controller canister.";
     } else if (status === "Pass") {
       result.reason = `Controller state was obtained for controller canister ${principalString} from ${source}.`;
     } else {
-      result.reason = `Controller state for ${principalString} could not be obtained from ${source}${failureReason ? `: ${failureReason}` : ""}. No pass was inferred.`;
+      result.reason = `Controller state for ${principalString} could not be obtained from ${source}${failureReason ? `: ${failureReason}` : ""}.`;
     }
   } else if (entry.rule_id === "DENDRITE-CONTROL-002") {
     const hash = controller?.module_hash?.[0];
@@ -71,7 +68,7 @@ const controllerReason = ({ report, entry, status, verificationKind, provenance 
         : String(option(entry.observed) ?? hash).replace(/^module hash /, "");
       result.reason = `Controller canister ${principalString} has an installed Wasm module (${full.slice(0, 8)}…${full.slice(-8)}); the expected state is no module.`;
     } else {
-      result.reason = `The module state for controller canister ${principalString ?? "reported by the target"} could not be determined${failureReason ? `: ${failureReason}` : ""}. No pass was inferred.`;
+      result.reason = `The module state for controller canister ${principalString ?? "reported by the target"} could not be determined${failureReason ? `: ${failureReason}` : ""}.`;
     }
   } else if (entry.rule_id === "DENDRITE-CONTROL-003") {
     const controllers = controller?.controllers?.map(principalText) ?? [];
@@ -80,7 +77,7 @@ const controllerReason = ({ report, entry, status, verificationKind, provenance 
     } else if (status === "Fail") {
       result.reason = `Controller canister ${principalString} retains ${plural(controllers.length, "controller")}, ${controllers.join(", ")}. The controller list must be empty.`;
     } else {
-      result.reason = `The controller list for canister ${principalString ?? "reported by the target"} could not be determined${failureReason ? `: ${failureReason}` : ""}. No pass was inferred.`;
+      result.reason = `The controller list for canister ${principalString ?? "reported by the target"} could not be determined${failureReason ? `: ${failureReason}` : ""}.`;
     }
   }
   return result;
@@ -126,7 +123,7 @@ export function buildOutcomeExplanation({
     return `${observedItems.join("; ")}; expected ${expectedItems.join("; ")}.`;
   }
   if (status === "Indeterminate" && failures.length) {
-    return `The required evidence could not be retrieved: ${failures.join("; ")}. No pass or failure was inferred.`;
+    return `The required data could not be retrieved: ${failures.join("; ")}.`;
   }
   return undefined;
 }
@@ -221,7 +218,7 @@ export function buildRuleDiagnostic({
   }) ?? genericReason({ report, entry, status });
   return Object.freeze({
     status,
-    presentationStatus: statusLabel(status, verificationKind, entry.rule_id),
+    presentationStatus: statusLabel(status),
     outcomeLabel: OUTCOME_LABELS[status] ?? "Why this result occurred",
     conciseReason: explanation,
     explanationParts: Object.freeze([explanation]),
@@ -240,7 +237,6 @@ export function summarizeRuleStatuses(aggregatedRules, verificationKind = "Conse
   const counts = {
     Pass: 0,
     Fail: 0,
-    "Requires verification": 0,
     Indeterminate: 0,
     Warning: 0,
     "Standard update required": 0,
@@ -248,7 +244,7 @@ export function summarizeRuleStatuses(aggregatedRules, verificationKind = "Conse
   let policyEvaluations = 0;
   for (const rule of aggregatedRules) {
     const status = variantName(rule.status);
-    const label = statusLabel(status, verificationKind, rule.rule_id);
+    const label = statusLabel(status);
     counts[label] = (counts[label] ?? 0) + 1;
     policyEvaluations += rule.evaluationCount ?? rule.entries?.length ?? 1;
   }
@@ -260,7 +256,7 @@ export function summarizeRuleStatuses(aggregatedRules, verificationKind = "Conse
 }
 
 export function formatStatusSummary(summary) {
-  const labels = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"];
+  const labels = ["Pass", "Fail", "Indeterminate", "Warning", "Standard update required"];
   return labels.filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
     .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
 }

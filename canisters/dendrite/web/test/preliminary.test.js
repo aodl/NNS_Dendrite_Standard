@@ -23,7 +23,6 @@ import { evaluatePreliminary } from "../src/preliminary-evaluator.js";
 import { createApplication } from "../src/app.js";
 import {
   groupTopics,
-  preliminaryStatus,
   ruleTitle,
   shortPrincipal,
   sortedFindings,
@@ -520,8 +519,15 @@ test("public route renders one live state without report actions or Dendrite rea
     });
     await app.start();
     const rendered = JSON.stringify(root);
-    assert.match(rendered, /Live analysis/);
-    assert.doesNotMatch(rendered, /Refresh live analysis|Verify on-chain|Consensus verified|Verification stale/);
+    assert.match(rendered, /could not be determined for neuron 42/);
+    assert.doesNotMatch(rendered, /Live analysis|Refresh live analysis|Verify on-chain|Consensus verified|Verification stale/);
+    const management = findNode(root, (node) => node.className?.includes?.("management-toggle"));
+    assert.equal(management.attributes["aria-expanded"], "false");
+    assert.ok(management.attributes["aria-controls"]);
+    management.dispatch("click");
+    assert.equal(management.attributes["aria-expanded"], "true");
+    management.dispatch("click");
+    assert.equal(management.attributes["aria-expanded"], "false");
     assert.equal(dendriteCalls, 0);
   } finally { globalThis.document = prior; }
 });
@@ -535,15 +541,6 @@ test("presentation helpers order severity, group topics, shorten principals, and
   assert.equal(groupTopics({ committed_topics: [{ topic: 4, delegate_ids: [1n, 1n] }, { topic: 5, delegate_ids: [1n] }], non_committed_topics: [] }).length, 2);
   assert.match(shortPrincipal("aaaaa-bbbbb-ccccc-ddddd"), /…/);
   assert.equal(ruleTitle("UNKNOWN-RULE"), "Technical check: UNKNOWN-RULE");
-});
-
-test("preliminary headline excludes only expected controller uncertainty", () => {
-  const controller = ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003"]
-    .map((rule_id) => ({ rule_id, status: { Indeterminate: null }, message: "mandatory evidence was unavailable" }));
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Pass: null }, message: "ok" }] }), "Live analysis incomplete");
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Fail: null }, message: "bad" }] }), "Issues found on live evidence");
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { Indeterminate: null }, message: "unknown" }] }), "Live analysis incomplete");
-  assert.equal(preliminaryStatus({ rules: [...controller, { rule_id: "PUBLIC", status: { StandardUpdateRequired: null }, message: "future" }] }), "Standard update required");
 });
 
 test("preliminary production modules use no persistent browser storage", () => {

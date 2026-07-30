@@ -135,40 +135,29 @@ form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); ali
   margin: var(--space-1) 0 0;
   color: var(--text-muted);
 }
-.verification-state { display: flex; flex-direction: column; gap: var(--space-2); align-items: end; }
-.verification-time { color: var(--text-muted); font-size: .82rem; }
 .known-links { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: .9rem; }
-.badge {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  padding: .2rem .55rem;
-  font-size: .78rem;
-  font-weight: 600;
-}
-.badge-consensus { color: var(--pass); background: #edf7f2; }
-.badge-preliminary, .badge-indeterminate, .badge-unavailable { color: var(--indeterminate); background: #f3f0f9; }
-.badge-stale, .badge-warning { color: var(--warning); background: #fff7e5; }
-.badge-fail, .badge-confirmedmissing { color: var(--fail); background: #fff1ef; }
 .overview { scroll-margin-top: var(--space-4); padding: var(--space-8) 0 var(--space-4); }
-.overview .main-status { margin: 0; font-size: clamp(1.6rem, 3vw, 2.1rem); }
-.status-compliant { color: var(--pass); }
-.status-noncompliant { color: var(--fail); }
-.status-indeterminate, .status-standardupdaterequired { color: var(--warning); }
+.overview h2 {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+}
+.overview.status-pass h2 { color: var(--pass); }
+.overview.status-fail h2 { color: var(--fail); }
+.overview.status-indeterminate h2 { color: var(--indeterminate); }
+.overview.status-standardupdaterequired h2 { color: var(--warning); }
 .status-counts { margin: var(--space-2) 0 var(--space-1); font-weight: 600; }
 .status-count-segment + .status-count-segment { margin-inline-start: var(--space-4); }
-.evaluation-counts { margin: 0; color: var(--text-muted); }
-.verification-warning, .error {
+.error {
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--warning);
+  border-left: 3px solid var(--fail);
   background: var(--surface-subtle);
 }
-.error { border-color: var(--fail); }
 
-/* Always-visible characteristics */
-.characteristics-section, .rules-section, .major-section, .technical-section { scroll-margin-top: var(--space-4); }
+/* Report sections */
+.rules-section, .major-section { scroll-margin-top: var(--space-4); }
 .metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
@@ -187,20 +176,33 @@ form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); ali
 /* Standard rule table */
 .rules-section { margin-top: var(--space-12); }
 .rules-section > h2 { margin-bottom: var(--space-2); }
-.rule-controls { display: flex; min-height: 2.75rem; align-items: center; }
-.attention-filter { display: inline-flex; gap: var(--space-2); align-items: center; }
-.filter-check {
-  width: 1rem;
-  height: 1rem;
-  border: 1px solid var(--divider-strong);
-  border-radius: .15rem;
+.rule-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-6);
 }
-.attention-filter[aria-pressed="true"] .filter-check {
-  border-color: var(--accent);
-  background: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--surface);
+.rule-filter {
+  display: inline-flex;
+  min-height: 2.75rem;
+  gap: var(--space-2);
+  align-items: center;
+  border-color: currentColor;
 }
-.rule-count { margin: var(--space-1) 0 var(--space-6); color: var(--text-muted); font-size: .88rem; }
+.rule-filter[aria-pressed="true"] {
+  border-width: 2px;
+  background: var(--surface-subtle);
+  box-shadow: inset 0 -3px 0 currentColor;
+}
+.rule-filter-all { color: var(--text); }
+.rule-filter-pass {
+  color: var(--pass);
+}
+.rule-filter-fail {
+  color: var(--fail);
+}
+.rule-filter-indeterminate { color: var(--indeterminate); }
+.rule-filter-warning, .rule-filter-standardupdaterequired { color: var(--warning); }
 .rule-group { margin-top: var(--space-6); }
 .rule-group[hidden], .rule-group-content[hidden], .rule-summary-row[hidden], .rule-detail-row[hidden], .section-content[hidden] { display: none; }
 .rule-group > h3 {
@@ -223,10 +225,15 @@ form, .authentication { display: flex; flex-wrap: wrap; gap: var(--space-3); ali
 .rule-group-title { align-self: center; font-size: 1rem; font-weight: 650; }
 .rule-group-counts {
   align-self: center;
-  color: var(--text-muted);
   font-size: .82rem;
   font-weight: 500;
   white-space: nowrap;
+}
+.rule-group-counts .status-pass {
+  color: var(--pass);
+}
+.rule-group-counts .status-fail {
+  color: var(--fail);
 }
 .rule-group-toggle .chevron { align-self: center; justify-self: center; }
 table { width: 100%; border-collapse: collapse; }
@@ -345,13 +352,13 @@ table { width: 100%; border-collapse: collapse; }
   font-weight: 700;
 }
 
-/* Flat major disclosures and technical evidence */
-.major-section, .technical-section {
+/* Flat major disclosures */
+.major-section {
   margin-top: var(--space-12);
   padding-top: var(--space-4);
   border-top: 1px solid var(--divider-strong);
 }
-.major-section > h2, .technical-section > h2 { margin: 0; }
+.major-section > h2 { margin: 0; }
 .section-toggle {
   display: grid;
   grid-template-columns: minmax(9rem, auto) minmax(0, 1fr) 2.75rem;
@@ -371,43 +378,28 @@ table { width: 100%; border-collapse: collapse; }
 .section-important { border-top-color: var(--warning); }
 .empty-state { margin: var(--space-3) 0 0; color: var(--text-muted); }
 .topic-warning { margin: var(--space-2) 0; color: var(--text-muted); font-size: .86rem; }
-.technical-section { margin-bottom: var(--space-12); }
-.source-failure-summary { color: var(--warning); font-weight: 600; }
-.evidence-disclosure { margin: 0; overflow: hidden; border-bottom: 1px solid var(--divider); }
-.evidence-disclosure:first-child { border-top: 1px solid var(--divider-strong); }
-.evidence-disclosure > summary {
-  display: flex;
-  min-height: 3rem;
-  padding: var(--space-3) 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: 600;
+.raw-report-content {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
 }
-.evidence-disclosure > summary::marker { content: ""; }
-.evidence-disclosure > :not(summary) { margin-inline: var(--space-4); }
-.technical-evidence pre {
+.raw-report-copy {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: var(--surface);
+}
+.raw-report-json {
   max-height: 28rem;
-  padding: var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-4) 4rem var(--space-4) var(--space-4);
   overflow: auto;
   border: 1px solid var(--divider);
   background: var(--surface);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   font-size: .82rem;
-  white-space: pre-wrap;
+  white-space: pre;
   overflow-wrap: anywhere;
-}
-.technical-evidence { min-width: 0; max-width: 100%; overflow: hidden; }
-.horizontal-scroll { contain: inline-size paint; max-width: calc(100% - 2rem); overflow: auto; }
-.technical-evidence table { width: max-content; min-width: 100%; font-size: .82rem; }
-.technical-evidence caption { padding: var(--space-2) 0; text-align: left; font-weight: 600; }
-.technical-evidence th, .technical-evidence td {
-  padding: var(--space-2);
-  border: 1px solid var(--divider);
-  text-align: left;
-  vertical-align: top;
 }
 
 /* Existing transaction/authentication surfaces retain explicit containment. */
@@ -423,7 +415,6 @@ table { width: 100%; border-collapse: collapse; }
 @media (max-width: 42rem) {
   main { width: calc(100% - 1rem); max-width: 74rem; padding-top: var(--space-6); }
   .report-header { grid-template-columns: 1fr; gap: var(--space-3); }
-  .verification-state { align-items: start; }
   .rule-table > thead th:last-child, .rule-result-cell { width: 9rem; }
   .rule-summary-row > th, .rule-summary-row > td { padding-inline: var(--space-2); }
   .rule-detail-row > td { padding: var(--space-4) var(--space-2); }
@@ -460,7 +451,8 @@ table { width: 100%; border-collapse: collapse; }
   button, a { transition: outline-color 120ms ease, background-color 120ms ease; }
 }
 @media (forced-colors: active) {
-  button, .badge, .filter-check, .icon-copy { border-color: ButtonText; }
-  .status-text, .verification-warning, .source-failure-summary { color: CanvasText; }
+  button, .icon-copy { border-color: ButtonText; }
+  .status-text { color: CanvasText; }
+  .rule-filter[aria-pressed="true"] { outline: 2px solid Highlight; }
   :focus-visible { outline-color: Highlight; }
 }

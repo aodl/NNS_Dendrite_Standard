@@ -730,7 +730,7 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
             timestampMilliseconds: Date.now(),
           });
           state = "outcome-unknown";
-          throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Use proposal lookup or a live recheck. ${String(error?.message ?? "NNS returned an unexpected response.").slice(0, 256)}`);
+          throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Inspect Governance before taking another action. ${String(error?.message ?? "NNS returned an unexpected response.").slice(0, 256)}`);
         }
       } catch (error) {
         if (reachedUpdate && state === "in-flight") {
@@ -743,7 +743,7 @@ export function createTransactionPipeline({ getSession, getNnsActor, checkNeuron
             timestampMilliseconds: Date.now(),
           });
           state = "outcome-unknown";
-          throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Use proposal lookup or a live recheck. ${String(error?.message ?? "Network call did not return evidence.").slice(0, 256)}`);
+          throw new Error(`Transaction outcome is unknown and this request cannot be resubmitted. Inspect Governance before taking another action. ${String(error?.message ?? "The network call did not return.").slice(0, 256)}`);
         }
         throw error;
       } finally {

@@ -7,7 +7,7 @@ the standard, and returns the report. Certified assets are served by the sole qu
 application method, `http_request`.
 
 ```text
-Public live analysis:
+Public route report:
 Browser -> anonymous signed Governance list_neurons and get_neuron_info queries
         -> strict browser validation/normalisation
         -> certified controller read_state -> browser evaluator
@@ -23,7 +23,7 @@ timer, polling, analytics, off-chain service, or background work. A small heap-o
 abuse guard resets on upgrade. Dependencies are requested in batches of at most 50,
 within the derived 272-ID graph bound.
 
-The live-analysis path uses a separately generated, query-only Governance declaration
+The public-report path uses a separately generated, query-only Governance declaration
 whose methods are `list_neurons` and explicit-ID `get_neuron_info`. Its production `HttpAgent` is anonymous, fixed to
 `rrkah-fqaaa-aaaaa-aaaaq-cai` and `https://icp-api.io`, enables query-signature
 verification, and never fetches a root key. The target is loaded first; required
@@ -38,46 +38,46 @@ browser evaluator mirrors the Rust evidence and policy model. For the exact cont
 principal in the validated Governance response, one anonymous `read_state` verifies
 controllers, module-hash presence or certified absence, certificate time, effective
 canister binding, delegation, and canister range. Invalid or ambiguous certified state
-is discarded as a whole. Live evidence never enables
+is discarded as a whole. A public report never enables
 transaction controls and never satisfies transaction final preflight.
 
 The report presentation consumes the `ComplianceReport` without changing it. A focused
-diagnostic view model derives factual outcome explanations, observed/expected evidence,
+diagnostic view model derives factual outcome explanations, observed/expected values,
 safe related links, topics, and IDs from structured report fields. It never parses a
 message to discover a principal. Stable `RULE_DESCRIPTIONS` remain normative
 requirements and are rendered after the outcome explanation. A presentation-only
 aggregation model groups entries by exact `rule_id`, retains every entry, orders
 topic instances canonically, and chooses the aggregate status using `Fail`, standard
-update required, indeterminate, warning, then pass precedence. The page orders its flat
-header, overall result and distinct-rule status counts, visible key characteristics, one
-canonical table row per Standard rule, managers, topic delegation, and technical
-evidence. The rule result remains visible while its supporting details are collapsed.
+update required, indeterminate, warning, then pass precedence. The page order is
+identity header, direct verdict, Managers, Topic delegation, Standard rules, collapsed
+Neuron characteristics, collapsed Raw report, and collapsed Management. The rule
+result remains visible while its supporting details are collapsed.
 Multi-entry detail rows show the reviewed explanation and aggregate result followed by
 every exact topic evaluation, message, observed/expected value, and related neuron in a
-compact internal table. The technical rule ID, complete unaggregated rule table, and raw
-report remain in technical evidence. Unknown future IDs use an explicit technical
-fallback. Policy states
+compact internal table. The technical rule ID remains in each rule detail; one compact
+Raw report disclosure contains the complete public report. Unknown future IDs use an
+explicit technical fallback. Policy states
 remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
-`Standard update required`; only the preliminary presentation calls the three
-controller-dependent indeterminate states `Requires verification`.
+`Standard update required`.
 
-The sole optional `Attention only` control uses aggregate status and hides all-pass
-groups without changing their complete counts. Every group is a native-button
+The distinct-rule totals are native, single-select `aria-pressed` filters for All,
+Pass, Fail, and nonzero additional statuses. Filtering hides nonmatching rows and empty
+groups, opens matching groups, closes hidden child rows, and never changes complete
+group totals. Every group is a native-button
 disclosure: all-pass groups default closed, while fail, standard-update, indeterminate,
-warning, or verification-required groups default open. Closing a group clears every
+or warning groups default open. Closing a group clears every
 child rule disclosure. One shared summary model counts each aggregate once, always
-shows pass and fail (including zero), and separately records all policy evaluations.
+shows pass and fail (including zero), and records the distinct-rule total.
 Row, group, and lower-section expansion remain ephemeral DOM state. These controls
 never alter the route, report, evaluator, or network. Semantic section IDs remain valid
-anchor targets, but the prior sticky section-navigation toolbar is removed. Managers and
-topic delegation each have one disclosure level; technical evidence is a normal section
-whose child disclosures are not nested in an outer accordion.
+anchor targets. Managers, Topic delegation, Neuron characteristics, Raw report, and
+Management each have one disclosure level.
 
 The visual system uses a local system-font stack, a seven-step spacing scale, two
 non-pill radii, a pale canvas, white and subtle surfaces, strong text, restrained green
 accent, and distinct pass, fail, warning, and indeterminate colours. Status always pairs
 an icon with text and has no rule-row pill. Summary segments reuse those semantic
-colours. The report header has no refresh or verification toolbar. Whitespace and dividers replace
+colours. The report header has no action toolbar. Whitespace and dividers replace
 decorative shadows, nested cards, and filled disclosure controls.
 
 Each live load has a unique operation owner bound to
@@ -91,7 +91,7 @@ eight-hour delegation targets NNS Governance, never Dendrite. The browser compar
 principal with live manager evidence locally and sends reviewed typed mutations
 directly to Governance. It never constructs an authenticated Dendrite actor.
 Once the update boundary may have been crossed, an unknown transaction outcome
-immediately removes management controls while retaining live evidence, request digest,
+immediately removes mutation controls while retaining the public report, request digest,
 and the explicit no-retry acknowledgement lock.
 
 The certified frontend binds served bytes to installed Wasm. It does not prove browser

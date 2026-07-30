@@ -64,8 +64,7 @@ try {
       });
     });
     await page.goto(`${baseUrl}/#/neuron/${neuronId}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
-    await page.waitForFunction(() => !document.body.textContent.includes("Loading public NNS evidence"), { timeout: 45_000 });
-    await page.waitForSelector(".badge-preliminary", { timeout: 5_000 });
+    await page.waitForSelector("#overview .status-icon", { timeout: 45_000 });
     if (scenario.pageScaleFactor) {
       const session = await page.createCDPSession();
       await session.send("Emulation.setPageScaleFactor", { pageScaleFactor: scenario.pageScaleFactor });
@@ -73,39 +72,52 @@ try {
         { timeout: 5_000 }, scenario.pageScaleFactor);
     }
     const text = await page.$eval("main", (node) => node.innerText);
-    assert.match(text, /Live analysis/);
-    assert.doesNotMatch(text, /Verify on-chain|Refresh live analysis|Consensus verified/);
-    const controllerPrincipal = await page.$eval("#evidence", (node) =>
-      node.textContent.match(/Controller principal: ([a-z0-9-]+)/)?.[1]);
-    assert(controllerPrincipal, `${scenario.name} omitted bounded controller provenance`);
+    assert.match(text, /NNS Dendrite Standard/);
+    assert.doesNotMatch(text, /Live analysis|Verify on-chain|Refresh live analysis|Consensus verified|Attention only|Technical evidence|on live evidence/);
+    const controllerPrincipal = await page.$eval(".raw-report-json", (node) =>
+      JSON.parse(node.textContent).target?.[0]?.controller?.[0]);
+    assert.match(controllerPrincipal, /^[a-z0-9-]+$/,
+      `${scenario.name} omitted the target controller principal`);
     const hierarchy = await page.evaluate(() => ({
-      rules: document.querySelector("#rules")?.getBoundingClientRect().top,
       managers: document.querySelector("#managers")?.getBoundingClientRect().top,
       delegation: document.querySelector("#delegation")?.getBoundingClientRect().top,
+      rules: document.querySelector("#rules")?.getBoundingClientRect().top,
+      characteristics: document.querySelector("#characteristics")?.getBoundingClientRect().top,
+      rawReport: document.querySelector("#raw-report")?.getBoundingClientRect().top,
+      management: document.querySelector("#management")?.getBoundingClientRect().top,
       ruleCount: document.querySelectorAll(".rule-summary-row").length,
       distinctRuleCount: new Set([...document.querySelectorAll(".rule-summary-row")]
         .map((node) => node.getAttribute("data-rule-id"))).size,
     }));
     assert.equal(hierarchy.ruleCount, hierarchy.distinctRuleCount, "primary rows are not distinct by rule ID");
     assert(hierarchy.ruleCount > 0, "complete rules view is missing");
-    assert(hierarchy.rules < hierarchy.managers && hierarchy.managers < hierarchy.delegation,
+    assert(hierarchy.managers < hierarchy.delegation
+      && hierarchy.delegation < hierarchy.rules
+      && hierarchy.rules < hierarchy.characteristics
+      && hierarchy.characteristics < hierarchy.rawReport
+      && hierarchy.rawReport < hierarchy.management,
       `unexpected section hierarchy: ${JSON.stringify(hierarchy)}`);
     const initialRequestCount = requests.length;
     const routeBeforeNavigation = page.url();
     const presentation = await page.evaluate(() => {
       const disclosure = document.querySelector(".rule-toggle");
       const disclosureStyle = getComputedStyle(disclosure);
-      const primaryActions = [...document.querySelectorAll(".report-actions .button-primary")]
-        .filter((node) => !node.hidden);
       const result = document.querySelector(".rule-result-cell");
       const resultStyle = getComputedStyle(result);
-      const summaryPass = document.querySelector(".rule-total-statuses .status-pass");
-      const summaryFail = document.querySelector(".rule-total-statuses .status-fail");
+      const passFilter = document.querySelector(".rule-filter-pass");
+      const failFilter = document.querySelector(".rule-filter-fail");
+      const groupPass = document.querySelector(".rule-group-counts .status-pass");
+      const groupFail = document.querySelector(".rule-group-counts .status-fail");
+      const verdict = document.querySelector("#overview h2");
       const passProbe = document.createElement("span");
       passProbe.className = "status-pass";
       const failProbe = document.createElement("span");
       failProbe.className = "status-fail";
-      document.body.append(passProbe, failProbe);
+      const indeterminateProbe = document.createElement("span");
+      indeterminateProbe.className = "status-indeterminate";
+      const warningProbe = document.createElement("span");
+      warningProbe.className = "status-warning";
+      document.body.append(passProbe, failProbe, indeterminateProbe, warningProbe);
       const simpleRow = document.querySelector(".rule-summary-row");
       const before = simpleRow.getBoundingClientRect();
       simpleRow.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
@@ -117,12 +129,19 @@ try {
         hasChevron: Boolean(disclosure.querySelector(".chevron")),
         plusMinusText: [...document.querySelectorAll(".rule-toggle")]
           .some((node) => /^[+-]$/.test(node.textContent.trim())),
-        primaryHeaderActions: primaryActions.length,
+        publicActionToolbars: document.querySelectorAll(".report-actions, .report-action-toolbar").length,
         resultAlignment: resultStyle.textAlign,
-        summaryPassColor: getComputedStyle(summaryPass).color,
-        summaryFailColor: getComputedStyle(summaryFail).color,
+        passFilterColor: getComputedStyle(passFilter).color,
+        failFilterColor: getComputedStyle(failFilter).color,
+        groupPassColor: getComputedStyle(groupPass).color,
+        groupFailColor: getComputedStyle(groupFail).color,
+        verdictColor: getComputedStyle(verdict).color,
+        verdictKind: [...document.querySelector("#overview").classList]
+          .find((name) => name.startsWith("status-")),
         passTokenColor: getComputedStyle(passProbe).color,
         failTokenColor: getComputedStyle(failProbe).color,
+        indeterminateTokenColor: getComputedStyle(indeterminateProbe).color,
+        warningTokenColor: getComputedStyle(warningProbe).color,
         hoverShift: Math.max(
           Math.abs(before.x - after.x), Math.abs(before.y - after.y),
           Math.abs(before.width - after.width), Math.abs(before.height - after.height),
@@ -130,7 +149,9 @@ try {
         nestedRuleDisclosures: document.querySelectorAll(".rule-detail-row details").length,
         ruleRegions: document.querySelectorAll(".rule-detail-row [role=region]").length,
         stickyNavigation: document.querySelectorAll(".section-navigation").length,
-        toolbarControls: document.querySelectorAll(".rule-controls button").length,
+        filterCount: document.querySelectorAll(".rule-filter").length,
+        selectedFilters: document.querySelectorAll('.rule-filter[aria-pressed="true"]').length,
+        nestedGroupButtons: document.querySelectorAll(".rule-group-toggle button").length,
       };
     });
     assert.match(presentation.disclosureBackground, /rgba?\(0, 0, 0, 0\)/);
@@ -141,13 +162,24 @@ try {
     );
     assert.equal(presentation.hasChevron, true);
     assert.equal(presentation.plusMinusText, false);
-    assert.equal(presentation.primaryHeaderActions, 0);
-    assert.equal(presentation.summaryPassColor, presentation.passTokenColor);
-    assert.equal(presentation.summaryFailColor, presentation.failTokenColor);
+    assert.equal(presentation.publicActionToolbars, 0);
+    assert.equal(presentation.passFilterColor, presentation.passTokenColor);
+    assert.equal(presentation.failFilterColor, presentation.failTokenColor);
+    assert.equal(presentation.groupPassColor, presentation.passTokenColor);
+    assert.equal(presentation.groupFailColor, presentation.failTokenColor);
+    const expectedVerdictColor = {
+      "status-pass": presentation.passTokenColor,
+      "status-fail": presentation.failTokenColor,
+      "status-indeterminate": presentation.indeterminateTokenColor,
+      "status-standardupdaterequired": presentation.warningTokenColor,
+    }[presentation.verdictKind];
+    assert.equal(presentation.verdictColor, expectedVerdictColor);
     assert.equal(presentation.nestedRuleDisclosures, 0);
     assert.equal(presentation.ruleRegions, 0);
     assert.equal(presentation.stickyNavigation, 0);
-    assert(presentation.toolbarControls <= 1);
+    assert(presentation.filterCount >= 3);
+    assert.equal(presentation.selectedFilters, 1);
+    assert.equal(presentation.nestedGroupButtons, 0);
     assert(presentation.hoverShift <= 0.1, `row hover shifted layout: ${presentation.hoverShift}`);
     if (scenario.width >= 720) assert.equal(presentation.resultAlignment, "right");
     const defaultSelector = '.rule-summary-row[data-rule-id="DENDRITE-DEFAULT-001"]';
@@ -188,11 +220,15 @@ try {
     const copy = await page.$(".copy-button");
     if (copy) await copy.click();
     const initialGroupCount = await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length);
-    await page.$eval(".attention-filter", (node) => {
-      if (node.getAttribute("aria-pressed") !== "true") node.click();
-    });
-    assert.match(await page.$eval(".rule-count", (node) => node.textContent), /Showing \d+ of \d+ Standard rules/);
+    assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
+    await page.click(".rule-filter-pass");
+    assert.equal(await page.$eval(".rule-filter-pass", (node) => node.getAttribute("aria-pressed")), "true");
     assert(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length) > 0);
+    assert.equal(await page.$$eval(".rule-summary-row[hidden], .rule-detail-row[hidden]", (rows) =>
+      rows.flatMap((row) => [...row.querySelectorAll("a, button, input, select, textarea")])
+        .filter((node) => node.getClientRects().length > 0).length), 0);
+    assert.equal(await page.$$eval(".rule-summary-row[hidden] .rule-toggle", (nodes) =>
+      nodes.filter((node) => node.getAttribute("aria-expanded") !== "false").length), 0);
     const filteredGroups = await page.$$eval(".rule-group", (nodes) => nodes.map((node) => ({
       heading: node.querySelector("h3")?.textContent,
       hidden: node.hidden,
@@ -200,34 +236,43 @@ try {
     })));
     assert(filteredGroups.every((group) => group.hidden || group.visibleRows > 0),
       `an empty filtered group heading remained visible: ${JSON.stringify(filteredGroups)}`);
+    await page.click(".rule-filter-fail");
+    assert.equal(await page.$eval(".rule-filter-fail", (node) => node.getAttribute("aria-pressed")), "true");
+    await page.click(".rule-filter-all");
+    assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
+    assert.equal(await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length), initialGroupCount);
     const preliminaryControllers = await page.$$eval(".rule-summary-row", (nodes) => nodes
       .filter((node) => /Controller canister/.test(node.textContent))
       .map((node) => node.textContent));
     assert(preliminaryControllers.length >= 3);
     for (const controllerText of preliminaryControllers) {
-      assert.match(controllerText, /\b(?:Pass|Fail|Requires verification)\b/);
+      assert.match(controllerText, /\b(?:Pass|Fail|Indeterminate)\b/);
     }
     const preliminaryControllerPasses = preliminaryControllers
       .filter((controllerText) => /\bPass\b/.test(controllerText)).length;
-    for (const id of ["managers", "delegation"]) {
+    for (const id of ["managers", "delegation", "characteristics"]) {
       const selector = `#${id} .section-toggle`;
-      assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "false");
       await page.focus(selector);
       await page.keyboard.press("Enter");
-      assert.equal(await page.$eval(selector, (node) => node.getAttribute("aria-expanded")), "true");
+      const changed = await page.$eval(selector, (node) => node.getAttribute("aria-expanded"));
+      assert.match(changed, /^(?:true|false)$/);
     }
-    const evidenceDisclosure = "#evidence .evidence-disclosure:first-of-type";
-    await page.focus(`${evidenceDisclosure} > summary`);
+    assert.equal(await page.$eval("#raw-report .section-toggle", (node) => node.getAttribute("aria-expanded")), "false");
+    await page.focus("#raw-report .section-toggle");
     await page.keyboard.press("Enter");
-    assert.equal(await page.$eval(evidenceDisclosure, (node) => node.open), true);
+    assert.equal(await page.$eval("#raw-report .section-toggle", (node) => node.getAttribute("aria-expanded")), "true");
+    await page.click('[aria-label="Copy raw report JSON"]');
+    assert.equal(await page.$eval("#management .section-toggle", (node) => node.getAttribute("aria-expanded")), "false");
+    await page.click("#management .section-toggle");
+    assert.equal(await page.$eval("#management .section-toggle", (node) => node.getAttribute("aria-expanded")), "true");
+    await page.click("#management .section-toggle");
     assert.equal(page.url(), routeBeforeNavigation, "presentation interactions changed the neuron route");
     if (scenario.name === "desktop") {
       await page.evaluate(() => {
-        const filter = document.querySelector(".attention-filter");
-        if (filter?.getAttribute("aria-pressed") === "true") filter.click();
+        const filter = document.querySelector(".rule-filter-all");
+        if (filter?.getAttribute("aria-pressed") !== "true") filter.click();
         for (const toggle of document.querySelectorAll(".rule-toggle[aria-expanded=true]")) toggle.click();
         for (const toggle of document.querySelectorAll(".section-toggle[aria-expanded=true]")) toggle.click();
-        for (const disclosure of document.querySelectorAll("#evidence details[open]")) disclosure.open = false;
       });
       for (const [name, setup] of [
         ["header-overall", async () => page.evaluate(() => scrollTo(0, 0))],
@@ -242,19 +287,38 @@ try {
           await page.click(`${defaultSelector} .rule-toggle`);
           await page.evaluate((selector) => document.querySelector(selector).scrollIntoView(), defaultSelector);
         }],
-        ["attention-only", async () => page.click(".attention-filter")],
+        ["pass-filter", async () => page.click(".rule-filter-pass")],
+        ["fail-filter", async () => page.click(".rule-filter-fail")],
+        ["all-filter", async () => page.click(".rule-filter-all")],
         ["managers-expanded", async () => {
-          await page.click("#managers .section-toggle");
+          await page.$eval("#managers .section-toggle", (node) => {
+            if (node.getAttribute("aria-expanded") === "false") node.click();
+          });
           await page.evaluate(() => document.querySelector("#managers").scrollIntoView());
         }],
         ["topic-delegation-expanded", async () => {
-          await page.click("#delegation .section-toggle");
+          await page.$eval("#delegation .section-toggle", (node) => {
+            if (node.getAttribute("aria-expanded") === "false") node.click();
+          });
           await page.evaluate(() => document.querySelector("#delegation").scrollIntoView());
         }],
-        ["technical-evidence-expanded", async () => {
-          await page.focus(`${evidenceDisclosure} > summary`);
-          await page.keyboard.press("Enter");
-          await page.evaluate(() => document.querySelector("#evidence").scrollIntoView());
+        ["characteristics-expanded", async () => {
+          await page.$eval("#characteristics .section-toggle", (node) => {
+            if (node.getAttribute("aria-expanded") === "false") node.click();
+          });
+          await page.evaluate(() => document.querySelector("#characteristics").scrollIntoView());
+        }],
+        ["raw-report-expanded", async () => {
+          await page.$eval("#raw-report .section-toggle", (node) => {
+            if (node.getAttribute("aria-expanded") === "false") node.click();
+          });
+          await page.evaluate(() => document.querySelector("#raw-report").scrollIntoView());
+        }],
+        ["management-collapsed", async () => {
+          await page.$eval("#management .section-toggle", (node) => {
+            if (node.getAttribute("aria-expanded") === "true") node.click();
+          });
+          await page.evaluate(() => document.querySelector("#management").scrollIntoView());
         }],
       ]) {
         await setup();
@@ -346,9 +410,10 @@ try {
     const interactionRequests = requests.length - initialRequestCount;
     assert.equal(interactionRequests, 0,
       "rendering, filtering, copying, disclosure, or section interaction triggered a request");
-    const refreshRequests = 0;
     assert.equal(await page.$(".action-refresh"), null);
     assert.equal(await page.$(".action-verify"), null);
+    assert.equal(await page.$(".attention-filter"), null);
+    assert.equal(await page.$("#evidence"), null);
     results.push({
       ...scenario,
       consoleErrors: bounded(consoleErrors),
@@ -360,7 +425,6 @@ try {
       defaultSummary,
       defaultInstances,
       interactionRequests,
-      refreshRequests,
       focusEvidence: bounded(focusEvidence.map((entry) => JSON.stringify(entry)), 80),
       canisterRequests: requests,
       controllerPrincipal,
@@ -399,9 +463,11 @@ try {
   page.on("pageerror", (error) => failureErrors.push(error.message));
   await page.goto(`${baseUrl}/test-failure.html`, { waitUntil: "networkidle0" });
   assert.equal(failureErrors.length, 0, failureErrors.join("\n"));
-  const total = await page.$eval(".rule-total-statuses", (node) => node.textContent);
-  assert.match(total, /3 pass/);
-  assert.match(total, /2 fail/);
+  assert.match(await page.$eval("#overview", (node) => node.textContent),
+    /Neuron 42 is not compliant with the NNS Dendrite Standard/);
+  assert.match(await page.$eval(".rule-filter-pass", (node) => node.textContent), /3 pass/);
+  assert.match(await page.$eval(".rule-filter-fail", (node) => node.textContent), /2 fail/);
+  assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
   const knownGroup = await page.$('.rule-group-toggle[aria-label^="Target and committed topics"]');
   assert.equal(await knownGroup.evaluate((node) => node.getAttribute("aria-expanded")), "false");
   const controllerGroup = await page.$('.rule-group-toggle[aria-label^="Controller and target settings"]');
@@ -427,7 +493,19 @@ try {
   assert.equal(await page.$eval('.rule-summary-row[data-rule-id="DENDRITE-CONTROL-002"] .rule-toggle',
     (node) => node.getAttribute("aria-expanded")), "false");
   assert.equal(failureRequests.length, 0, "failure-fixture disclosures triggered a network request");
+  await page.click(".rule-filter-fail");
+  assert.equal(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length), 2);
+  await page.click(".rule-filter-all");
+  await page.click("#raw-report .section-toggle");
+  await page.click('[aria-label="Copy raw report JSON"]');
+  assert.equal(failureRequests.length, 0, "failure-fixture filters or Raw report triggered a request");
   await page.screenshot({ path: join(evidenceDirectory, "deterministic-controller-failures.png"), fullPage: true });
+  await page.goto(`${baseUrl}/test-failure.html?status=compliant`, { waitUntil: "networkidle0" });
+  assert.match(await page.$eval("#overview", (node) => node.textContent),
+    /Neuron 42 is compliant with the NNS Dendrite Standard/);
+  assert.equal(await page.$eval("#overview", (node) => getComputedStyle(node.querySelector("h2")).color),
+    await page.$eval(".rule-filter-pass", (node) => getComputedStyle(node).color));
+  await page.screenshot({ path: join(evidenceDirectory, "deterministic-compliant-verdict.png"), fullPage: true });
   await context.close();
 } finally {
   await browser.close();
@@ -467,14 +545,18 @@ const evidence = {
     ingressAnonymityProvedByIdentityConstructionUnitTest: true,
     dendriteCheckNeuronCalls: 0,
     unexpectedCanisterDestinations: 0,
-    verifyActionAutomaticallyActivated: false,
+    publicReportActionsPresent: false,
     assetManifestContentAddressesVerified: true,
-    rulesBeforeManagersAndDelegation: true,
+    managersAndDelegationBeforeRules: true,
+    characteristicsAndRawReportNearBottom: true,
+    managementCollapsedAndIsolated: true,
     keyboardRuleExpansion: true,
     onePrimaryRowPerDistinctRuleId: true,
     multiTopicRuleSummaryAndInstances: true,
-    attentionFiltering: true,
+    statusCountFiltering: true,
     filteredGroupHeadingsHidden: true,
+    semanticStatusColoursComputed: true,
+    rawReportCopyAccessible: true,
     certifiedControllerStatusesObserved: true,
     sectionNavigationRouteChanges: 0,
     interactionNetworkRequests: 0,

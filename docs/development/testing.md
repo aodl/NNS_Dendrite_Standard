@@ -13,7 +13,7 @@ and root-key fetching `true`; production commands require root-key fetching `fal
 | Rust coverage | `cargo xtask coverage` | None | Coverage output | Automated | Workspace >85%, engine >95% | Coverage summary |
 | Interface drift | `tools/scripts/check-interface-drift.sh` | Pinned GitHub source | No IC state | Automated | Canister read subset, separate anonymous browser query declaration, transaction Candid semantics, generated IDL equality | Pinned revision pass |
 | Certified HTTP/alternatives | `cargo xtask test` | PocketIC | Local only | Automated | Headers and exact well-known bytes | Assertions pass |
-| Chromium qualification | `tools/scripts/browser-smoke.sh dist/release/frontend` | Anonymous public Governance query | Read-only | Automated | Digest-pinned Chrome desktop/mobile route and network capture; never clicks verification | Executed PASS with bounded JSON/screenshots |
+| Chromium qualification | `tools/scripts/browser-smoke.sh dist/release/frontend` | Anonymous public Governance query | Read-only | Automated | Digest-pinned Chrome desktop/mobile route, status filters, disclosures, copying, and network capture | Executed PASS with bounded JSON/screenshots |
 | Production asset identity | `npm test` | None | Temp only | Automated | Checked-in assets unchanged by tests | Tree hash equality |
 | Dependency reachability | `tools/scripts/check-production-dependencies.sh` | Registry metadata | No IC state | Automated | Exclude PocketIC packages from Wasm | Tree report |
 | Security scan | `cargo xtask security-scan` | Public registries/GitHub | No IC state | Automated | Advisories, policy, drift, secrets | No unapproved finding |
@@ -38,22 +38,25 @@ CSS-pixel `200%-equivalent reflow viewport` at page scale 1; 390×844 mobile; an
 320×844 narrow CSS reflow.
 It captures bounded JSON evidence and
 screenshots under `dist/browser-qualification`, fails on page/console errors or
-material page overflow, and keyboard-focuses the copy, refresh, and Verify controls.
+material page overflow, and keyboard-focuses report copy and disclosure controls.
 It records emulated screen and CSS viewport dimensions, device pixel ratio,
 visual-viewport dimensions and scale, overflow, visible text/control counts, and
 keyboard evidence. It also proves one primary row per distinct rule ID, the 15-topic
 default-rule summary, all 15 instances after keyboard expansion, Enter and Space
 operation, whole-row pointer behavior and its interactive-child safeguards, hidden empty
-group headings under filtering, and rejects preliminary controller passes. It opens both
-major lower sections and a one-level technical-evidence disclosure at every layout and
-repeats overflow checks after interaction. Bounded desktop screenshots cover the header
-and overall result, collapsed and expanded rule states, attention filtering, managers,
-topic delegation, and technical evidence.
+group headings under filtering, and certified controller status handling. It exercises
+All, Pass, and Fail filters; Managers and Topic delegation near the top; collapsed
+Neuron characteristics, Raw report copying, and collapsed Management at every layout;
+and repeats overflow checks after interaction. Bounded desktop screenshots cover direct
+compliant and non-compliant verdicts, collapsed and expanded rule states, every filter,
+semantic group-count colours, Managers, Topic delegation, Neuron characteristics, Raw
+report, and Management.
 The harness additionally serves a deterministic test-only report from a temporary
 qualification root. That page is excluded from production assets and exercises failed
-controller-module and retained-controller-list diagnostics, exact Dashboard links,
-requirement/outcome separation, group totals, severity-aware defaults, child-state
-clearing, and zero disclosure/copy network requests.
+controller-module and retained-controller-list diagnostics, direct compliant and
+non-compliant verdicts, exact Dashboard links, requirement/outcome separation, group
+totals, severity-aware defaults, child-state clearing, filter behaviour, and zero
+disclosure/filter/copy network requests.
 Each scenario independently requires at least one fixed-Governance v3 `query`, expected
 query-signature `read_state`, no update endpoint, no unexpected canister, zero
 production Dendrite requests, and zero interaction-triggered requests. Captured
@@ -73,8 +76,9 @@ following, quorum, controller evidence, source failures, and standard-update sem
 Frontend state and presentation tests separately prove that every rule occurs once in
 canonical order; all policy statuses have icon and text; unknown IDs fall back safely;
 rule diagnostics, factual reasons, requirement separation, values, topics, local neuron
-and controller links, copy controls, filters, group disclosures and status summaries,
-section summaries, empty/unavailable states, and accessible expansion
+and controller links, Raw report copy, single-select status filters, group disclosures
+and semantic status summaries, final section order, collapsed Management,
+empty/unavailable states, and accessible expansion
 attributes behave without mutating the report. They also prove that route entry calls
 Governance and the query-reported controller without calling Dendrite, controller
 certificate failures remain indeterminate, valid certified state drives controller

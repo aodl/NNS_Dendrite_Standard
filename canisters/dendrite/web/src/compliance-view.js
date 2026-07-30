@@ -49,9 +49,9 @@ export const RULE_TITLES = Object.freeze({
   "DENDRITE-DEFAULT-001": "Uncommitted topic follows alpha-vote",
   "DENDRITE-DEFAULT-002": "CatchAll follows alpha-vote",
   "DENDRITE-DEFAULT-003": "Following topics are recognised",
-  "DENDRITE-DATA-001": "Required evidence is complete",
-  "DENDRITE-DATA-002": "Evidence provenance is complete",
-  "DENDRITE-DATA-003": "Unavailable evidence is fail-closed",
+  "DENDRITE-DATA-001": "Required data is available",
+  "DENDRITE-DATA-002": "Report source information is complete",
+  "DENDRITE-DATA-003": "Missing data is not treated as passing",
 });
 export const ruleTitle = (id) => RULE_TITLES[id] ?? `Technical check: ${id}`;
 export const RULE_DESCRIPTIONS = Object.freeze({
@@ -95,7 +95,7 @@ export const RULE_GROUPS = Object.freeze([
   ["Neuron Management managers", "DENDRITE-NM-"],
   ["Committed delegation", "DENDRITE-COMMIT-"],
   ["Non-committed following", "DENDRITE-DEFAULT-"],
-  ["Evidence integrity", "DENDRITE-DATA-"],
+  ["Data completeness", "DENDRITE-DATA-"],
 ]);
 
 const STATUS_PRESENTATION = Object.freeze({
@@ -105,23 +105,14 @@ const STATUS_PRESENTATION = Object.freeze({
   Warning: { label: "Warning", icon: "!", kind: "warning" },
   StandardUpdateRequired: { label: "Standard update required", icon: "↻", kind: "standardupdaterequired" },
 });
-export const statusPresentation = (status, verificationKind = "Consensus", ruleId = "") => {
-  if (status === "Indeterminate" && verificationKind === "Preliminary"
-    && PRELIMINARY_CONTROLLER_RULES.has(ruleId)) {
-    return { ...STATUS_PRESENTATION.Indeterminate, label: "Requires verification" };
-  }
-  return STATUS_PRESENTATION[status] ?? { label: status, icon: "?", kind: "indeterminate" };
-};
+export const statusPresentation = (status) =>
+  STATUS_PRESENTATION[status] ?? { label: status, icon: "?", kind: "indeterminate" };
 
 export function errorMessage(error) {
-  const generic = "Live check failed.";
+  const generic = "The neuron report could not be loaded.";
   if (error instanceof Error) return error.message.trim().slice(0, 512) || generic;
   try {
     const kind = variantName(error), value = error?.[kind];
-    if (kind === "GlobalRateLimit") return `Too many consensus checks; try again in ${value.retry_after_seconds} seconds.`;
-    if (kind === "LowCycles") return "Preliminary analysis remains available. Consensus verification is temporarily unavailable because the verifier is preserving its cycle reserve.";
-    if (kind === "DuplicateInFlight") return "A consensus check for this neuron is already running.";
-    if (kind === "ConcurrencyLimit") return "The verifier is currently at its consensus-check concurrency limit.";
     if (typeof value === "string") return value.slice(0, 512);
     return kind === "Unknown" ? generic : kind;
   } catch {
@@ -146,9 +137,6 @@ const formatIcp = (e8s) => {
   return `${whole}${fraction ? `.${fraction}` : ""} ICP`;
 };
 
-function badge(text, kind) {
-  return element("span", text, `badge badge-${kind}`);
-}
 function announceCopy(announcer, value) {
   if (!announcer) return;
   announcer.textContent = "";
@@ -185,35 +173,6 @@ function metric(label, value, hint, className = "") {
   if (hint) node.append(element("p", hint, "muted"));
   return node;
 }
-function details(summary, children, className = "") {
-  const node = document.createElement("details");
-  node.className = `evidence-disclosure ${className}`.trim();
-  const label = document.createElement("summary");
-  const chevron = element("span", "", "chevron");
-  chevron.setAttribute("aria-hidden", "true");
-  label.append(element("span", summary), chevron);
-  node.append(label, ...children);
-  return node;
-}
-function technicalTable(report) {
-  const table = document.createElement("table");
-  table.append(element("caption", "Complete rule table"));
-  const head = document.createElement("tr");
-  for (const name of ["Rule", "Status", "Message", "Observed", "Expected", "Topic", "Related neurons"]) head.append(element("th", name));
-  table.append(head);
-  for (const rule of report.rules) {
-    const row = document.createElement("tr");
-    for (const value of [rule.rule_id, variantName(rule.status), rule.message, optional(rule.observed, "—"), optional(rule.expected, "—"), optional(rule.relevant_topic, "—"), ids(rule.related_neuron_ids)]) row.append(element("td", value));
-    table.append(row);
-  }
-  return table;
-}
-function horizontalScroll(content) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "horizontal-scroll";
-  wrapper.append(content);
-  return wrapper;
-}
 function safeJson(value) {
   return JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : typeof item?.toText === "function" ? item.toText() : item, 2);
 }
@@ -238,7 +197,7 @@ function renderManagers(report, copyText, announcer) {
   table.className = "manager-table responsive-table";
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  for (const name of ["Manager", "Evidence", "Controller", "Hotkeys", "Readiness"]) {
+  for (const name of ["Manager", "Status", "Controller", "Hotkeys", "Readiness"]) {
     const cell = element("th", name);
     cell.setAttribute("scope", "col");
     heading.append(cell);
@@ -255,9 +214,9 @@ function renderManagers(report, copyText, announcer) {
       element("span", manager.known_neuron?.[0]?.name ?? `Manager ${id}`, "row-primary"),
       safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`),
     );
-    const evidence = document.createElement("td");
-    evidence.setAttribute("data-label", "Evidence");
-    evidence.append(statusText(variantName(manager.evidence_status)));
+    const status = document.createElement("td");
+    status.setAttribute("data-label", "Status");
+    status.append(statusText(variantName(manager.evidence_status)));
     const controller = manager.controller?.[0];
     const controllerCell = document.createElement("td");
     controllerCell.setAttribute("data-label", "Controller");
@@ -276,7 +235,7 @@ function renderManagers(report, copyText, announcer) {
         ? manager.omega_ready_topics.map((topic) => TOPIC_LABELS.get(topic) ?? topic).join(" · ")
         : "None"}`, "table-support"),
     );
-    row.append(managerCell, evidence, controllerCell, hotkeys, readiness);
+    row.append(managerCell, status, controllerCell, hotkeys, readiness);
     body.append(row);
   }
   table.append(head, body);
@@ -374,12 +333,12 @@ function statusNode(rule, verificationKind) {
   return statusText(presentation.label, presentation);
 }
 function statusText(status, suppliedPresentation) {
-  const evidencePresentation = {
+  const managerPresentation = {
     Found: { label: "Found", icon: "✓", kind: "pass" },
-    ConfirmedMissing: { label: "Confirmed missing", icon: "×", kind: "fail" },
+    ConfirmedMissing: { label: "Missing", icon: "×", kind: "fail" },
     Unavailable: { label: "Unavailable", icon: "?", kind: "indeterminate" },
   };
-  const presentation = suppliedPresentation ?? evidencePresentation[status] ?? statusPresentation(status);
+  const presentation = suppliedPresentation ?? managerPresentation[status] ?? statusPresentation(status);
   const node = document.createElement("span");
   node.className = `status-text status-${presentation.kind}`;
   const icon = element("span", presentation.icon, "status-icon");
@@ -387,14 +346,18 @@ function statusText(status, suppliedPresentation) {
   node.append(icon, element("span", presentation.label));
   return node;
 }
+const SUMMARY_STATUSES = Object.freeze([
+  ["Pass", "Pass"],
+  ["Fail", "Fail"],
+  ["Indeterminate", "Indeterminate"],
+  ["Warning", "Warning"],
+  ["Standard update required", "StandardUpdateRequired"],
+]);
 function renderStatusSummary(summary, className = "status-counts") {
   const node = document.createElement("span");
   node.className = className;
-  const labels = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"];
-  for (const label of labels) {
+  for (const [label, canonical] of SUMMARY_STATUSES) {
     if (label !== "Pass" && label !== "Fail" && !summary[label]) continue;
-    const canonical = label === "Requires verification" ? "Indeterminate"
-      : label === "Standard update required" ? "StandardUpdateRequired" : label;
     const presentation = statusPresentation(canonical);
     const segment = statusText(`${summary[label]} ${label.toLowerCase()}`, {
       ...presentation,
@@ -408,7 +371,7 @@ function renderStatusSummary(summary, className = "status-counts") {
 const statusVerb = (status) => ({
   Pass: "pass",
   Fail: "fail",
-  Indeterminate: "require verification",
+  Indeterminate: "could not be determined",
   Warning: "have warnings",
   StandardUpdateRequired: "use an unknown Standard variant",
 })[status] ?? status.toLowerCase();
@@ -583,7 +546,7 @@ function collapsedRuleSupport(report, rule, verificationKind, provenance) {
   const verb = status === "Fail" ? "fail"
     : status === "Warning" ? "have warnings"
       : status === "StandardUpdateRequired" ? "require a Standard update"
-        : "require verification";
+        : "could not be determined";
   return `${matching} of ${rule.evaluationCount} topic evaluations ${verb}`;
 }
 function renderRuleRows(report, rule, verificationKind, provenance, copyText, announcer) {
@@ -645,21 +608,19 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   section.id = "rules";
   section.className = "rules-section";
   section.append(element("h2", "Standard rules"));
-  const controls = document.createElement("div");
-  controls.className = "rule-controls";
-  controls.setAttribute("aria-label", "Filter standard rules");
-  const count = element("p", "", "rule-count");
-  count.setAttribute("aria-live", "polite");
+  const filters = document.createElement("div");
+  filters.className = "rule-filters";
+  filters.setAttribute("role", "group");
+  filters.setAttribute("aria-label", "Filter Standard rules by status");
+  const announcement = element("p", "", "sr-only rule-filter-announcement");
+  announcement.setAttribute("aria-live", "polite");
+  announcement.setAttribute("aria-atomic", "true");
   const list = document.createElement("div");
   list.className = "rule-groups";
   const rows = [];
   const groupSections = [];
   const aggregatedRules = aggregateRules(report.rules);
   const totalSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
-  section.append(
-    renderStatusSummary(totalSummary, "status-counts rule-total-statuses"),
-    element("p", `${totalSummary.totalDistinctRules} Standard rules · ${totalSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
-  );
   for (const rule of aggregatedRules) {
     const group = canonicalGroup(rule.rule_id);
     let current = groupSections[groupSections.length - 1];
@@ -698,11 +659,11 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   }
   for (const group of groupSections) {
     const summary = summarizeRuleStatuses(group.rows.map(({ rule }) => rule), verificationKind);
-    const countsText = ["Pass", "Fail", "Requires verification", "Indeterminate", "Warning", "Standard update required"]
+    const countsText = SUMMARY_STATUSES.map(([label]) => label)
       .filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
       .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
     const expanded = summary.Fail > 0 || summary.Indeterminate > 0 || summary.Warning > 0
-      || summary["Standard update required"] > 0 || summary["Requires verification"] > 0;
+      || summary["Standard update required"] > 0;
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "rule-group-toggle";
@@ -731,39 +692,87 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     group.heading.append(toggle);
     group.toggle = toggle;
     group.summary = summary;
+    group.defaultExpanded = expanded;
   }
-  const attentionCount = rows.filter(({ rule }) => attentionStatus(variantName(rule.status))).length;
-  let attentionOnly = false;
+  const filterDefinitions = [
+    { key: "All", count: totalSummary.totalDistinctRules, label: "All", icon: undefined, kind: "all" },
+    { key: "Pass", count: totalSummary.Pass, label: "pass", icon: "✓", kind: "pass" },
+    { key: "Fail", count: totalSummary.Fail, label: "fail", icon: "×", kind: "fail" },
+    ...(totalSummary.Indeterminate ? [{
+      key: "Indeterminate", count: totalSummary.Indeterminate, label: "undetermined", icon: "?", kind: "indeterminate",
+    }] : []),
+    ...(totalSummary.Warning ? [{
+      key: "Warning", count: totalSummary.Warning, label: "warning", icon: "!", kind: "warning",
+    }] : []),
+    ...(totalSummary["Standard update required"] ? [{
+      key: "StandardUpdateRequired", count: totalSummary["Standard update required"],
+      label: "update required", icon: "↻", kind: "standardupdaterequired",
+    }] : []),
+  ];
+  let activeFilter = "All";
+  let allModeGroupState;
+  const buttons = new Map();
+  const closeRow = ({ rule, detailRow, toggle }) => {
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", `Show details for ${rule.title}`);
+    detailRow.hidden = true;
+  };
+  const setGroupExpanded = (group, expanded) => {
+    group.toggle.setAttribute("aria-expanded", String(expanded));
+    group.content.hidden = !expanded;
+    if (!expanded) for (const row of group.rows) closeRow(row);
+  };
   const apply = () => {
     let visible = 0;
-    for (const { rule, summaryRow, detailRow, toggle } of rows) {
-      const hidden = attentionOnly && !attentionStatus(variantName(rule.status));
+    for (const row of rows) {
+      const { rule, summaryRow, detailRow, toggle } = row;
+      const hidden = activeFilter !== "All" && variantName(rule.status) !== activeFilter;
       summaryRow.hidden = hidden;
-      detailRow.hidden = hidden || attribute(toggle, "aria-expanded") !== "true";
+      if (hidden) closeRow(row);
+      else detailRow.hidden = attribute(toggle, "aria-expanded") !== "true";
       if (!hidden) visible += 1;
     }
     for (const group of groupSections) {
-      group.section.hidden = !group.rows.some(({ summaryRow }) => !summaryRow.hidden);
+      const matching = group.rows.some(({ summaryRow }) => !summaryRow.hidden);
+      group.section.hidden = !matching;
+      if (!matching) {
+        setGroupExpanded(group, false);
+      } else if (activeFilter !== "All") {
+        setGroupExpanded(group, true);
+      } else {
+        setGroupExpanded(group, allModeGroupState?.get(group) ?? group.defaultExpanded);
+      }
     }
-    count.textContent = attentionOnly ? `Showing ${visible} of ${rows.length} Standard rules` : "";
+    for (const [key, button] of buttons) {
+      button.setAttribute("aria-pressed", String(key === activeFilter));
+    }
+    announcement.textContent = `Showing ${visible} of ${rows.length} rules`;
   };
-  if (attentionCount) {
+  for (const definition of filterDefinitions) {
     const button = document.createElement("button");
-    button.className = "button-quiet attention-filter";
+    button.className = `rule-filter rule-filter-${definition.kind}`;
     button.type = "button";
-    button.setAttribute("aria-pressed", "false");
-    button.append(
-      element("span", "", "filter-check"),
-      element("span", `Attention only (${attentionCount})`),
-    );
+    button.setAttribute("aria-pressed", String(definition.key === "All"));
+    if (definition.icon) {
+      const icon = element("span", definition.icon, "status-icon");
+      icon.setAttribute("aria-hidden", "true");
+      button.append(icon);
+    }
+    button.append(element("span", `${definition.key === "All" ? "All" : definition.count} ${definition.key === "All" ? definition.count : definition.label}`));
     button.addEventListener("click", () => {
-      attentionOnly = !attentionOnly;
-      button.setAttribute("aria-pressed", String(attentionOnly));
+      const next = activeFilter === definition.key && definition.key !== "All" ? "All" : definition.key;
+      if (activeFilter === "All" && next !== "All") {
+        allModeGroupState = new Map(groupSections.map((group) => [
+          group, attribute(group.toggle, "aria-expanded") === "true",
+        ]));
+      }
+      activeFilter = next;
       apply();
     });
-    controls.append(button);
+    filters.append(button);
+    buttons.set(definition.key, button);
   }
-  section.append(controls, count, list);
+  section.append(filters, announcement, list);
   apply();
   return section;
 }
@@ -840,7 +849,7 @@ function renderTopics(report, copyText, announcer) {
       && variantName(rule.status) !== "Pass");
     const result = document.createElement("td");
     result.setAttribute("data-label", "Result");
-    if (!relevant.length) result.append(element("span", "No findings", "muted"));
+    if (!relevant.length) result.append(statusText("Pass"));
     else for (const rule of sortedFindings(relevant)) {
       const status = variantName(rule.status);
       result.append(
@@ -855,26 +864,60 @@ function renderTopics(report, copyText, announcer) {
   return table;
 }
 
-export const PRELIMINARY_CONTROLLER_RULES = Object.freeze(new Set([
-  "DENDRITE-CONTROL-001",
-  "DENDRITE-CONTROL-002",
-  "DENDRITE-CONTROL-003",
-]));
+export function verdictText(report) {
+  const id = String(report.neuron_id);
+  switch (variantName(report.overall_status)) {
+    case "Compliant":
+      return `Neuron ${id} is compliant with the NNS Dendrite Standard.`;
+    case "NonCompliant":
+      return `Neuron ${id} is not compliant with the NNS Dendrite Standard.`;
+    case "Indeterminate":
+      return `Compliance with the NNS Dendrite Standard could not be determined for neuron ${id}.`;
+    case "StandardUpdateRequired":
+      return `Neuron ${id} uses configuration not covered by this version of the NNS Dendrite Standard.`;
+    default:
+      return `Compliance with the NNS Dendrite Standard could not be determined for neuron ${id}.`;
+  }
+}
 
-export function preliminaryStatus(report) {
-  const statuses = new Set(report.rules.map((rule) => variantName(rule.status)));
-  if (statuses.has("Fail")) return "Issues found on live evidence";
-  if (statuses.has("StandardUpdateRequired")) return "Standard update required";
-  if (statuses.has("Indeterminate")) return "Live analysis incomplete";
-  return "Meets the Standard on live evidence";
+const overallPresentation = (status) => ({
+  Compliant: statusPresentation("Pass"),
+  NonCompliant: statusPresentation("Fail"),
+  Indeterminate: statusPresentation("Indeterminate"),
+  StandardUpdateRequired: statusPresentation("StandardUpdateRequired"),
+})[status] ?? statusPresentation("Indeterminate");
+
+function rawReportSection(report, copyText, announcer) {
+  const json = safeJson(report);
+  const pre = element("pre", json, "raw-report-json");
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "button-icon copy-button raw-report-copy";
+  copy.setAttribute("aria-label", "Copy raw report JSON");
+  const icon = element("span", "", "icon icon-copy");
+  icon.setAttribute("aria-hidden", "true");
+  copy.append(icon);
+  copy.addEventListener("click", async () => {
+    try {
+      await copyText?.(json);
+      copy.classList?.add?.("copy-complete");
+      if (announcer) announcer.textContent = "Raw report JSON copied";
+      globalThis.setTimeout?.(() => copy.classList?.remove?.("copy-complete"), 1_500);
+    } catch {
+      if (announcer) announcer.textContent = "Copy failed";
+    }
+  });
+  const content = document.createElement("div");
+  content.className = "raw-report-content";
+  content.append(copy, pre);
+  return expandableSection("raw-report", "Raw report", "Public ComplianceReport JSON", [content]);
 }
 
 export function renderReport(root, viewModel, options = {}) {
   clear(root);
   const { report, verificationKind = "Preliminary", provenance } = viewModel.report ? viewModel : {
     report: viewModel,
-    verificationKind: "Consensus",
-    stale: false,
+    verificationKind: "Preliminary",
   };
   const target = report.target?.[0], known = target?.known_neuron?.[0];
   const announcer = element("p", "", "sr-only copy-announcer");
@@ -891,14 +934,11 @@ export function renderReport(root, viewModel, options = {}) {
     copyButton(report.neuron_id, "Copy neuron ID", options.copyText, announcer),
   );
   title.append(
-    element("p", "NNS Dendrite analysis", "eyebrow"),
+    element("p", "NNS Dendrite Standard", "eyebrow"),
     element("h1", known?.name ?? `Neuron ${report.neuron_id}`),
     idLine,
   );
-  const state = document.createElement("div");
-  state.className = "verification-state";
-  state.append(badge("Live analysis", "preliminary"));
-  header.append(title, state);
+  header.append(title);
   if (known?.links?.length) {
     const links = document.createElement("div");
     links.className = "known-links";
@@ -910,122 +950,74 @@ export function renderReport(root, viewModel, options = {}) {
   }
   root.append(header);
   const exactStatus = variantName(report.overall_status);
+  const presentation = overallPresentation(exactStatus);
   const overview = document.createElement("section");
   overview.id = "overview";
-  overview.className = "overview";
-  const overallHeading = preliminaryStatus(report);
-  const aggregatedRules = aggregateRules(report.rules);
-  const statusSummary = summarizeRuleStatuses(aggregatedRules, verificationKind);
-  overview.append(
-    element("h2", overallHeading, `main-status status-${exactStatus.toLowerCase()}`),
-    renderStatusSummary(statusSummary),
-    element("p", `${statusSummary.totalDistinctRules} Standard rules · ${statusSummary.totalPolicyEvaluations} policy evaluations`, "evaluation-counts"),
-  );
-  overview.append(element("p", "A fresh transaction preflight is required before management actions.", "verification-warning"));
+  overview.className = `overview main-status status-${presentation.kind}`;
+  const verdict = document.createElement("h2");
+  const verdictIcon = element("span", presentation.icon, "status-icon");
+  verdictIcon.setAttribute("aria-hidden", "true");
+  verdict.append(verdictIcon, element("span", verdictText(report)));
+  overview.append(verdict);
   root.append(overview);
 
-  const metrics = document.createElement("dl");
-  metrics.className = "metrics";
-  const controller = report.controller?.[0];
-  metrics.append(
-    metric("Managers", `${report.managers.length}`, report.quorum_threshold?.length ? `Quorum ${report.quorum_threshold[0]}` : "Quorum unavailable"),
-    metric("Dissolve delay", formatDuration(optional(target?.dissolve_delay_seconds)), target?.dissolving?.length ? (target.dissolving[0] ? "Dissolving" : "Locked") : "State unavailable"),
-    metric("Effective stake", formatIcp(optional(target?.effective_stake_e8s))),
-    metric("Hotkeys", target ? String(target.hot_keys.length) : "Unavailable"),
-    metric("not_for_profit", String(optional(target?.not_for_profit))),
-    metric("Committed topics", String(report.committed_topics.length)),
-    metric("Voting-power freshness", target?.voting_power_refreshed_timestamp_seconds?.length ? checkedAtUtc(target.voting_power_refreshed_timestamp_seconds[0]) : "Unavailable"),
-    metric("Controller blackhole", controller?.call_succeeded ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed") : "Unavailable"),
-    metric("Verification level", "Live analysis"),
-  );
-  const characteristics = document.createElement("section");
-  characteristics.id = "characteristics";
-  characteristics.className = "characteristics-section";
-  characteristics.append(element("h2", "Key characteristics"), metrics);
-  root.append(characteristics, renderRules(report, verificationKind, provenance, options.copyText, announcer));
-
   const managerStatuses = report.managers.map((manager) => variantName(manager.evidence_status));
-  const managersUnavailable = managerStatuses.some((status) => status === "Unavailable");
-  const managersMissing = managerStatuses.some((status) => status === "ConfirmedMissing");
-  const managerSummary = !report.managers.length
-    ? "none found"
-    : managersUnavailable
-      ? `${report.managers.length} listed, evidence unavailable`
-      : managersMissing
-        ? `${report.managers.length} listed, missing evidence`
-        : `${report.managers.length} found, evidence available`;
+  const unavailableManagers = managerStatuses.filter((status) => status === "Unavailable").length;
+  const missingManagers = managerStatuses.filter((status) => status === "ConfirmedMissing").length;
+  const managerSummary = [
+    `${report.managers.length} manager${report.managers.length === 1 ? "" : "s"}`,
+    ...(unavailableManagers ? [`${unavailableManagers} unavailable`] : []),
+    ...(missingManagers ? [`${missingManagers} missing`] : []),
+  ].join(" · ");
   const managerContent = report.managers.length
     ? [renderManagers(report, options.copyText, announcer)]
-    : [element("p", "No manager evidence is available in this report.", "empty-state")];
-  root.append(expandableSection("managers", "Managers", managerSummary, managerContent, false,
-    managersUnavailable || managersMissing ? "section-important" : ""));
+    : [element("p", "No managers are listed.", "empty-state")];
+  root.append(expandableSection(
+    "managers",
+    "Managers",
+    managerSummary,
+    managerContent,
+    Boolean(unavailableManagers || missingManagers),
+    unavailableManagers || missingManagers ? "section-important" : "",
+  ));
 
   const topicGroups = groupTopics(report);
   const topicCount = new Set([
     ...report.committed_topics.map((topic) => topic.topic),
     ...report.non_committed_topics.map((topic) => topic.topic),
   ]).size;
-  const delegationSummary = topicCount
-    ? `${topicGroups.length} configurations across ${topicCount} topics`
-    : "no topic configurations";
+  const topicIssues = new Set(report.rules
+    .filter((rule) => rule.relevant_topic?.length && variantName(rule.status) !== "Pass")
+    .map((rule) => `${rule.rule_id}:${rule.relevant_topic[0]}`)).size;
+  const delegationSummary = [
+    `${topicGroups.length} configuration${topicGroups.length === 1 ? "" : "s"}`,
+    `${topicCount} topic${topicCount === 1 ? "" : "s"}`,
+    ...(topicIssues ? [`${topicIssues} issue${topicIssues === 1 ? "" : "s"}`] : []),
+  ].join(" · ");
   root.append(expandableSection("delegation", "Topic delegation", delegationSummary,
     topicCount ? [renderTopics(report, options.copyText, announcer)] : [
-      element("p", "No topic delegation evidence is present in this report.", "empty-state"),
-    ]));
+      element("p", "No topic configurations are listed.", "empty-state"),
+    ], Boolean(topicIssues), topicIssues ? "section-important" : ""));
 
-  const metadata = [
-    element("p", `Standard: ${report.standard_version}`),
-    element("p", `Pinned source: ${report.source_revision}`),
-    element("p", `Evidence timestamp: ${report.checked_at_timestamp_seconds}`),
-    element("p", `Overall status: ${exactStatus}`),
-  ];
-  if (verificationKind === "Consensus") {
-    metadata.push(
-      element("p", "Neuron data: replicated Dendrite verification"),
-      element("p", "Controller state: replicated Dendrite verification"),
-      element("p", "Evaluation: replicated Dendrite verifier"),
-    );
-  } else {
-    metadata.push(
-      element("p", "Neuron data: replica-signed NNS Governance query"),
-      element("p", provenance?.controllerEvidence?.kind === "certified-system-state"
-        ? "Controller state: IC-certified"
-        : "Controller state: unavailable"),
-      element("p", "Evaluation: browser"),
-    );
-    if (provenance?.controllerEvidence?.kind === "certified-system-state") {
-      metadata.push(
-        element("p", `Controller principal: ${provenance.controllerEvidence.canisterId}`),
-        element("p", `Controller certificate time: ${provenance.controllerEvidence.certificateTime}`),
-        element("p", "Controller state was IC-certified for the controller principal reported by the live Governance query."),
-      );
-    }
-  }
-  const controllerTechnical = controller ? [
-    element("p", `Controller principal: ${controller.principal?.[0] ? principalText(controller.principal[0]) : "Unavailable"}`),
-    element("p", `Controller state: ${controller.call_succeeded ? "Available" : "Unavailable"}`),
-    element("p", `Module hash: ${controller.call_succeeded ? (controller.module_hash?.length ? "Present" : "Absent") : "Unavailable"}`),
-    element("p", `Returned controllers: ${controller.call_succeeded ? (controller.controllers.map(principalText).join(", ") || "None") : "Unavailable"}`),
-  ] : [element("p", "Unavailable")];
-  const technical = document.createElement("section");
-  technical.className = "technical-evidence";
-  technical.append(
-    details("Verification metadata", metadata),
-    details("Raw target evidence", [element("pre", safeJson(target ?? null))]),
-    details("Controller blackhole evidence", [...controllerTechnical, element("pre", safeJson(controller ?? null))]),
-    details("Complete rule table", [horizontalScroll(technicalTable(report))]),
-    details(`Source failures (${report.source_failures.length})`, [element("pre", safeJson(report.source_failures))]),
-    details("Raw report", [element("pre", safeJson(report))]),
+  root.append(renderRules(report, verificationKind, provenance, options.copyText, announcer));
+
+  const metrics = document.createElement("dl");
+  metrics.className = "metrics";
+  const controller = report.controller?.[0];
+  metrics.append(
+    metric("Dissolve delay", formatDuration(optional(target?.dissolve_delay_seconds))),
+    metric("Dissolving state", target?.dissolving?.length ? (target.dissolving[0] ? "Dissolving" : "Locked") : "Unavailable"),
+    metric("Effective stake", formatIcp(optional(target?.effective_stake_e8s))),
+    metric("Hotkeys", target ? String(target.hot_keys.length) : "Unavailable"),
+    metric("not_for_profit", String(optional(target?.not_for_profit))),
+    metric("Voting-power freshness", target?.voting_power_refreshed_timestamp_seconds?.length
+      ? checkedAtUtc(target.voting_power_refreshed_timestamp_seconds[0]) : "Unavailable"),
+    metric("Controller blackhole", controller?.call_succeeded
+      ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed")
+      : "Unavailable"),
   );
-  const evidenceSection = document.createElement("section");
-  evidenceSection.id = "evidence";
-  evidenceSection.className = `technical-section ${report.source_failures.length ? "section-important" : ""}`.trim();
-  evidenceSection.append(element("h2", "Technical evidence"));
-  if (report.source_failures.length) {
-    evidenceSection.append(element("p",
-      `${report.source_failures.length} source failure${report.source_failures.length === 1 ? "" : "s"} recorded`,
-      "source-failure-summary"));
-  }
-  evidenceSection.append(technical);
-  root.append(evidenceSection);
+  root.append(
+    expandableSection("characteristics", "Neuron characteristics", "7 values", [metrics]),
+    rawReportSection(report, options.copyText, announcer),
+  );
 }

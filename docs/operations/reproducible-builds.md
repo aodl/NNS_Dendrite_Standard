@@ -142,7 +142,7 @@ zero material page overflow, no console/page errors, visible text and controls, 
 44-CSS-pixel frequent icon targets.
 
 The gate captured the header/verdict, collapsed rules, simple and multi-topic expanded
-rules, attention filtering, managers, topic delegation, and technical evidence. It
+rules, legacy aggregate-status filtering, managers, topic delegation, and legacy diagnostic disclosures. It
 proved transparent quiet disclosures, one filled preliminary header action, native
 table headings, keyboard and guarded whole-row activation, flat disclosure structure,
 and zero interaction-triggered requests. Every scenario independently observed a
@@ -240,11 +240,11 @@ The exact canonical frontend export passed the qualification mechanism used at t
 time at 1440×1000, a 720×500 viewport with 2× device scale (a high-density reflow
 scenario, not proof of actual browser zoom), and 390×844. It verified
 canonical rule ordering above managers and delegation, keyboard
-rule expansion, attention filtering, preliminary controller uncertainty, route-stable
+rule expansion, legacy aggregate-status filtering, preliminary controller uncertainty, route-stable
 section navigation, every lower disclosure, and post-interaction overflow. The run
 recorded six anonymous Governance query requests, zero Dendrite requests, zero
 interaction-triggered requests, zero update endpoints, zero unexpected destinations,
-and no console or page errors. The Verify action was present and not activated.
+and no console or page errors. A legacy report action was present and not activated.
 
 The guarded anonymous `upgrade` dry-run at commit
 `fd79b3ced63619b8b4477cc2919a8aa8fb7d8e42` verified the candidate binding and every

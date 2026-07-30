@@ -2,22 +2,21 @@
 
 ## Overview
 
-Dendrite is one stateless Rust canister that serves a certified frontend and performs
-anonymous, live NNS Dendrite Standard verification. Ordinary browsing evaluates
-strictly validated public Governance and certified controller evidence in browser
-memory. There is no manual refresh or public consensus-report mode. Its public
-application methods remain only update `check_neuron` and query `http_request`.
+Dendrite is one stateless Rust canister that serves a certified frontend and retains
+anonymous `check_neuron` only for transaction-scoped safety preflights. Ordinary
+browsing loads one public report from strictly validated Governance queries and
+certified controller state in browser memory. There is no manual report action or
+public consensus-report mode. The public canister methods remain update
+`check_neuron` and query `http_request`.
 
-The neuron page is rules-first: a flat identity and trust-state header, overall result,
-and always-visible characteristics lead into a semantic table containing one expandable
-row per distinct Standard rule. Stable requirements are visually separated from
-status-sensitive factual outcome explanations. Rule-family disclosures show distinct
-rule counts and collapse all-pass groups by default; attention-bearing groups remain
-open. Its only rule-toolbar control is `Attention only`.
-Managers and topic delegation are single-level lower disclosures; technical evidence
-uses independent one-level disclosures without an outer accordion. All interaction
-state is memory-only. Certified controller state can produce live pass/fail results;
-invalid, stale, malformed, or unavailable certification remains indeterminate.
+The neuron page names the known neuron, states the direct Standard verdict with its
+complete ID, and then presents Managers, Topic delegation, Standard rules, collapsed
+Neuron characteristics, collapsed Raw report, and collapsed Management. Distinct-rule
+status totals are the only rule filters. Rule-family disclosures show complete
+semantic-colour totals, collapse all-pass groups, and open groups needing attention.
+Raw report copies exactly the displayed public `ComplianceReport` JSON. Internet
+Identity, authority, review, receipts, and transaction controls exist only inside
+Management. All presentation state is memory-only.
 
 Production identifiers and configuration have one authoritative source in
 [deployment](docs/operations/deployment.md). Factual lifecycle evidence is retained in
@@ -26,14 +25,14 @@ the [production record](docs/operations/production-record.md).
 ## Trust model
 
 Dendrite stores no application state, cache, report, transaction history, or proposal
-history. The browser live-analysis loaders have only route-scoped in-memory promise
+history. The browser report loaders have only route-scoped in-memory promise
 caches. The anonymous Governance query agent verifies query signatures; the controller
 reader verifies fresh IC certificates for the exact controller principal returned by
 that query. Neither fetches the root key in production. Internet Identity sessions
 and Governance-only delegations remain in the browser and are never sent to Dendrite.
 Privileged mutations go directly from the browser to fixed NNS Governance and still
 require a fresh authoritative Dendrite preflight. See [security](docs/security.md).
-Live-analysis work is owned by route-generation operations, so navigation and
+Report-loading work is owned by route-generation operations, so navigation and
 transaction settlement cannot publish stale completions or strand a loading state.
 
 ## Production deployment

@@ -1,5 +1,30 @@
 # Aggressive simplification implementation plan
 
+## Final neuron-report information hierarchy
+
+Starting boundary: `e4e3cdbd61eaf71148877858518e0cc2ba3aa5ff`.
+
+- [x] Preserve route-loaded public reports with no Dendrite request, report action
+  toolbar, or public consensus state; retain Retry only after a load failure.
+- [x] Render exact `overall_status` verdict wording and order Managers, Topic
+  delegation, Standard rules, collapsed Neuron characteristics, Raw report, and
+  collapsed Management.
+- [x] Replace the former binary rule control with single-select All, Pass, Fail, and
+  nonzero additional status-count filters using native `aria-pressed` buttons.
+- [x] Keep seven severity-aware rule-group disclosures, complete semantic-colour group
+  totals, deterministic filtering, child-state clearing, and structured diagnostics.
+- [x] Remove the separate diagnostic-evidence section and retain one exact, copyable
+  public `ComplianceReport` JSON disclosure.
+- [x] Isolate Internet Identity, authority, receipts, transaction review, and mutations
+  inside Management while preserving separate fresh `check_neuron` review and final
+  submission preflights.
+- [x] Preserve explicit `get_neuron_info` metadata loading, certified controller state,
+  deterministic `CO.DELTA △` qualification, evaluator parity, and transaction
+  fail-closed behavior.
+- [ ] Run and record the complete frontend, Rust, PocketIC, Chromium, security, SBOM,
+  local/canonical reproducibility, and guarded no-write matrix; leave the candidate
+  undeployed.
+
 ## Standard-rule aggregation and browser qualification
 
 Starting boundary: deployed rules-first record `60793159`.
@@ -28,13 +53,11 @@ Starting boundary: completed trust-state candidate `20c6aff`.
 - [x] Make every `ComplianceReport` rule the primary post-verdict interface in
   canonical Standard order, with reviewed titles/descriptions and an unknown-ID
   fallback.
-- [x] Preserve all five policy states while presenting preliminary controller
-  indeterminacy as `Requires verification`; pair visible status text with
+- [x] Preserve all five policy states and pair visible status text with
   assistive-technology-hidden symbols.
 - [x] Add memory-only filters, accessible rule disclosures, local related-neuron
-  routes/copy controls, exact human evidence, and complete raw technical evidence.
-- [x] Order characteristics, managers, delegation, and technical evidence as
-  expandable sections with evidence-derived summaries and semantic in-page navigation.
+  routes/copy controls, exact human explanations, and complete Raw report JSON.
+- [x] Superseded by the final hierarchy above.
 - [x] Qualify desktop/mobile wrapping, keyboard use, focus, expansion, filtering,
   route stability, zero interaction requests, and zero ordinary Dendrite requests.
 - [x] Regenerate the final candidate and record the complete release,
@@ -86,10 +109,8 @@ preflight, and stateless security model remain unchanged.
   models; make navigation query Governance only, add explicit on-chain verification,
   preserve preliminary evidence across bounded verifier failures, and retain an
   independent authoritative `check_neuron` transaction preflight.
-- [x] Replace the raw table-first page with a severity-first header, textual verification
-  badges, metric cards, attention findings, collapsed passes, manager cards, grouped
-  topics, and collapsed technical evidence using a small accessible responsive design
-  system.
+- [x] Replace the raw table-first page with a structured accessible responsive design;
+  the final hierarchy above supersedes its intermediate presentation.
 - [x] Update only the consolidated architecture, security, testing, README, plan, and
   reproducibility documentation; run every frontend, Rust, PocketIC, interface,
   security, SBOM, documentation, asset, and reproducibility gate.
@@ -324,7 +345,7 @@ Each phase is a hard gate: its focused tests must pass before production work be
 the next phase. `simulate_manage_neuron` is excluded because the pinned implementation
 does not support these outer proposal commands. The sole mutation sequence is fresh
 preflight, exact construction, human review, explicit confirmation, fresh revalidation,
-submission of the exact reviewed object, strict decoding, and a live anonymous recheck.
+submission of the exact reviewed object, strict decoding, and a route-owned public report.
 The popup and controlled transaction smoke procedures remain explicit operator gates
 unless an operator actually runs them; no mainnet mutation is performed here.
 

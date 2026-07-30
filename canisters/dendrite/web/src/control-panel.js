@@ -88,7 +88,7 @@ function reviewNode(pipeline, review, onSettlement, setControlsDisabled = () => 
       await onSettlement(review, { kind: "Success", result });
     } catch (error) {
       root.append(element("p", String(error?.message ?? "Transaction outcome is unknown.").slice(0, 512), "error"));
-      if (pipeline.state === "outcome-unknown") root.append(element("p", "Read-only recovery only: rerun the live Dendrite report, load caller-visible Open proposals, or inspect a proposal ID."));
+      if (pipeline.state === "outcome-unknown") root.append(element("p", "Read-only recovery only: load caller-visible Open proposals or inspect a proposal ID."));
       if (attemptedCurrentReview && pipeline.state !== "ready") {
         const outcome = pipeline.state === "outcome-unknown"
           ? undefined
@@ -103,9 +103,8 @@ function reviewNode(pipeline, review, onSettlement, setControlsDisabled = () => 
   return root;
 }
 
-export function renderControlPanel(root, { report, session, nnsActor, pipeline, onSettlement, onRerun }) {
+export function renderControlPanel(root, { report, session, nnsActor, pipeline, onSettlement }) {
   onSettlement ??= async () => {};
-  onRerun ??= () => {};
   const panel = document.createElement("section"); panel.className = "control-panel";
   panel.append(element("h2", "Manage through NNS Governance"), element("p", "Privileged calls are signed in this browser and sent only to NNS Governance. Dendrite remains anonymous and stores no transaction or proposal history."));
   const output = document.createElement("div");
@@ -118,7 +117,6 @@ export function renderControlPanel(root, { report, session, nnsActor, pipeline, 
       element("p", `Request SHA-256: ${summary.requestDigest}. Browser timestamp (display only): ${new Date(summary.timestampMilliseconds).toISOString()}.`),
       element("p", "The prior operation may have succeeded. Investigate before constructing another request. A full browser reload loses this heap-only coordination marker."),
     );
-    const rerun = element("button", "Rerun current Dendrite report"); rerun.type = "button"; rerun.addEventListener("click", onRerun);
     const proposalId = input("recovery-proposal", "Proposal ID"), inspect = element("button", "Inspect proposal ID"); inspect.type = "button";
     inspect.addEventListener("click", async () => { try {
       const id = parseNeuronId(proposalId.value);
@@ -135,7 +133,7 @@ export function renderControlPanel(root, { report, session, nnsActor, pipeline, 
       pipeline.acknowledgeOutcomeUnknown({ confirmed: confirmation.checked === true });
       await onSettlement();
     } catch (error) { output.replaceChildren(element("p", String(error?.message ?? error).slice(0, 512), "error")); } });
-    warning.append(rerun, proposalId, inspect, label, acknowledge);
+    warning.append(proposalId, inspect, label, acknowledge);
     panel.append(warning);
   }
   const managers = managerSelect(report, session.principal);

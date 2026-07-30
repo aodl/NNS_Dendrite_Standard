@@ -13,6 +13,7 @@
   const principal = (text) => ({ toText: () => text });
   const controller = principal("uuc56-gyb");
   const retained = principal("2vxsx-fae");
+  const compliant = new URLSearchParams(location.search).get("status") === "compliant";
   const entry = (rule_id, status, message, observed = [], expected = []) => ({
     rule_id, status: { [status]: null }, message, observed, expected,
     related_neuron_ids: [], relevant_topic: [],
@@ -21,10 +22,13 @@
     entry("DENDRITE-KNOWN-001", "Pass", "target exists"),
     entry("DENDRITE-CONTROL-001", "Pass", "controller canister state is available",
       ["controller canister uuc56-gyb"], ["controller canister state available"]),
-    entry("DENDRITE-CONTROL-002", "Fail", "controller canister has an installed Wasm module",
-      [`module hash ${"01".repeat(32)}`], ["no installed Wasm module"]),
-    entry("DENDRITE-CONTROL-003", "Fail", "controller canister retains 1 controller",
-      ["1 controller: 2vxsx-fae"], ["no controllers"]),
+    entry("DENDRITE-CONTROL-002", compliant ? "Pass" : "Fail",
+      compliant ? "controller canister has no installed Wasm module" : "controller canister has an installed Wasm module",
+      compliant ? ["no installed Wasm module"] : [`module hash ${"01".repeat(32)}`],
+      ["no installed Wasm module"]),
+    entry("DENDRITE-CONTROL-003", compliant ? "Pass" : "Fail",
+      compliant ? "controller canister has no controllers" : "controller canister retains 1 controller",
+      compliant ? ["no controllers"] : ["1 controller: 2vxsx-fae"], ["no controllers"]),
     entry("DENDRITE-DATA-001", "Pass", "every required lookup reached a terminal factual result"),
   ];
   renderReport(document.querySelector("#app"), {
@@ -38,13 +42,13 @@
     },
     report: {
       neuron_id: 42n,
-      overall_status: { NonCompliant: null },
+      overall_status: { [compliant ? "Compliant" : "NonCompliant"]: null },
       standard_version: "nns-dendrite/1.0-draft",
       source_revision: "d55a0f4d4edfabe49d8fd543aff473084cb741f2",
       checked_at_timestamp_seconds: 1000000n,
       quorum_threshold: [],
       target: [{
-        neuron_id: 42n, known_neuron: [{ name: "Deterministic failure fixture", links: [] }],
+        neuron_id: 42n, known_neuron: [{ name: compliant ? "Deterministic compliant fixture" : "Deterministic failure fixture", links: [] }],
         controller: [controller], hot_keys: [], not_for_profit: [false],
         dissolving: [false], dissolve_delay_seconds: [63115200n],
         effective_stake_e8s: [100000000n],
@@ -54,8 +58,8 @@
       managers: [], committed_topics: [], non_committed_topics: [],
       controller: [{
         principal: [controller], call_succeeded: true,
-        module_hash: [Uint8Array.from({ length: 32 }, () => 1)],
-        controllers: [retained],
+        module_hash: compliant ? [] : [Uint8Array.from({ length: 32 }, () => 1)],
+        controllers: compliant ? [] : [retained],
       }],
       rules,
       source_failures: [],

@@ -2,9 +2,9 @@
 
 ## Threat boundaries
 
-The public report has one live evidence state and never invokes Dendrite. Transaction
+The route-loaded public report never invokes Dendrite. Transaction
 controls rely on fresh transaction-scoped Dendrite review and final preflights; the
-live report itself never authorizes a mutation.
+public report itself never authorizes a mutation.
 Explicit operation ownership also prevents an old success, old failure, or old
 `finally` block from mutating a replacement route or clearing its loading state.
 
@@ -32,8 +32,9 @@ Repeated copy actions use 44-pixel icon targets with complete accessible names a
 transient `aria-live` feedback. Responsive rows wrap status and long titles without page
 overflow, all frequent targets are at least 44 CSS pixels, focus uses a two-pixel
 high-contrast perimeter, and reduced-motion and forced-colour modes are supported.
-Filtering, disclosure, and copy interaction issue no network request and persist no
-preference.
+Status filtering, disclosure, Raw report copying, and opening or closing Management
+issue no network request and persist no preference. Authentication, authority, receipts,
+and mutation controls are contained inside collapsed Management.
 Rule-group disclosures use the same native-button semantics, expose complete status
 counts in their accessible names, retain focus while closing, and remove hidden child
 controls from navigation. Controller diagnostics construct one exact Dashboard URL
@@ -41,14 +42,14 @@ from the structured target-controller principal through the reviewed HTTPS-link 
 the visible link never initiates a fetch or preflight. Retained controller and hotkey
 principals remain copyable text and are not assumed to identify canisters.
 
-Live analysis adds separate anonymous read boundaries. Its generated actor
+Public report loading adds separate anonymous read boundaries. Its generated actor
 exposes only `list_neurons` and explicit-ID `get_neuron_info`, fixes Governance as the destination, explicitly requests
 only public full neurons for bounded IDs, and verifies query signatures. Every response
 batch is rejected atomically for unexpected/duplicate IDs, invalid paging, duplicate
 topic keys, collection or string bound violations, invalid topic variants, contradictory
 stake arithmetic, or inconsistent target timestamps. The in-memory promise cache is
-route-scoped, never uses browser storage, and evicts failed entries. Because browsers
-does not call management-canister `canister_info`. It performs only `read_state` for
+route-scoped, never uses browser storage, and evicts failed entries. The browser does
+not call management-canister `canister_info`; it performs only `read_state` for
 the exact controller returned by validated Governance evidence. Controller rules can
 pass or fail only after signature, freshness, effective-ID, delegation/range, exact
 CBOR, controller bound, principal length, and module-hash status validation. Failure is
@@ -60,8 +61,8 @@ canister. Every mutation requires fresh authority evidence, an immutable exact r
 explicit confirmation, strict response validation, and no automatic retry. Ambiguous
 outcomes block another mutation until acknowledged; this coordination and the single
 current receipt are bounded, heap-only, and lost on reload.
-Crossing the NNS update boundary with no conclusive response immediately marks the
-removes mutation controls. Live evidence stays visible. A later transaction-scoped
+Crossing the NNS update boundary with no conclusive response immediately removes
+mutation controls. The public report stays visible. A later transaction-scoped
 `check_neuron` does not clear the unresolved-outcome lock; acknowledgement
 clears only that lock and never fabricates a verification. Known Governance rejection
 and final-preflight failure remain non-ambiguous and do not take this path.
@@ -69,12 +70,12 @@ and final-preflight failure remain non-ambiguous and do not take this path.
 The transaction pipeline performs a Dendrite `check_neuron` update when preparing an
 exact review and performs a new one immediately before mutation.
 `LowCycles`, rate limiting, concurrency, duplicate-in-flight, transport, or decode
-failure affects only management state; live evidence remains visible and no NNS
+failure affects only Management; the public verdict remains unchanged and no NNS
 mutation is sent after a failed final preflight. Successful mutation triggers a new
-route-owned live analysis and discards the transaction-scoped preflight result.
+route-owned public report and discards the transaction-scoped preflight result.
 
 Replicated controller blackholing is proven only by successful `canister_info`, no Wasm,
-and no controllers. Browser live analysis requires certified empty controllers and
+and no controllers. The browser report requires certified empty controllers and
 certified module-hash absence. The neuron-to-controller relationship is replica-signed
 Governance query evidence, not certified system-state evidence. A failed lookup is
 indeterminate. Dendrite's own controller can replace

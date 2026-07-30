@@ -86,6 +86,7 @@ export function createApplication({
   let preliminaryOperation;
   let currentTransactionReceipt;
   let currentTransactionNotices;
+  let managementExpanded = false;
 
   const newOperation = (kind, neuronId, generation) => Object.freeze({
     kind,
@@ -135,7 +136,7 @@ export function createApplication({
             element("p", "Proposal creation is not adoption or execution. Dendrite does not poll for either."),
           );
         }
-        known.append(element("p", "The public live report refreshes automatically; any later management action still requires fresh transaction preflights."));
+        known.append(element("p", "Any later management action requires new transaction preflights."));
       } else if (receipt.kind === "GovernanceRejection") {
         known.append(
           element("p", `Request SHA-256: ${boundedReceiptField(receipt.requestDigest, 64)}.`),
@@ -167,11 +168,6 @@ export function createApplication({
       );
     }
     return notices;
-  }
-
-  function appendTransactionNotices() {
-    currentTransactionNotices = transactionNotices();
-    root.append(currentTransactionNotices);
   }
 
   function refreshTransactionNotices() {
@@ -310,6 +306,7 @@ export function createApplication({
         authenticatedSession = undefined;
         authenticatedNnsActor = undefined;
         recoverableAuthenticationError = undefined;
+        managementExpanded = false;
       } catch (error) {
         recoverableAuthenticationError = boundedAuthenticationError(
           error,
@@ -324,26 +321,60 @@ export function createApplication({
     return panel;
   }
 
-  function appendReportActions(id) {
-    appendTransactionNotices();
-    root.append(authenticationPanel());
-    if (authenticatedPrincipal && currentPreliminaryReport
+  function managementSection(report) {
+    const section = document.createElement("section");
+    section.id = "management";
+    section.className = "major-section management-section";
+    const region = document.createElement("div");
+    region.id = `management-content-${routeGeneration}`;
+    region.className = "section-content management-content";
+    currentTransactionNotices = transactionNotices();
+    region.append(currentTransactionNotices, authenticationPanel());
+    if (authenticatedPrincipal && report
       && transactionPipeline.state !== "outcome-unknown") {
-      renderManagerAuthority(root, currentPreliminaryReport, authenticatedPrincipal);
-      if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(root, {
-        report: currentPreliminaryReport,
+      renderManagerAuthority(region, report, authenticatedPrincipal);
+      if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(region, {
+        report,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
         pipeline: transactionPipeline,
         onSettlement: settleTransaction,
       });
     }
-    if (trustInjectedPreliminaryForTests) {
-      const legacyAgain = element("button", "Check again");
-      legacyAgain.addEventListener("click", () => loadNeuron(id));
-      root.append(legacyAgain);
-    }
-    root.append(resources());
+    const requiresAttention = Boolean(
+      currentTransactionReceipt
+      || recoverableAuthenticationError
+      || authenticationTransition !== "none"
+      || ["preparing", "ready", "in-flight", "outcome-unknown"].includes(transactionPipeline.state),
+    );
+    const expanded = managementExpanded || requiresAttention;
+    managementExpanded = expanded;
+    const heading = document.createElement("h2");
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "button-disclosure section-toggle management-toggle";
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-controls", region.id);
+    toggle.append(
+      element("span", "Management", "section-title"),
+      element("span", authenticatedPrincipal ? "Signed in" : "Signed out", "section-summary"),
+      element("span", "", "chevron"),
+    );
+    toggle.children[2].setAttribute("aria-hidden", "true");
+    region.hidden = !expanded;
+    toggle.addEventListener("click", () => {
+      const open = (toggle.getAttribute?.("aria-expanded") ?? toggle.attributes?.["aria-expanded"]) === "true";
+      managementExpanded = !open;
+      toggle.setAttribute("aria-expanded", String(!open));
+      region.hidden = open;
+    });
+    heading.append(toggle);
+    section.append(heading, region);
+    return section;
+  }
+
+  function appendManagement(report) {
+    root.append(managementSection(report));
   }
 
   function renderCurrent() {
@@ -355,7 +386,8 @@ export function createApplication({
         report: currentPreliminaryReport,
         provenance: currentPreliminaryProvenance,
       }, { copyText });
-      appendReportActions(id);
+      appendManagement(currentPreliminaryReport);
+      root.append(resources());
     } else if (!match) {
       renderLanding();
     }
@@ -366,9 +398,8 @@ export function createApplication({
     clear(root);
     root.append(
       element("h1", "Dendrite"),
-      element("p", "View one live analysis from replica-signed Governance data and IC-certified controller state."),
+      element("p", "Check an NNS neuron against the NNS Dendrite Standard."),
     );
-    if (trustInjectedPreliminaryForTests) root.append(element("p", "Run a live consensus-backed verification."));
     const form = document.createElement("form");
     const label = element("label", "NNS neuron ID ");
     const input = document.createElement("input");
@@ -389,12 +420,9 @@ export function createApplication({
       }
     });
     root.append(
-      authenticationPanel(),
-    );
-    appendTransactionNotices();
-    root.append(
       form,
       element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."),
+      managementSection(),
       resources(),
     );
   }
@@ -421,8 +449,8 @@ export function createApplication({
     preliminaryError = undefined;
     clear(root);
     root.setAttribute("aria-busy", "true");
-    root.append(element("h1", `Neuron ${id}`), element("div", trustInjectedPreliminaryForTests ? "Running live verification… Loading public NNS evidence…" : "Loading public NNS evidence…", "status"));
-    appendTransactionNotices();
+    root.append(element("h1", `Neuron ${id}`), element("div", `Checking neuron ${id}…`, "status"));
+    appendManagement();
     try {
       if (trustInjectedPreliminaryForTests) preliminaryAnalyzer ??= preliminaryAnalyzerFactory();
       const analyzed = await (trustInjectedPreliminaryForTests
@@ -446,8 +474,8 @@ export function createApplication({
       clear(root);
       root.append(element("h1", `Neuron ${id}`));
       showError(root, preliminaryError);
-      appendTransactionNotices();
-      const retry = element("button", trustInjectedPreliminaryForTests ? "Check again" : "Retry preliminary analysis");
+      appendManagement();
+      const retry = element("button", "Retry");
       retry.addEventListener("click", () => loadNeuron(id));
       root.append(retry, resources());
     } finally {

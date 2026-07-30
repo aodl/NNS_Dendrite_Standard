@@ -70,6 +70,21 @@ test("production frontend manifest names existing generated assets", () => {
   }
 });
 
+test("removed public report actions and modes are absent from source and production assets", () => {
+  const forbidden = /Refresh live analysis|Verify on-chain|Consensus verified|Consensus unavailable|Verification stale|Live analysis|Attention only|Technical evidence|Check again|Rerun current Dendrite report|report-action-toolbar|report-actions/;
+  const sources = readdirSync("canisters/dendrite/web/src", { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".js"))
+    .map((entry) => join("canisters/dendrite/web/src", entry.name));
+  const manifest = JSON.parse(readFileSync("canisters/dendrite/public/asset-manifest.json"));
+  const assets = [
+    join("canisters/dendrite/public", manifest["app.js"]),
+    join("canisters/dendrite/public", manifest["styles.css"]),
+  ];
+  for (const file of [...sources, ...assets]) {
+    assert.doesNotMatch(readFileSync(file, "utf8"), forbidden, file);
+  }
+});
+
 test("frontend documentation URLs resolve to retained documents", () => {
   const source = readFileSync("canisters/dendrite/web/src/app.js", "utf8");
   const manifest = JSON.parse(readFileSync("canisters/dendrite/public/asset-manifest.json"));
