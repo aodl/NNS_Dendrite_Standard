@@ -84,6 +84,9 @@ dependency isolation, interface and declaration drift, transaction-IDL equality,
 audit, and SBOM generation passed with the existing documented exceptions.
 `check_neuron` remains confined to separate fresh transaction-review and final-
 submission preflights. No lifecycle write or NNS mutation was performed.
+The guarded anonymous upgrade dry-run verified every release checksum and the
+candidate binding, observed the deployed predecessor hash, printed the exact intended
+upgrade command, and exited with `dry-run complete; no write performed`.
 
 ## Final neuron-report hierarchy candidate — 2026-07-30
 

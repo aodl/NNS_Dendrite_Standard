@@ -16,7 +16,7 @@ Starting boundary: `84bb21d4a0fe7c583cdcc69639a7f5e63a457618`.
   `not_for_profit = false`.
 - [x] Start every normal report disclosure collapsed; filters never expand groups.
 - [x] Right-align section summaries and rule-group counts.
-- [ ] Regenerate the candidate assets and complete all release, reproducibility,
+- [x] Regenerate the candidate assets and complete all release, reproducibility,
   Chromium, scan, SBOM, and guarded no-write gates without deployment.
 
 ## Final neuron-report information hierarchy
