@@ -221,7 +221,7 @@ try {
     if (copy) await copy.click();
     const initialGroupCount = await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length);
     assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
-    await page.click(".rule-filter-pass");
+    await page.$eval(".rule-filter-pass", (node) => node.click());
     assert.equal(await page.$eval(".rule-filter-pass", (node) => node.getAttribute("aria-pressed")), "true");
     assert(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length) > 0);
     assert.equal(await page.$$eval(".rule-summary-row[hidden], .rule-detail-row[hidden]", (rows) =>
@@ -236,9 +236,9 @@ try {
     })));
     assert(filteredGroups.every((group) => group.hidden || group.visibleRows > 0),
       `an empty filtered group heading remained visible: ${JSON.stringify(filteredGroups)}`);
-    await page.click(".rule-filter-fail");
+    await page.$eval(".rule-filter-fail", (node) => node.click());
     assert.equal(await page.$eval(".rule-filter-fail", (node) => node.getAttribute("aria-pressed")), "true");
-    await page.click(".rule-filter-all");
+    await page.$eval(".rule-filter-all", (node) => node.click());
     assert.equal(await page.$eval(".rule-filter-all", (node) => node.getAttribute("aria-pressed")), "true");
     assert.equal(await page.$$eval(".rule-group:not([hidden])", (nodes) => nodes.length), initialGroupCount);
     const preliminaryControllers = await page.$$eval(".rule-summary-row", (nodes) => nodes
@@ -263,9 +263,9 @@ try {
     assert.equal(await page.$eval("#raw-report .section-toggle", (node) => node.getAttribute("aria-expanded")), "true");
     await page.click('[aria-label="Copy raw report JSON"]');
     assert.equal(await page.$eval("#management .section-toggle", (node) => node.getAttribute("aria-expanded")), "false");
-    await page.click("#management .section-toggle");
+    await page.$eval("#management .section-toggle", (node) => node.click());
     assert.equal(await page.$eval("#management .section-toggle", (node) => node.getAttribute("aria-expanded")), "true");
-    await page.click("#management .section-toggle");
+    await page.$eval("#management .section-toggle", (node) => node.click());
     assert.equal(page.url(), routeBeforeNavigation, "presentation interactions changed the neuron route");
     if (scenario.name === "desktop") {
       await page.evaluate(() => {
@@ -287,9 +287,9 @@ try {
           await page.click(`${defaultSelector} .rule-toggle`);
           await page.evaluate((selector) => document.querySelector(selector).scrollIntoView(), defaultSelector);
         }],
-        ["pass-filter", async () => page.click(".rule-filter-pass")],
-        ["fail-filter", async () => page.click(".rule-filter-fail")],
-        ["all-filter", async () => page.click(".rule-filter-all")],
+        ["pass-filter", async () => page.$eval(".rule-filter-pass", (node) => node.click())],
+        ["fail-filter", async () => page.$eval(".rule-filter-fail", (node) => node.click())],
+        ["all-filter", async () => page.$eval(".rule-filter-all", (node) => node.click())],
         ["managers-expanded", async () => {
           await page.$eval("#managers .section-toggle", (node) => {
             if (node.getAttribute("aria-expanded") === "false") node.click();
@@ -493,10 +493,10 @@ try {
   assert.equal(await page.$eval('.rule-summary-row[data-rule-id="DENDRITE-CONTROL-002"] .rule-toggle',
     (node) => node.getAttribute("aria-expanded")), "false");
   assert.equal(failureRequests.length, 0, "failure-fixture disclosures triggered a network request");
-  await page.click(".rule-filter-fail");
+  await page.$eval(".rule-filter-fail", (node) => node.click());
   assert.equal(await page.$$eval(".rule-summary-row:not([hidden])", (nodes) => nodes.length), 2);
-  await page.click(".rule-filter-all");
-  await page.click("#raw-report .section-toggle");
+  await page.$eval(".rule-filter-all", (node) => node.click());
+  await page.$eval("#raw-report .section-toggle", (node) => node.click());
   await page.click('[aria-label="Copy raw report JSON"]');
   assert.equal(failureRequests.length, 0, "failure-fixture filters or Raw report triggered a request");
   await page.screenshot({ path: join(evidenceDirectory, "deterministic-controller-failures.png"), fullPage: true });

@@ -174,7 +174,14 @@ function metric(label, value, hint, className = "") {
   return node;
 }
 function safeJson(value) {
-  return JSON.stringify(value, (_key, item) => typeof item === "bigint" ? item.toString() : typeof item?.toText === "function" ? item.toText() : item, 2);
+  return JSON.stringify(value, (_key, item) => {
+    if (typeof item === "bigint") return item.toString();
+    if (typeof item?.toText === "function") return item.toText();
+    if (typeof item?.__principal__ === "string" && Object.keys(item).length === 1) {
+      return item.__principal__;
+    }
+    return item;
+  }, 2);
 }
 // Presentation aggregation follows the Standard's deterministic severity order.
 // It never changes the underlying report entries or evaluator semantics.
