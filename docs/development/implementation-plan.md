@@ -21,7 +21,7 @@ Starting boundary: `e4e3cdbd61eaf71148877858518e0cc2ba3aa5ff`.
 - [x] Preserve explicit `get_neuron_info` metadata loading, certified controller state,
   deterministic `CO.DELTA △` qualification, evaluator parity, and transaction
   fail-closed behavior.
-- [ ] Run and record the complete frontend, Rust, PocketIC, Chromium, security, SBOM,
+- [x] Run and record the complete frontend, Rust, PocketIC, Chromium, security, SBOM,
   local/canonical reproducibility, and guarded no-write matrix; leave the candidate
   undeployed.
 

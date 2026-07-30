@@ -44,7 +44,7 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   const yaml = readFileSync("icp.yaml", "utf8");
   assert.match(yaml, /type: "@dfinity\/prebuilt@v2\.0\.0"/);
   assert.match(yaml, /path: dist\/release\/dendrite\.wasm/);
-  assert.match(yaml, /sha256: 26693c14ea44bf6b67216f5527671ad1290a628b5f44b0581a411e3bd7c9cee3/);
+  assert.match(yaml, /sha256: 72d10ba0de7b414f20de1c38fa68a120ad5a98ee0c41aa8d6f0229807a344dcf/);
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 

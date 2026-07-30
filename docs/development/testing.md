@@ -87,11 +87,14 @@ Dendrite. Existing transaction tests continue
 to prove that final preflight independently invokes `check_neuron` and a failed
 preflight sends no Governance mutation.
 
-The 2026-07-29 candidate ran 153 frontend tests and 56 Rust unit tests plus 3 PocketIC
-scenarios. Workspace Rust line coverage was 91.71% and rule-engine line coverage was
-99.22%; frontend coverage was 96.41% lines, 87.02% branches, and 92.72% functions.
-All 38 Rust/browser policy fixtures matched exactly. The executed Chromium evidence is
-bounded non-release output under `dist/browser-qualification`.
+The 2026-07-30 final-hierarchy candidate ran 155 frontend tests and 57 Rust unit tests
+plus 3 PocketIC scenarios. Workspace Rust line coverage was 89.58% and rule-engine
+line coverage was 98.23%; frontend coverage was 95.50% lines, 86.69% branches, and
+92.89% functions. All 38 Rust/browser policy fixtures matched exactly. Chrome
+144.0.7559.96 passed all five layouts with 20 anonymous Governance query requests,
+the required signature/controller `read_state` traffic, and zero Dendrite, `/call`, or
+interaction-triggered requests. The executed Chromium evidence is bounded non-release
+output under `dist/browser-qualification`.
 
 ### Troubleshooting
 

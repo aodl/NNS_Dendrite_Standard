@@ -31,6 +31,66 @@ useful diagnostics, not the canonical public container artifact.
 The canonical comparison performs two clean no-cache Docker builds into separate temporary directories and
 fails on any missing, extra, or different file or manifest.
 
+## Final neuron-report hierarchy candidate — 2026-07-30
+
+This candidate is not deployed. It renders one route-loaded public report in the order
+identity, direct compliance verdict, Managers, Topic delegation, Standard rules,
+collapsed Neuron characteristics, collapsed Raw report, and collapsed Management.
+Standard-rule totals are the only report filters. The former report actions, public
+consensus state, binary attention control, and separate diagnostic-evidence section are
+absent. `check_neuron` remains available only for separate fresh transaction-review
+and final-submission preflights inside Management.
+
+The deterministic `33138099823745946` fixture continues to prove that omission from
+`list_neurons` is not absence: explicit `get_neuron_info` metadata supplies
+`CO.DELTA △` and committed topics, the known-neuron rule passes, and no unrelated
+metadata ID is requested. Certified controller reads, strict validation, Rust/browser
+parity, and transaction fail-closed behavior remain intact.
+
+Two clean local builds were byte-identical. Two forced-clean `--no-cache`
+`linux/amd64` exports made with Docker Engine 28.0.1, Buildx 0.21.1, and BuildKit
+0.31.2 had identical file sets, byte-identical files, and identical deterministic
+`SHA256SUMS`.
+
+- Canonical raw Wasm SHA-256:
+  `72d10ba0de7b414f20de1c38fa68a120ad5a98ee0c41aa8d6f0229807a344dcf`
+- Same-toolchain local raw Wasm SHA-256:
+  `b86a767146a7e11a833ff00d27d557ed9f4c207f5bbb21001e016436caefb00a`
+- Frontend tree SHA-256:
+  `aebb724ee3de98e0f91986eeb486716b8502fd0155def8c4bf3f3a23424cb830`
+- Asset manifest SHA-256:
+  `56e8af977167dd421dcf5723564534b11a241253b060e65491a2e33f89b10011`
+- Build configuration SHA-256:
+  `ff7d399c7f3ff4baaa79904bc76e5edcd7d1c502c0eab4e5b684da444f79121d`
+- `SHA256SUMS` SHA-256:
+  `bcfec220624f3fa78e1ae7cb687a7b13fd27bea48b0b833ba0229f60846df247`
+- SBOM checksum manifest SHA-256:
+  `bf2d07cd5dad732264baf3493d0364e82929d7347a6d8e5d7165b4801d4711b6`
+- Chromium evidence tree SHA-256:
+  `ce644e3a33278f896186feb0a2540fe39f208e212e0b3aaf9620d518f9bf3646`
+
+The generated frontend assets are
+`generated/app.b963c5dc6bbff132.js` and
+`generated/styles.56fc7339981b5436.css`. Chrome 144.0.7559.96 qualified desktop,
+actual 200% page scale, 200%-equivalent reflow, mobile, and 320-pixel narrow reflow.
+Computed pass and fail colours were respectively `rgb(19, 121, 91)` and
+`rgb(180, 35, 24)` for global filters and group counts; the compliant and
+non-compliant verdicts matched the corresponding token. All scenarios had zero
+material overflow, console errors, or page errors. Report interactions made zero
+requests; ordinary browsing made 20 anonymous Governance query requests, exact
+signature/controller reads, zero Dendrite requests, and zero `/call` requests.
+
+The release matrix passed 155 frontend tests, 57 Rust unit tests, 3 PocketIC
+scenarios, and all 38 Rust/browser parity fixtures. Rust workspace line coverage was
+89.58%, rule-engine line coverage was 98.23%, and frontend coverage was 95.50% lines,
+86.69% branches, and 92.89% functions. Security scanning, production dependency
+isolation, interface/declaration/transaction-IDL drift, npm audit, and CycloneDX SBOM
+generation passed with the existing documented exceptions. The guarded anonymous
+upgrade dry-run verified the exact candidate and printed the intended lifecycle
+command without performing it. Internet Identity and controlled-transaction operator
+gates remain unrun. No mainnet upgrade, lifecycle write, controller change, cycle
+operation, authentication gate, or NNS mutation occurred.
+
 ## Known-metadata and single-live-report candidate — 2026-07-29
 
 This candidate is not deployed. Ordinary reports have one route-loaded live state and
