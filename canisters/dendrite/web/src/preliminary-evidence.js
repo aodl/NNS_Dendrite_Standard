@@ -1,8 +1,9 @@
 export const ALPHA_VOTE_NEURON_ID = 2_947_465_672_511_369n;
+export const OMEGA_VOTE_NEURON_ID = 18_363_645_821_499_695_760n;
 export const OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264n;
 export const SOURCE_REVISION = "d55a0f4d4edfabe49d8fd543aff473084cb741f2";
 export const RECOGNISED_TOPICS = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18]);
-export const MAX_DEPENDENCY_NEURONS = RECOGNISED_TOPICS.length * 15;
+export const MAX_DEPENDENCY_NEURONS = 64 * 15;
 export const MAX_METADATA_TIMESTAMP_SKEW_SECONDS = 300n;
 export const MAX_METADATA_CONCURRENCY = 8;
 
@@ -18,26 +19,6 @@ const LIMITS = Object.freeze({
   knownLinks: 10,
   knownLinkBytes: 100,
   sourceFailures: 32,
-});
-const TOPIC_CODES = Object.freeze({
-  CatchAll: 0,
-  NeuronManagement: 1,
-  ExchangeRate: 2,
-  NetworkEconomics: 3,
-  Governance: 4,
-  NodeAdmin: 5,
-  ParticipantManagement: 6,
-  SubnetManagement: 7,
-  ApplicationCanisterManagement: 8,
-  Kyc: 9,
-  NodeProviderRewards: 10,
-  IcOsVersionDeployment: 12,
-  IcOsVersionElection: 13,
-  SnsAndCommunityFund: 14,
-  ApiBoundaryNodeManagement: 15,
-  SubnetRental: 16,
-  ProtocolCanisterManagement: 17,
-  ServiceNervousSystemManagement: 18,
 });
 const encoder = new TextEncoder();
 const opt = (value) => Array.isArray(value) && value.length === 1 ? value[0] : undefined;
@@ -94,14 +75,7 @@ function boundedUtf8(value, maximum, label) {
   return value;
 }
 
-function topicCode(value) {
-  if (!value || typeof value !== "object") return undefined;
-  const names = Object.keys(value);
-  if (names.length !== 1 || !(names[0] in TOPIC_CODES)) return undefined;
-  return TOPIC_CODES[names[0]];
-}
-
-function normalizeKnownData(value, id, interpretCommittedTopics) {
+function normalizeKnownData(value, id, _interpretCommittedTopics) {
   const data = opt(value);
   if (!data) return { knownData: undefined, committedTopics: [], unknownCommittedTopics: 0 };
   const name = boundedUtf8(data.name, LIMITS.knownNameBytes, "known-neuron name");
@@ -112,19 +86,10 @@ function normalizeKnownData(value, id, interpretCommittedTopics) {
   for (const link of links) boundedUtf8(link, LIMITS.knownLinkBytes, "known-neuron link");
   const rawTopics = opt(data.committed_topics) ?? [];
   if (rawTopics.length > LIMITS.committedTopics) throw new PreliminaryEvidenceError("InvalidResponse", "committed topics exceed their pinned bound");
-  const committedTopics = [];
-  let unknownCommittedTopics = 0;
-  if (interpretCommittedTopics) {
-    for (const entry of rawTopics) {
-      const code = topicCode(opt(entry));
-      if (code === undefined) unknownCommittedTopics += 1;
-      else committedTopics.push(code);
-    }
-  }
   return {
     knownData: { id, name, description, links: [...links] },
-    committedTopics,
-    unknownCommittedTopics,
+    committedTopics: [],
+    unknownCommittedTopics: 0,
   };
 }
 
@@ -384,8 +349,7 @@ export function createNeuronLoader({ listNeurons, getNeuronInfo }) {
 
 export function deriveDependencyIds(target) {
   const ids = [];
-  ids.push(...(target.followees.get(1) ?? []));
-  for (const topic of target.committedTopics) ids.push(...(target.followees.get(topic) ?? []));
+  for (const followees of target.followees.values()) ids.push(...followees);
   const unique = [...new Map(ids.map((id) => [idKey(id), id])).values()].sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   if (unique.length > MAX_DEPENDENCY_NEURONS) {
     throw new PreliminaryEvidenceError("InvalidResponse", "dependency graph exceeds the pinned hard bound", unique);

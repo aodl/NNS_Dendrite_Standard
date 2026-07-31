@@ -37,13 +37,13 @@ This candidate is not deployed. It advances the catalogue to
 `nns-dendrite/1.1-draft` and exposes only 25 substantive rules in six explicit
 groups. The three former report-integrity entries and the reference-neuron metadata
 check are internal invariants rather than scored neuron rules. The compliant fixture
-contains 39 policy evaluations. Alpha-vote and omega-reject are fetched only when
-configured as a manager or committed delegate, reducing the derived dependency bound
-to 270.
+contains 38 policy evaluations. Default-reference neurons are fetched only when
+configured as any explicit followee, providing live known-neuron names while retaining the derived dependency bound
+to the conservative 960-neuron wire-derived bound.
 
-Every normal report disclosure starts collapsed, including Managers, Topic
-delegation, all rule groups and rows, Neuron characteristics, Raw report, and idle
-Management. Status filtering never expands a group. Section summaries and group
+Every normal report disclosure starts collapsed, including Team Members, Topic
+delegation, and all rule groups and rows. Header characteristics, Raw Report copying,
+and navbar authentication are directly available. Status filtering never expands a group. Section summaries and group
 counts are right aligned. Proposal-based dissolution is described through the
 security consequence of `not_for_profit = false`.
 
@@ -90,9 +90,9 @@ upgrade command, and exited with `dry-run complete; no write performed`.
 
 ## Final neuron-report hierarchy candidate — 2026-07-30
 
-This candidate is not deployed. It renders one route-loaded public report in the order
-identity, direct compliance verdict, Managers, Topic delegation, Standard rules,
-collapsed Neuron characteristics, collapsed Raw report, and collapsed Management.
+This candidate renders one route-loaded public report with a branded authentication
+navbar; identity, direct compliance verdict, header characteristics and copy-only Raw
+Report control; optional account workspace; Team Members; Topic delegation; and Standard rules.
 Standard-rule totals are the only report filters. The former report actions, public
 consensus state, binary attention control, and separate diagnostic-evidence section are
 absent. `check_neuron` remains available only for separate fresh transaction-review

@@ -3,7 +3,7 @@ import { IDL } from "@icp-sdk/core/candid";
 import { idlFactory as nnsIdlFactory } from "../../../../src/declarations/nns-governance/nns-governance.did.js";
 import { classifyManagerAuthority } from "./authority.js";
 import { parseNeuronId } from "./ids.js";
-import { ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID } from "./ids.js";
+import { ALPHA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID, OMEGA_VOTE_NEURON_ID } from "./ids.js";
 import { TOPIC_LABELS } from "./compliance-view.js";
 
 export const PROPOSAL_TITLE = "Dendrite neuron management request";
@@ -127,7 +127,12 @@ export function buildPrimaryFollowCommand(report, topic, selectedIds = [], known
     return buildFollowCommand(topic, ids, 3);
   }
   if (!TOPIC_LABELS.has(topic) || topic === 11) throw new Error("Unknown or reserved topic; Dendrite interface update required.");
-  return buildFollowCommand(topic, [ALPHA_VOTE_NEURON_ID], 1);
+  const ids = selectedIds.length === 0 ? [BigInt(ALPHA_VOTE_NEURON_ID)] : distinctNeuronIds(selectedIds, 1);
+  const approved = [ALPHA_VOTE_NEURON_ID, OMEGA_VOTE_NEURON_ID, OMEGA_REJECT_NEURON_ID].map(BigInt);
+  if (ids.length !== 1 || !approved.includes(ids[0])) {
+    throw new Error("Uncommitted topics must follow alpha-vote, omega-vote, or omega-reject exactly.");
+  }
+  return buildFollowCommand(topic, ids, 1);
 }
 
 export const buildRefreshVotingPowerCommand = () => deepFreeze({ RefreshVotingPower: {} });

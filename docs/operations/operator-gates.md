@@ -1,6 +1,6 @@
 # Operator gates
 
-Both gates are independent and **UNRUN**. Automated tests do not satisfy them.
+All three gates are independent and **UNRUN**. Automated tests do not satisfy them.
 Certified controller evidence in live browser analysis does not satisfy either gate and
 does not enable management controls; a current replicated Dendrite verification and
 final transaction preflight remain mandatory.
@@ -80,3 +80,35 @@ not blocking, or any private material entering evidence.
 - Date: **UNRUN**
 - Git commit: **UNRUN**
 - Installed module hash: **UNRUN**
+
+## Gate 3 — Irreversible Dendrite blackhole
+
+**Purpose:** remove Dendrite upgrade authority only after development and qualification
+are permanently complete.
+
+**Prerequisites / exact environment:** Gates 1 and 2 passed; every mandatory automated,
+coverage, security, SBOM, and reproducibility flow passed for the exact installed
+module; production identifiers and identity origins are final; cycles are adequate;
+the installed module hash equals the published reproducible artifact; and an
+independent recovery/defect review accepts that no future repair will be possible.
+
+1. Publish the reviewed commit, artifact hashes, installed module hash, complete gate
+   evidence, controller-removal command, and rollback impossibility.
+2. Recheck certified frontend behavior, anonymous verification, browser-to-NNS
+   transaction boundaries, cycle balance, and current controller list.
+3. Obtain explicit multi-party approval for the exact canister ID and empty-controller
+   result.
+4. Remove every Dendrite controller in one reviewed management-canister operation.
+5. Read certified canister state independently and record an empty controller list,
+   unchanged module hash, and running status.
+
+**Abort:** any hash/configuration mismatch, incomplete gate, unresolved defect,
+insufficient cycles, unexpected controller, wrong canister ID, or inability to publish
+complete evidence.
+
+- Pass/fail: **UNRUN**
+- Operators/approvers: **UNRUN**
+- Date: **UNRUN**
+- Git commit: **UNRUN**
+- Installed module hash: **UNRUN**
+- Post-blackhole controller evidence: **UNRUN**

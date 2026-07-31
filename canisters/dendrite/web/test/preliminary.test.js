@@ -161,7 +161,7 @@ test("loader caches pending reads, batches sorted dependencies, and retries fail
   assert.equal(loader.cache.size, 0);
 });
 
-test("dependency planning requests only configured managers and committed delegates", () => {
+test("dependency planning requests every configured followee for live names and rules", () => {
   const target = {
     committedTopics: [4],
     followees: new Map([
@@ -170,8 +170,8 @@ test("dependency planning requests only configured managers and committed delega
       [4, [100n, 101n, 102n]],
     ]),
   };
-  assert.deepEqual(deriveDependencyIds(target), [100n, 101n, 102n, 103n, 104n]);
-  assert(!deriveDependencyIds(target).includes(ALPHA_VOTE_NEURON_ID));
+  assert.deepEqual(deriveDependencyIds(target), [100n, 101n, 102n, 103n, 104n, ALPHA_VOTE_NEURON_ID]);
+  assert(deriveDependencyIds(target).includes(ALPHA_VOTE_NEURON_ID));
   assert(!deriveDependencyIds(target).includes(OMEGA_REJECT_NEURON_ID));
 });
 
@@ -308,7 +308,7 @@ test("CO.DELTA metadata is merged only from explicit get_neuron_info", async () 
   });
   const evidence = await collectPreliminaryEvidence(id, loader);
   assert.equal(evidence.target.neuron.knownData.name, "CO.DELTA △");
-  assert.deepEqual(evidence.target.neuron.committedTopics, [4]);
+  assert.deepEqual(evidence.target.neuron.committedTopics, []);
   assert.deepEqual(metadataCalls, [id]);
   const knownRule = evaluatePreliminary(id, evidence).rules
     .find((rule) => rule.rule_id === "DENDRITE-KNOWN-002");
@@ -554,15 +554,10 @@ test("public route renders one live state without report actions or Dendrite rea
     });
     await app.start();
     const rendered = JSON.stringify(root);
-    assert.match(rendered, /could not be determined for neuron 42/);
+    assert.match(rendered, /Indeterminate/);
     assert.doesNotMatch(rendered, /Live analysis|Refresh live analysis|Verify on-chain|Consensus verified|Verification stale/);
-    const management = findNode(root, (node) => node.className?.includes?.("management-toggle"));
-    assert.equal(management.attributes["aria-expanded"], "false");
-    assert.ok(management.attributes["aria-controls"]);
-    management.dispatch("click");
-    assert.equal(management.attributes["aria-expanded"], "true");
-    management.dispatch("click");
-    assert.equal(management.attributes["aria-expanded"], "false");
+    assert.equal(findNode(root, (node) => node.className?.includes?.("management-toggle")), undefined);
+    assert.ok(findNode(root, (node) => node.className?.includes?.("site-nav")));
     assert.equal(dendriteCalls, 0);
   } finally { globalThis.document = prior; }
 });

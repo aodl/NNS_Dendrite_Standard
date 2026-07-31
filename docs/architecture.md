@@ -48,16 +48,16 @@ message to discover a principal. Stable `RULE_DESCRIPTIONS` remain normative
 requirements and are rendered after the outcome explanation. A presentation-only
 aggregation model groups entries by exact `rule_id`, retains every entry, orders
 topic instances canonically, and chooses the aggregate status using `Fail`, standard
-update required, indeterminate, warning, then pass precedence. The page order is
-identity header, direct verdict, Managers, Topic delegation, Standard rules, Neuron
-characteristics, Raw report, and Management. Managers, Topic delegation, all six rule
-groups, every rule row, Neuron characteristics, Raw report, and idle Management start
-collapsed. The rule result remains visible in the right-aligned group counts while its
+update required, indeterminate, warning, then pass precedence. The page order is branded
+authentication navbar, identity and direct-verdict header with key characteristics and a
+copy-only Raw Report control, optional authenticated account workspace, Team Members,
+Standard Rules, Team Members, and Topic Delegation. All six rule groups, Team Members, Topic Delegation,
+and every rule row start collapsed. The rule result remains visible in the right-aligned group counts while its
 supporting rows are collapsed.
 Multi-entry detail rows show the reviewed explanation and aggregate result followed by
 every exact topic evaluation, message, observed/expected value, and related neuron in a
-compact internal table. The technical rule ID remains in each rule detail; one compact
-Raw report disclosure contains the complete public report. Unknown future IDs use an
+compact internal table. The technical rule ID remains in each rule detail; the header
+copies the complete public report without rendering duplicate JSON. Unknown future IDs use an
 explicit technical fallback. Policy states
 remain `Pass`, `Fail`, `Indeterminate`, `Warning`, and
 `Standard update required`.
@@ -69,10 +69,9 @@ child rows, and never changes complete group totals. Every group is a native-but
 disclosure and starts closed regardless of severity. Closing a group clears every
 child rule disclosure. One shared summary model counts each aggregate once, always
 shows pass and fail (including zero), and records the distinct-rule total.
-Row, group, and lower-section expansion remain ephemeral DOM state. These controls
+Row and group expansion remain ephemeral DOM state. These controls
 never alter the route, report, evaluator, or network. Semantic section IDs remain valid
-anchor targets. Managers, Topic delegation, Neuron characteristics, Raw report, and
-Management each have one disclosure level.
+anchor targets. Team Members and Topic Delegation each have one disclosure level.
 
 The visual system uses a local system-font stack, a seven-step spacing scale, two
 non-pill radii, a pale canvas, white and subtle surfaces, strong text, restrained green
@@ -97,8 +96,9 @@ and the explicit no-retry acknowledgement lock.
 
 The certified frontend binds served bytes to installed Wasm. It does not prove browser
 integrity, operator intent, or controller policy. Dendrite's application controller is
-distinct from a target neuron's blackholed controller canister and retains reviewed
-upgrade authority.
+distinct from a target neuron's blackholed controller canister. It retains reviewed
+upgrade authority during development and qualification, then reaches its intended
+terminal state only through the separately reviewed irreversible blackhole gate.
 
 The canonical Internet Identity derivation origin is an immutable production build
 input. Changing it changes Dendrite principals and is a security migration. Alternative

@@ -9,7 +9,7 @@ import { createAuthenticatedNnsActor } from "./nns-actor.js";
 import { renderControlPanel } from "./control-panel.js";
 import { createTransactionPipeline } from "./transaction.js";
 import { createAnonymousGovernanceReadActor } from "./governance-read-actor.js";
-import { createPreliminaryAnalyzer } from "./preliminary-evaluator.js";
+import { createPreliminaryAnalyzer, STANDARD_VERSION } from "./preliminary-evaluator.js";
 
 function resources() {
   const node = document.createElement("p");
@@ -86,7 +86,6 @@ export function createApplication({
   let preliminaryOperation;
   let currentTransactionReceipt;
   let currentTransactionNotices;
-  let managementExpanded = false;
 
   const newOperation = (kind, neuronId, generation) => Object.freeze({
     kind,
@@ -235,12 +234,8 @@ export function createApplication({
   });
 
   function authenticationPanel() {
-    const panel = document.createElement("section");
-    panel.className = "authentication";
-    panel.append(
-      element("h2", "Internet Identity"),
-      element("p", `Canonical derivation origin: ${browserAuth.configuration.derivationOrigin}`),
-    );
+    const panel = document.createElement("div");
+    panel.className = "nav-auth";
     if (permanentAuthenticationError) {
       panel.append(element("p", permanentAuthenticationError, "error"));
       return panel;
@@ -253,10 +248,12 @@ export function createApplication({
       return panel;
     }
     if (!authenticatedPrincipal) {
+      panel.setAttribute("aria-label", "Signed out");
       const signIn = element(
         "button",
         recoverableAuthenticationError ? "Try again" : "Sign in with Internet Identity",
       );
+      signIn.title = `Canonical origin: ${browserAuth.configuration.derivationOrigin}`;
       signIn.addEventListener("click", async () => {
         if (authenticationTransition !== "none") {
           recoverableAuthenticationError = "Another authentication transition is already in progress.";
@@ -278,7 +275,7 @@ export function createApplication({
         }
         renderCurrent();
       });
-      panel.append(signIn, element("p", "Signed out. No manager authority is claimed."));
+      panel.append(signIn);
       return panel;
     }
     const principalText = authenticatedPrincipal.toText();
@@ -306,7 +303,6 @@ export function createApplication({
         authenticatedSession = undefined;
         authenticatedNnsActor = undefined;
         recoverableAuthenticationError = undefined;
-        managementExpanded = false;
       } catch (error) {
         recoverableAuthenticationError = boundedAuthenticationError(
           error,
@@ -321,19 +317,105 @@ export function createApplication({
     return panel;
   }
 
+  const svgNode = (name) => document.createElementNS?.("http://www.w3.org/2000/svg", name)
+    ?? document.createElement(name);
+  function brandIcon() {
+    const svg = svgNode("svg");
+    svg.setAttribute("class", "brand-icon");
+    svg.setAttribute("viewBox", "0 0 1254 1254");
+    svg.setAttribute("aria-hidden", "true");
+    const defs = svgNode("defs");
+    const person = svgNode("g"); person.setAttribute("id", "person"); person.setAttribute("fill", "currentColor");
+    const personPath = "M503 70C495 62 495 50 505 45C515 39 527 41 535 49C559 73 579 95 594 112C603 122 614 128 626.5 131C639 128 650 122 659 112C674 95 694 73 718 49C726 41 738 39 748 45C758 50 758 62 750 70C733 88 715 100 699 111C675 126 662 142 661 164C659 192 667 227 679 260C693 301 705 346 690 440C682 392 663 336 639 281C635 271 630 264 626.5 262C623 264 618 271 614 281C590 336 571 392 563 440C548 346 560 301 574 260C586 227 594 192 592 164C591 142 578 126 554 111C538 100 520 88 503 70Z";
+    const path = svgNode("path"); path.setAttribute("d", personPath);
+    const head = svgNode("circle"); head.setAttribute("cx", "626.5"); head.setAttribute("cy", "67.5"); head.setAttribute("r", "37.5");
+    person.append(path, head);
+    const sector = svgNode("clipPath"); sector.setAttribute("id", "sector");
+    const sectorPath = svgNode("path"); sectorPath.setAttribute("d", "M627 627L256.180-514.268A1200 1200 0 0 1 997.820-514.268Z"); sector.append(sectorPath);
+    const badge = svgNode("clipPath"); badge.setAttribute("id", "badge");
+    const badgeCircle = svgNode("circle"); badgeCircle.setAttribute("cx", "627"); badgeCircle.setAttribute("cy", "627"); badgeCircle.setAttribute("r", "612"); badge.append(badgeCircle);
+    defs.append(person, sector, badge);
+    const background = svgNode("circle"); background.setAttribute("cx", "627"); background.setAttribute("cy", "627"); background.setAttribute("r", "612"); background.setAttribute("fill", "#fff");
+    const people = svgNode("g"); people.setAttribute("clip-path", "url(#badge)");
+    for (const [color, rotations] of [["#8f8f8f", [36, 108, 180, 252, 324]], ["#000", [0, 72, 144, 216, 288]]]) {
+      const group = svgNode("g"); group.setAttribute("color", color);
+      for (const rotation of rotations) {
+        const use = svgNode("use");
+        use.setAttribute("href", "#person"); use.setAttribute("clip-path", "url(#sector)");
+        if (rotation) use.setAttribute("transform", `rotate(${rotation} 627 627)`);
+        group.append(use);
+      }
+      people.append(group);
+    }
+    svg.append(defs, background, people);
+    return svg;
+  }
+
+  function navigationBar() {
+    const nav = document.createElement("nav");
+    nav.className = "site-nav";
+    nav.setAttribute("aria-label", "Dendrite");
+    const brand = document.createElement("a");
+    brand.className = "site-brand";
+    brand.href = "#";
+    brand.append(brandIcon(), element("span", "DENDRITE"));
+    nav.append(brand, authenticationPanel());
+    return nav;
+  }
+
+  function loadingIndicator(id) {
+    const indicator = document.createElement("div");
+    indicator.className = "status loading-status";
+    indicator.setAttribute("role", "status");
+    const icon = brandIcon();
+    icon.setAttribute("class", "brand-icon loading-spinner");
+    indicator.append(icon, element("span", `Checking neuron ${id}…`));
+    return indicator;
+  }
+
+  function loadingReportHeader(id) {
+    const announcer = element("p", "", "sr-only copy-announcer");
+    announcer.setAttribute("aria-live", "polite");
+    const header = document.createElement("header");
+    header.className = "report-header loading-report-header";
+    const idLine = document.createElement("p");
+    idLine.className = "neuron-id";
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "button-icon copy-button";
+    copy.title = id;
+    copy.setAttribute("aria-label", `Copy neuron ID: ${id}`);
+    const copyIcon = element("span", "", "icon icon-copy");
+    copyIcon.setAttribute("aria-hidden", "true");
+    copy.append(copyIcon);
+    copy.addEventListener("click", async () => {
+      try {
+        await copyText(id);
+        announcer.textContent = "Neuron ID copied";
+      } catch {
+        announcer.textContent = "Copy failed";
+      }
+    });
+    idLine.append(element("span", id), copy);
+    header.append(
+      element("p", `NNS Dendrite Standard · ${STANDARD_VERSION}`, "eyebrow report-eyebrow"),
+      element("h1", "Loading…", "report-title"),
+      element("h2", "Compliant", "header-verdict loading-placeholder"),
+      idLine,
+      element("p", "Raw Report", "raw-report-link loading-placeholder"),
+    );
+    return [announcer, header];
+  }
+
   function managementSection(report) {
     const section = document.createElement("section");
-    section.id = "management";
-    section.className = "major-section management-section";
-    const region = document.createElement("div");
-    region.id = `management-content-${routeGeneration}`;
-    region.className = "section-content management-content";
+    section.className = "account-workspace";
     currentTransactionNotices = transactionNotices();
-    region.append(currentTransactionNotices, authenticationPanel());
+    if (currentTransactionNotices.children.length) section.append(currentTransactionNotices);
     if (authenticatedPrincipal && report
       && transactionPipeline.state !== "outcome-unknown") {
-      renderManagerAuthority(region, report, authenticatedPrincipal);
-      if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(region, {
+      renderManagerAuthority(section, report, authenticatedPrincipal);
+      if (authenticationTransition === "none" && authenticatedSession && authenticatedNnsActor) renderControlPanel(section, {
         report,
         session: authenticatedSession,
         nnsActor: authenticatedNnsActor,
@@ -341,53 +423,28 @@ export function createApplication({
         onSettlement: settleTransaction,
       });
     }
-    const requiresAttention = Boolean(
-      currentTransactionReceipt
-      || recoverableAuthenticationError
-      || authenticationTransition !== "none"
-      || ["preparing", "ready", "in-flight", "outcome-unknown"].includes(transactionPipeline.state),
-    );
-    const expanded = managementExpanded || requiresAttention;
-    managementExpanded = expanded;
-    const heading = document.createElement("h2");
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "button-disclosure section-toggle management-toggle";
-    toggle.setAttribute("aria-expanded", String(expanded));
-    toggle.setAttribute("aria-controls", region.id);
-    toggle.append(
-      element("span", "Management", "section-title"),
-      element("span", authenticatedPrincipal ? "Signed in" : "Signed out", "section-summary"),
-      element("span", "", "chevron"),
-    );
-    toggle.children[2].setAttribute("aria-hidden", "true");
-    region.hidden = !expanded;
-    toggle.addEventListener("click", () => {
-      const open = (toggle.getAttribute?.("aria-expanded") ?? toggle.attributes?.["aria-expanded"]) === "true";
-      managementExpanded = !open;
-      toggle.setAttribute("aria-expanded", String(!open));
-      region.hidden = open;
-    });
-    heading.append(toggle);
-    section.append(heading, region);
     return section;
   }
 
-  function appendManagement(report) {
-    root.append(managementSection(report));
+  function appendChrome(report) {
+    root.append(navigationBar());
+    const workspace = managementSection(report);
+    if (workspace.children.length) root.append(workspace);
   }
 
   function renderCurrent() {
     const match = /^#\/neuron\/([1-9][0-9]*)$/.exec(location.hash);
     if (match && currentView === "report" && currentPreliminaryReport && currentPreliminaryNeuronId === match[1]) {
       const id = match[1];
-      renderReport(root, {
+      const content = document.createElement("div");
+      renderReport(content, {
         verificationKind: "Preliminary",
         report: currentPreliminaryReport,
         provenance: currentPreliminaryProvenance,
       }, { copyText });
-      appendManagement(currentPreliminaryReport);
-      root.append(resources());
+      clear(root);
+      appendChrome(currentPreliminaryReport);
+      root.append(...content.children, resources());
     } else if (!match) {
       renderLanding();
     }
@@ -396,6 +453,7 @@ export function createApplication({
   function renderLanding() {
     currentView = "landing";
     clear(root);
+    appendChrome();
     root.append(
       element("h1", "Dendrite"),
       element("p", "Check an NNS neuron against the NNS Dendrite Standard."),
@@ -421,8 +479,7 @@ export function createApplication({
     });
     root.append(
       form,
-      element("p", "Committed topics use selected managers; all other topics follow alpha-vote, while committed delegates follow omega-reject exactly."),
-      managementSection(),
+      element("p", "Committed topics use selected managers; known uncommitted topics use alpha-vote, omega-vote, or omega-reject, while committed delegates follow omega-reject exactly."),
       resources(),
     );
   }
@@ -449,8 +506,8 @@ export function createApplication({
     preliminaryError = undefined;
     clear(root);
     root.setAttribute("aria-busy", "true");
-    root.append(element("h1", `Neuron ${id}`), element("div", `Checking neuron ${id}…`, "status"));
-    appendManagement();
+    appendChrome();
+    root.append(...loadingReportHeader(id), loadingIndicator(id));
     try {
       if (trustInjectedPreliminaryForTests) preliminaryAnalyzer ??= preliminaryAnalyzerFactory();
       const analyzed = await (trustInjectedPreliminaryForTests
@@ -472,9 +529,9 @@ export function createApplication({
       preliminaryError = errorMessage(error);
       currentView = "error";
       clear(root);
+      appendChrome();
       root.append(element("h1", `Neuron ${id}`));
       showError(root, preliminaryError);
-      appendManagement();
       const retry = element("button", "Retry");
       retry.addEventListener("click", () => loadNeuron(id));
       root.append(retry, resources());

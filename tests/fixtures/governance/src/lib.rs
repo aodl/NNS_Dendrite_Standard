@@ -4,7 +4,7 @@ use candid::{CandidType, Deserialize, Principal};
 use dendrite_types::{ALPHA_VOTE_NEURON_ID, MAX_DISSOLVE_DELAY_SECONDS, OMEGA_REJECT_NEURON_ID};
 use ic_clients::{
     DissolveState, Followees, KnownNeuronData, ListNeurons, ListNeuronsResponse, Neuron, NeuronId,
-    NeuronInfo, TopicToFollow,
+    NeuronInfo, Reserved,
 };
 use std::cell::{Cell, RefCell};
 
@@ -68,8 +68,7 @@ fn fixtures() -> Vec<Neuron> {
     }
     let mut target = neuron(42, following.clone());
     target.controller = Some(CONTROLLER.with(Cell::get));
-    target.known_neuron_data.as_mut().unwrap().committed_topics =
-        Some(vec![Some(TopicToFollow::Governance)]);
+    target.known_neuron_data.as_mut().unwrap().committed_topics = Some(vec![Some(Reserved)]);
     let mut non_compliant = target.clone();
     non_compliant.id = Some(NeuronId { id: 43 });
     non_compliant.hot_keys.push(Principal::anonymous());

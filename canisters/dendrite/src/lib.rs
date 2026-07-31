@@ -10,7 +10,7 @@ use dendrite_types::{
 };
 use ic_clients::{
     CanisterInfoResponse, DissolveState, KnownNeuronData, ListNeuronsResponse, Neuron, NeuronInfo,
-    SourceError, TopicToFollow,
+    SourceError,
 };
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -70,29 +70,6 @@ async fn check_neuron(neuron_id: u64) -> Result<ComplianceReport, DendriteError>
     let result = collect_live(neuron_id).await;
     mutate_check_guard(|guard| guard.finish(neuron_id));
     result
-}
-
-fn topic_code(topic: &TopicToFollow) -> i32 {
-    match topic {
-        TopicToFollow::CatchAll => 0,
-        TopicToFollow::NeuronManagement => 1,
-        TopicToFollow::ExchangeRate => 2,
-        TopicToFollow::NetworkEconomics => 3,
-        TopicToFollow::Governance => 4,
-        TopicToFollow::NodeAdmin => 5,
-        TopicToFollow::ParticipantManagement => 6,
-        TopicToFollow::SubnetManagement => 7,
-        TopicToFollow::ApplicationCanisterManagement => 8,
-        TopicToFollow::Kyc => 9,
-        TopicToFollow::NodeProviderRewards => 10,
-        TopicToFollow::IcOsVersionDeployment => 12,
-        TopicToFollow::IcOsVersionElection => 13,
-        TopicToFollow::SnsAndCommunityFund => 14,
-        TopicToFollow::ApiBoundaryNodeManagement => 15,
-        TopicToFollow::SubnetRental => 16,
-        TopicToFollow::ProtocolCanisterManagement => 17,
-        TopicToFollow::ServiceNervousSystemManagement => 18,
-    }
 }
 
 fn known_data(data: &KnownNeuronData, id: u64) -> KnownNeuron {
@@ -309,10 +286,7 @@ fn dependency_batches(ids: &[u64]) -> Vec<Vec<u64>> {
 
 fn dependency_ids(target: &NeuronEvidence) -> Vec<u64> {
     let mut requested = Vec::new();
-    requested.extend(target.followees.get(&1).into_iter().flatten().copied());
-    for topic in &target.committed_topics {
-        requested.extend(target.followees.get(topic).into_iter().flatten().copied());
-    }
+    requested.extend(target.followees.values().flatten().copied());
     requested.sort_unstable();
     requested.dedup();
     requested
@@ -322,7 +296,7 @@ fn merge_known_metadata(
     neuron: &mut NeuronEvidence,
     info: NeuronInfo,
     list_timestamp: u64,
-    interpret_committed_topics: bool,
+    _interpret_committed_topics: bool,
 ) -> Result<usize, &'static str> {
     if info.id.as_ref().map(|id| id.id) != Some(neuron.id)
         || info.retrieved_at_timestamp_seconds == 0
@@ -337,24 +311,9 @@ fn merge_known_metadata(
         neuron.committed_topics.clear();
         return Ok(0);
     };
-    let mut unknown = 0;
-    if interpret_committed_topics {
-        neuron.committed_topics = data
-            .committed_topics
-            .as_ref()
-            .into_iter()
-            .flatten()
-            .filter_map(|topic| match topic {
-                Some(topic) => Some(topic_code(topic)),
-                None => {
-                    unknown += 1;
-                    None
-                }
-            })
-            .collect();
-    }
+    neuron.committed_topics.clear();
     neuron.known_data = Some(known_data(&data, neuron.id));
-    Ok(unknown)
+    Ok(0)
 }
 
 struct ProductionEvidenceClient;
@@ -748,27 +707,8 @@ mod tests {
             potential_voting_power: Some(10),
         }
     }
-    fn recognised_topic_variants() -> Vec<Option<TopicToFollow>> {
-        vec![
-            Some(TopicToFollow::CatchAll),
-            Some(TopicToFollow::NeuronManagement),
-            Some(TopicToFollow::ExchangeRate),
-            Some(TopicToFollow::NetworkEconomics),
-            Some(TopicToFollow::Governance),
-            Some(TopicToFollow::NodeAdmin),
-            Some(TopicToFollow::ParticipantManagement),
-            Some(TopicToFollow::SubnetManagement),
-            Some(TopicToFollow::ApplicationCanisterManagement),
-            Some(TopicToFollow::Kyc),
-            Some(TopicToFollow::NodeProviderRewards),
-            Some(TopicToFollow::IcOsVersionDeployment),
-            Some(TopicToFollow::IcOsVersionElection),
-            Some(TopicToFollow::SnsAndCommunityFund),
-            Some(TopicToFollow::ApiBoundaryNodeManagement),
-            Some(TopicToFollow::SubnetRental),
-            Some(TopicToFollow::ProtocolCanisterManagement),
-            Some(TopicToFollow::ServiceNervousSystemManagement),
-        ]
+    fn opaque_topic_entries(count: usize) -> Vec<Option<ic_clients::Reserved>> {
+        vec![Some(ic_clients::Reserved); count]
     }
     fn compliant_client() -> FakeClient {
         let managers = [100, 101, 102, 103, 104];
@@ -778,8 +718,7 @@ mod tests {
         }
         let mut target = raw_neuron(42, target_followees);
         target.controller = Some(Principal::from_slice(&[1]));
-        target.known_neuron_data.as_mut().unwrap().committed_topics =
-            Some(vec![Some(TopicToFollow::Governance)]);
+        target.known_neuron_data.as_mut().unwrap().committed_topics = Some(opaque_topic_entries(1));
         let dependencies = managers
             .into_iter()
             .map(|id| {
@@ -842,7 +781,7 @@ mod tests {
     }
 
     #[test]
-    fn catch_all_committed_graph_can_reach_the_derived_bound() {
+    fn recognised_topic_graph_remains_bounded_below_the_wire_derived_limit() {
         let mut target = normalize_neuron(raw_neuron(42, vec![]), true).unwrap().0;
         target.committed_topics = dendrite_types::RECOGNISED_TOPICS.to_vec();
         for (topic_index, topic) in dendrite_types::RECOGNISED_TOPICS.into_iter().enumerate() {
@@ -854,7 +793,11 @@ mod tests {
             );
         }
         let ids = dependency_ids(&target);
-        assert_eq!(ids.len(), MAX_DEPENDENCY_NEURONS);
+        assert_eq!(
+            ids.len(),
+            dendrite_types::RECOGNISED_TOPICS.len() * ic_clients::MAX_FOLLOWEES
+        );
+        assert!(ids.len() <= MAX_DEPENDENCY_NEURONS);
         assert_eq!(dependency_batches(&ids).len(), 6);
         let report = evaluate(
             42,
@@ -872,12 +815,9 @@ mod tests {
             report.overall_status,
             dendrite_types::ComplianceStatus::NonCompliant
         );
-        assert!(report.rules.iter().any(|rule| {
-            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
-        }));
     }
     #[test]
-    fn collector_evaluates_the_full_270_dependency_catch_all_graph() {
+    fn collector_evaluates_the_full_recognised_topic_graph() {
         let mut target_followees = Vec::new();
         for (topic_index, topic) in dendrite_types::RECOGNISED_TOPICS.into_iter().enumerate() {
             target_followees.push((
@@ -890,7 +830,7 @@ mod tests {
         let mut target = raw_neuron(42, target_followees);
         target.controller = Some(Principal::from_slice(&[1]));
         target.known_neuron_data.as_mut().unwrap().committed_topics =
-            Some(recognised_topic_variants());
+            Some(opaque_topic_entries(18));
         let mut normalized = normalize_neuron(target.clone(), true).unwrap().0;
         merge_known_metadata(
             &mut normalized,
@@ -905,7 +845,11 @@ mod tests {
         )
         .unwrap();
         let dependency_ids = dependency_ids(&normalized);
-        assert_eq!(dependency_ids.len(), MAX_DEPENDENCY_NEURONS);
+        assert_eq!(
+            dependency_ids.len(),
+            dendrite_types::RECOGNISED_TOPICS.len() * ic_clients::MAX_FOLLOWEES
+        );
+        assert!(dependency_ids.len() <= MAX_DEPENDENCY_NEURONS);
 
         let mut responses = VecDeque::from([Ok(response(vec![target]))]);
         for batch in dependency_batches(&dependency_ids) {
@@ -923,9 +867,6 @@ mod tests {
             dendrite_types::ComplianceStatus::NonCompliant
         );
         assert!(report.source_failures.is_empty());
-        assert!(report.rules.iter().any(|rule| {
-            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
-        }));
         let calls = client.calls.borrow();
         assert_eq!(calls.len(), 8);
         assert_eq!(calls[0], RecordedCall::List(vec![42]));
@@ -987,7 +928,7 @@ mod tests {
         assert_eq!(snapshot.quorum_threshold, Some(3));
         assert_eq!(snapshot.checked_at_timestamp_seconds, 1_000_000);
         assert_eq!(client.calls.borrow()[0], RecordedCall::List(vec![42]));
-        assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 5));
+        assert!(matches!(&client.calls.borrow()[1], RecordedCall::List(ids) if ids.len() == 6));
         assert_eq!(
             client.calls.borrow()[2],
             RecordedCall::CanisterInfo(Principal::from_slice(&[1]))
@@ -1112,7 +1053,7 @@ mod tests {
             rule.rule_id == "DENDRITE-NM-004"
                 && rule.status == dendrite_types::RuleStatus::Indeterminate
         }));
-        assert_eq!(snapshot.source_failures[0].affected_neuron_ids.len(), 5);
+        assert_eq!(snapshot.source_failures[0].affected_neuron_ids.len(), 6);
     }
     #[test]
     fn dependency_committed_topic_variants_are_ignored() {
@@ -1151,7 +1092,7 @@ mod tests {
         assert_analysis_failed(block_on(collect_with(&client, 42, 1_000_000)));
     }
     #[test]
-    fn collector_unknown_committed_variant_requires_update() {
+    fn collector_unknown_committed_variant_does_not_override_structural_evidence() {
         let client = compliant_client();
         client.neurons.borrow_mut()[0]
             .as_mut()
@@ -1160,15 +1101,15 @@ mod tests {
             .known_neuron_data
             .as_mut()
             .unwrap()
-            .committed_topics = Some(vec![Some(TopicToFollow::Governance), None]);
+            .committed_topics = Some(vec![Some(ic_clients::Reserved), None]);
         let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
         assert_eq!(
             snapshot.overall_status,
-            dendrite_types::ComplianceStatus::StandardUpdateRequired
+            dendrite_types::ComplianceStatus::Compliant
         );
     }
     #[test]
-    fn collector_allows_future_topic_entries_to_reach_standard_update_rules() {
+    fn collector_handles_future_topic_entries_structurally() {
         let client = compliant_client();
         {
             let mut responses = client.neurons.borrow_mut();
@@ -1187,15 +1128,14 @@ mod tests {
         let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
         assert_eq!(
             snapshot.overall_status,
-            dendrite_types::ComplianceStatus::StandardUpdateRequired
+            dendrite_types::ComplianceStatus::NonCompliant
         );
         assert!(snapshot.source_failures.is_empty());
 
-        // Exactly one future variant plus all 18 recognised variants reaches semantic
-        // evaluation. CatchAll and Neuron Management are known factual defects, so
-        // KNOWN-004 must fail rather than being overwritten by the unknown variant.
+        // Opaque current and future metadata entries reach semantic evaluation
+        // without affecting the numeric following-map interpretation.
         let client = compliant_client();
-        let mut topics = recognised_topic_variants();
+        let mut topics = opaque_topic_entries(18);
         topics.push(None);
         client.neurons.borrow_mut()[0]
             .as_mut()
@@ -1209,9 +1149,6 @@ mod tests {
         assert!(snapshot.source_failures.is_empty());
         assert!(snapshot.rules.iter().any(|rule| {
             rule.rule_id == "DENDRITE-KNOWN-003" && rule.status == dendrite_types::RuleStatus::Pass
-        }));
-        assert!(snapshot.rules.iter().any(|rule| {
-            rule.rule_id == "DENDRITE-KNOWN-004" && rule.status == dendrite_types::RuleStatus::Fail
         }));
 
         let client = compliant_client();
@@ -1228,8 +1165,9 @@ mod tests {
             ));
         let snapshot = block_on(collect_with(&client, 42, 1_000_000)).unwrap();
         assert!(snapshot.rules.iter().any(|rule| {
-            rule.rule_id == "DENDRITE-DEFAULT-003"
-                && rule.status == dendrite_types::RuleStatus::StandardUpdateRequired
+            rule.rule_id == "DENDRITE-COMMIT-001"
+                && rule.relevant_topic == Some(99)
+                && rule.status == dendrite_types::RuleStatus::Fail
         }));
         assert!(snapshot.source_failures.is_empty());
     }

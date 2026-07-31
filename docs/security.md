@@ -32,9 +32,9 @@ Repeated copy actions use 44-pixel icon targets with complete accessible names a
 transient `aria-live` feedback. Responsive rows wrap status and long titles without page
 overflow, all frequent targets are at least 44 CSS pixels, focus uses a two-pixel
 high-contrast perimeter, and reduced-motion and forced-colour modes are supported.
-Status filtering, disclosure, Raw report copying, and opening or closing Management
-issue no network request and persist no preference. Authentication, authority, receipts,
-and mutation controls are contained inside collapsed Management.
+Status filtering, disclosure, and Raw Report copying issue no network request and persist
+no preference. Canonical-origin authentication lives in the navbar; authority, receipts,
+and mutation controls are kept in a top account workspace visible only when applicable.
 Rule-group disclosures use the same native-button semantics, expose complete status
 counts in their accessible names, retain focus while closing, and remove hidden child
 controls from navigation. Controller diagnostics construct one exact Dashboard URL
@@ -78,9 +78,11 @@ Replicated controller blackholing is proven only by successful `canister_info`, 
 and no controllers. The browser report requires certified empty controllers and
 certified module-hash absence. The neuron-to-controller relationship is replica-signed
 Governance query evidence, not certified system-state evidence. A failed lookup is
-indeterminate. Dendrite's own controller can replace
-both verifier code and the transaction-signing frontend and therefore remains an
-explicit operator trust boundary. Other boundaries are the certified frontend, browser
+indeterminate. During development and qualification, Dendrite's own controller can
+replace both verifier code and the transaction-signing frontend and therefore remains
+an explicit operator trust boundary. The intended terminal blackhole removes that
+boundary irreversibly only after the documented final gate; it also removes every
+recovery path. Other boundaries are the certified frontend, browser
 runtime, Internet Identity, NNS Governance, management-canister reads, target and
 manager neurons, build environment, release artifacts, and production lifecycle
 identity.

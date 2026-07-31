@@ -263,6 +263,6 @@ export function summarizeRuleStatuses(aggregatedRules, verificationKind = "Conse
 
 export function formatStatusSummary(summary) {
   const labels = ["Pass", "Fail", "Indeterminate", "Warning", "Standard update required"];
-  return labels.filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
+  return labels.filter((label) => summary[label] > 0)
     .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
 }

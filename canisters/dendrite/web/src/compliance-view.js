@@ -1,13 +1,13 @@
 import { clear, element, safeHttpsLink } from "./dom.js";
 import {
   buildRuleDiagnostic,
+  formatStatusSummary,
   summarizeRuleStatuses,
 } from "./rule-diagnostics.js";
 
 export const variantName = (value) => Object.keys(value ?? {})[0] ?? "Unknown";
 const optional = (value, fallback = "Unavailable") => value?.[0] ?? fallback;
 const principalText = (principal) => principal?.toText?.() ?? String(principal);
-const ids = (values) => values.map(String).join(", ") || "None";
 const attribute = (node, name) => node.getAttribute?.(name) ?? node.attributes?.[name] ?? null;
 
 export const TOPIC_LABELS = new Map([
@@ -26,7 +26,6 @@ export const RULE_TITLES = Object.freeze({
   "DENDRITE-KNOWN-001": "Neuron data is public",
   "DENDRITE-KNOWN-002": "Neuron is registered as a known neuron",
   "DENDRITE-KNOWN-003": "At least one topic is committed",
-  "DENDRITE-KNOWN-004": "Committed topics are recognised and unique",
   "DENDRITE-LOCK-001": "Neuron is locked",
   "DENDRITE-LOCK-002": "Dissolve delay is 2 years",
   "DENDRITE-LOCK-003": "Effective stake is positive",
@@ -44,17 +43,15 @@ export const RULE_TITLES = Object.freeze({
   "DENDRITE-COMMIT-001": "Each committed topic has at least 3 delegates",
   "DENDRITE-COMMIT-002": "No committed topic repeats a delegate",
   "DENDRITE-COMMIT-003": "Every committed delegate is also a manager",
-  "DENDRITE-COMMIT-004": "Every committed delegate follows only omega-reject",
-  "DENDRITE-DEFAULT-001": "Every uncommitted topic follows only alpha-vote",
-  "DENDRITE-DEFAULT-002": "Catch-all follows only alpha-vote",
-  "DENDRITE-DEFAULT-003": "No unsupported topic code is configured",
+  "DENDRITE-COMMIT-004": "Every followed delegate follows only omega-reject on that topic",
+  "DENDRITE-DEFAULT-001": "Every known uncommitted topic uses an approved default",
+  "DENDRITE-DEFAULT-002": "Catch-all uses an approved default",
 });
 export const ruleTitle = (id) => RULE_TITLES[id] ?? `Technical check: ${id}`;
 export const RULE_DESCRIPTIONS = Object.freeze({
   "DENDRITE-KNOWN-001": "The target must be returned as a full public neuron.",
   "DENDRITE-KNOWN-002": "The target must contain valid known-neuron metadata.",
   "DENDRITE-KNOWN-003": "The target must commit to at least one concrete topic.",
-  "DENDRITE-KNOWN-004": "Committed topics must be distinct, recognised concrete topics.",
   "DENDRITE-LOCK-001": "The target must remain locked and not be dissolving.",
   "DENDRITE-LOCK-002": "The dissolve delay must equal the standard maximum.",
   "DENDRITE-LOCK-003": "The target must have positive effective stake.",
@@ -72,21 +69,20 @@ export const RULE_DESCRIPTIONS = Object.freeze({
   "DENDRITE-COMMIT-001": "Each committed topic must have at least three delegates.",
   "DENDRITE-COMMIT-002": "Each committed topic's raw delegate identifiers must be distinct.",
   "DENDRITE-COMMIT-003": "Every committed delegate must also be a known manager.",
-  "DENDRITE-COMMIT-004": "Every committed delegate must follow only Omega-reject — neuron 18422777432977120264 on that topic.",
-  "DENDRITE-DEFAULT-001": "Every recognised uncommitted concrete topic must follow only Alpha-vote — neuron 2947465672511369.",
-  "DENDRITE-DEFAULT-002": "Catch-all must follow only Alpha-vote — neuron 2947465672511369.",
-  "DENDRITE-DEFAULT-003": "Every non-empty following topic code must be recognised by the standard.",
+  "DENDRITE-COMMIT-004": "Every manager followed as a delegate must follow only Omega-reject — neuron 18422777432977120264 — on that same topic. Neuron Management is exempt.",
+  "DENDRITE-DEFAULT-001": "Every currently known uncommitted concrete topic must follow exactly one approved default: Alpha-vote 2947465672511369, Omega-vote 18363645821499695760, or Omega-reject 18422777432977120264.",
+  "DENDRITE-DEFAULT-002": "Catch-all must follow exactly one approved default: Alpha-vote, Omega-vote, or Omega-reject.",
 });
 export const ruleDescription = (id) => RULE_DESCRIPTIONS[id]
   ?? "This rule is not yet described by this interface; inspect its report message and raw evidence.";
 
 export const RULE_GROUPS = Object.freeze([
-  ["Neuron identity and commitments", ["DENDRITE-KNOWN-001", "DENDRITE-KNOWN-002", "DENDRITE-KNOWN-003", "DENDRITE-KNOWN-004"]],
+  ["Neuron identity and commitments", ["DENDRITE-KNOWN-001", "DENDRITE-KNOWN-002", "DENDRITE-KNOWN-003"]],
   ["Lock and voting power", ["DENDRITE-LOCK-001", "DENDRITE-LOCK-002", "DENDRITE-LOCK-003", "DENDRITE-ACTIVE-001", "DENDRITE-ACTIVE-002"]],
   ["Control and immutability", ["DENDRITE-CONTROL-001", "DENDRITE-CONTROL-002", "DENDRITE-CONTROL-003", "DENDRITE-CONTROL-004", "DENDRITE-CONTROL-005"]],
   ["Manager group", ["DENDRITE-NM-001", "DENDRITE-NM-002", "DENDRITE-NM-003", "DENDRITE-NM-004"]],
   ["Committed-topic delegation", ["DENDRITE-COMMIT-001", "DENDRITE-COMMIT-002", "DENDRITE-COMMIT-003", "DENDRITE-COMMIT-004"]],
-  ["Default following", ["DENDRITE-DEFAULT-001", "DENDRITE-DEFAULT-002", "DENDRITE-DEFAULT-003"]],
+  ["Default following", ["DENDRITE-DEFAULT-001", "DENDRITE-DEFAULT-002"]],
 ]);
 
 const STATUS_PRESENTATION = Object.freeze({
@@ -116,6 +112,13 @@ export const shortPrincipal = (principal) => {
   return value.length <= 17 ? value : `${value.slice(0, 7)}…${value.slice(-7)}`;
 };
 const checkedAtUtc = (seconds) => BigInt(seconds) > 0n ? new Date(Number(seconds) * 1000).toISOString() : "Unavailable";
+const elapsedDaysHours = (checkedAt, refreshedAt) => {
+  const elapsed = BigInt(checkedAt) - BigInt(refreshedAt);
+  if (elapsed < 0n) return "Unavailable";
+  const days = elapsed / 86_400n;
+  const hours = (elapsed % 86_400n) / 3_600n;
+  return `${days} day${days === 1n ? "" : "s"}, ${hours} hour${hours === 1n ? "" : "s"} ago`;
+};
 const formatDuration = (seconds) => {
   if (seconds === "Unavailable") return seconds;
   const value = BigInt(seconds);
@@ -195,7 +198,7 @@ function renderManagers(report, copyText, announcer) {
   table.className = "manager-table responsive-table";
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  for (const name of ["Manager", "Status", "Controller", "Hotkeys", "Readiness"]) {
+  for (const name of ["Team Member", "Controller", "Hotkeys"]) {
     const cell = element("th", name);
     cell.setAttribute("scope", "col");
     heading.append(cell);
@@ -207,14 +210,12 @@ function renderManagers(report, copyText, announcer) {
     const id = manager.neuron_id.toString();
     const managerCell = document.createElement("th");
     managerCell.setAttribute("scope", "row");
-    managerCell.setAttribute("data-label", "Manager");
-    managerCell.append(
-      element("span", manager.known_neuron?.[0]?.name ?? `Manager ${id}`, "row-primary"),
-      safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`),
-    );
-    const status = document.createElement("td");
-    status.setAttribute("data-label", "Status");
-    status.append(statusText(variantName(manager.evidence_status)));
+    managerCell.setAttribute("data-label", "Team Member");
+    const name = manager.known_neuron?.[0]?.name;
+    const memberLink = safeHttpsLink(name ?? shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`);
+    memberLink.className = "row-primary";
+    memberLink.title = id;
+    managerCell.append(memberLink, copyButton(id, "Copy neuron ID", copyText, announcer));
     const controller = manager.controller?.[0];
     const controllerCell = document.createElement("td");
     controllerCell.setAttribute("data-label", "Controller");
@@ -225,15 +226,7 @@ function renderManagers(report, copyText, announcer) {
     const hotkeys = element("td", manager.hot_keys.length
       ? manager.hot_keys.map(shortPrincipal).join(" · ") : "None");
     hotkeys.setAttribute("data-label", "Hotkeys");
-    const readiness = document.createElement("td");
-    readiness.setAttribute("data-label", "Readiness");
-    readiness.append(
-      element("span", `Management: ${ids(manager.neuron_management_followees ?? [])}`),
-      element("span", `Omega-ready: ${manager.omega_ready_topics?.length
-        ? manager.omega_ready_topics.map((topic) => TOPIC_LABELS.get(topic) ?? topic).join(" · ")
-        : "None"}`, "table-support"),
-    );
-    row.append(managerCell, status, controllerCell, hotkeys, readiness);
+    row.append(managerCell, controllerCell, hotkeys);
     body.append(row);
   }
   table.append(head, body);
@@ -242,21 +235,46 @@ function renderManagers(report, copyText, announcer) {
 
 export function groupTopics(report) {
   const groups = new Map();
-  const add = (kind, topic, values) => {
+  const add = (kind, topic, values, inherited = false) => {
     const normalized = [...values].map(BigInt).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
     const key = `${kind}:${normalized.map(String).join(",")}`;
-    const group = groups.get(key) ?? { kind, values: normalized, topics: [] };
+    const group = groups.get(key) ?? { kind, values: normalized, topics: [], inheritedTopics: new Set() };
     group.topics.push(topic);
+    if (inherited) group.inheritedTopics.add(topic);
     groups.set(key, group);
   };
   for (const topic of report.committed_topics) add("Delegates", topic.topic, topic.delegate_ids);
-  for (const topic of report.non_committed_topics) add("Followees", topic.topic, topic.followee_ids);
+  const catchAll = report.non_committed_topics.find((topic) => topic.topic === 0)?.followee_ids ?? [];
+  for (const topic of report.non_committed_topics) {
+    const inheritsCatchAll = topic.topic !== 0 && topic.followee_ids.length === 0 && catchAll.length > 0;
+    add("Followees", topic.topic, inheritsCatchAll ? catchAll : topic.followee_ids, inheritsCatchAll);
+  }
   return [...groups.values()];
 }
 const shortNeuronId = (value) => {
   const id = String(value);
   return id.length <= 12 ? id : `${id.slice(0, 6)}…${id.slice(-5)}`;
 };
+function knownNeuronNames(report, provenance) {
+  const names = new Map();
+  for (const [id, name] of provenance?.knownNeuronNames ?? []) names.set(String(id), name);
+  const targetName = report.target?.[0]?.known_neuron?.[0]?.name;
+  if (targetName) names.set(String(report.neuron_id), targetName);
+  for (const manager of report.managers ?? []) {
+    const name = manager.known_neuron?.[0]?.name;
+    if (name) names.set(String(manager.neuron_id), name);
+  }
+  return names;
+}
+const neuronLabel = (report, value, provenance) => knownNeuronNames(report, provenance).get(String(value))
+  ?? shortNeuronId(value);
+function nameKnownNeurons(report, text) {
+  let result = String(text);
+  for (const [id, name] of knownNeuronNames(report)) {
+    result = result.replace(new RegExp(`\\b${id}\\b`, "g"), name);
+  }
+  return result;
+}
 
 const attentionStatus = (status) => status !== "Pass";
 const canonicalGroup = (ruleId) => RULE_GROUPS.find(([, ruleIds]) =>
@@ -355,7 +373,7 @@ function renderStatusSummary(summary, className = "status-counts") {
   const node = document.createElement("span");
   node.className = className;
   for (const [label, canonical] of SUMMARY_STATUSES) {
-    if (label !== "Pass" && label !== "Fail" && !summary[label]) continue;
+    if (!summary[label]) continue;
     const presentation = statusPresentation(canonical);
     const segment = statusText(`${summary[label]} ${label.toLowerCase()}`, {
       ...presentation,
@@ -382,13 +400,13 @@ export function aggregateSummary(aggregate, verificationKind) {
   const count = status === "Pass" ? aggregate.evaluationCount : matching;
   return `${label} · ${count} of ${aggregate.evaluationCount} ${unit}${aggregate.evaluationCount === 1 ? "" : "s"} ${statusVerb(status)}`;
 }
-function relatedNeuronChip(value, copyText, announcer) {
+function relatedNeuronChip(report, value, copyText, announcer) {
   const id = String(value);
   const chip = document.createElement("span");
   chip.className = "neuron-chip";
   const link = document.createElement("a");
   link.href = `#/neuron/${id}`;
-  link.textContent = shortNeuronId(id);
+  link.textContent = neuronLabel(report, id);
   link.title = id;
   link.setAttribute("aria-label", `Open Dendrite report for neuron ${id}`);
   chip.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
@@ -415,16 +433,16 @@ function ruleDetails(report, rule, verificationKind, provenance, copyText, annou
   region.className = "rule-detail";
   region.append(
     element("h5", diagnostic.outcomeLabel, `outcome-heading outcome-${diagnostic.status.toLowerCase()}`),
-    element("p", diagnostic.conciseReason, "rule-message"),
+    element("p", nameKnownNeurons(report, diagnostic.conciseReason), "rule-message"),
     element("p", "Requirement", "detail-label"),
     element("p", diagnostic.requirement, "rule-requirement"),
   );
   const facts = document.createElement("dl");
   for (const [index, value] of diagnostic.observedItems.entries()) {
-    facts.append(metric(index ? "Observed (continued)" : "Observed", value));
+    facts.append(metric(index ? "Observed (continued)" : "Observed", nameKnownNeurons(report, value)));
   }
   for (const [index, value] of diagnostic.expectedItems.entries()) {
-    facts.append(metric(index ? "Expected (continued)" : "Expected", value));
+    facts.append(metric(index ? "Expected (continued)" : "Expected", nameKnownNeurons(report, value)));
   }
   for (const link of diagnostic.links) facts.append(metric("Controller canister", diagnosticLink(link)));
   const controller = report.controller?.[0];
@@ -458,7 +476,7 @@ function ruleDetails(report, rule, verificationKind, provenance, copyText, annou
     const chips = document.createElement("div");
     chips.className = "neuron-chips";
     for (const id of diagnostic.relatedNeurons) {
-      chips.append(relatedNeuronChip(id, copyText, announcer));
+      chips.append(relatedNeuronChip(report, id, copyText, announcer));
     }
     facts.append(metric("Related neurons", chips));
   }
@@ -501,11 +519,11 @@ function aggregateRuleDetails(report, aggregate, verificationKind, provenance, c
     const result = document.createElement("td");
     result.setAttribute("data-label", "Result");
     result.append(statusNode(entry, verificationKind));
-    const message = element("td", diagnostic.conciseReason);
+    const message = element("td", nameKnownNeurons(report, diagnostic.conciseReason));
     message.setAttribute("data-label", "Why this result");
-    const observed = element("td", optional(entry.observed, "—"));
+    const observed = element("td", nameKnownNeurons(report, optional(entry.observed, "—")));
     observed.setAttribute("data-label", "Observed");
-    const expected = element("td", optional(entry.expected, "—"));
+    const expected = element("td", nameKnownNeurons(report, optional(entry.expected, "—")));
     expected.setAttribute("data-label", "Expected");
     const related = document.createElement("td");
     related.setAttribute("data-label", "Related neurons");
@@ -513,7 +531,7 @@ function aggregateRuleDetails(report, aggregate, verificationKind, provenance, c
       const chips = document.createElement("div");
       chips.className = "neuron-chips";
       for (const id of entry.related_neuron_ids) {
-        chips.append(relatedNeuronChip(id, copyText, announcer));
+        chips.append(relatedNeuronChip(report, id, copyText, announcer));
       }
       related.append(chips);
     } else {
@@ -607,15 +625,12 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   section.className = "rules-section";
   const heading = document.createElement("div");
   heading.className = "rules-heading";
-  heading.append(
-    element("h2", "Standard rules"),
-    element("span", `${aggregateRules(report.rules).length} rules`, "section-summary"),
-  );
+  heading.append(element("h2", "Standard Rules"));
   section.append(heading);
   const filters = document.createElement("div");
   filters.className = "rule-filters";
   filters.setAttribute("role", "group");
-  filters.setAttribute("aria-label", "Filter Standard rules by status");
+  filters.setAttribute("aria-label", "Filter Standard Rules by status");
   const announcement = element("p", "", "sr-only rule-filter-announcement");
   announcement.setAttribute("aria-live", "polite");
   announcement.setAttribute("aria-atomic", "true");
@@ -664,7 +679,7 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
   for (const group of groupSections) {
     const summary = summarizeRuleStatuses(group.rows.map(({ rule }) => rule), verificationKind);
     const countsText = SUMMARY_STATUSES.map(([label]) => label)
-      .filter((label) => label === "Pass" || label === "Fail" || summary[label] > 0)
+      .filter((label) => summary[label] > 0)
       .map((label) => `${summary[label]} ${label.toLowerCase()}`).join(" · ");
     const expanded = false;
     const toggle = document.createElement("button");
@@ -673,9 +688,10 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     toggle.setAttribute("aria-expanded", String(expanded));
     toggle.setAttribute("aria-controls", group.content.id);
     toggle.setAttribute("aria-label", `${group.name}, ${countsText.replaceAll(" · ", ", ")}`);
+    const counts = renderStatusSummary(summary, "rule-group-counts");
     toggle.append(
       element("span", group.name, "rule-group-title"),
-      renderStatusSummary(summary, "rule-group-counts"),
+      counts,
       element("span", "", "chevron"),
     );
     toggle.children[2].setAttribute("aria-hidden", "true");
@@ -694,12 +710,14 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
     });
     group.heading.append(toggle);
     group.toggle = toggle;
+    group.counts = counts;
+    group.countSegments = [...counts.children];
     group.summary = summary;
   }
   const filterDefinitions = [
     { key: "All", count: totalSummary.totalDistinctRules, label: "All", icon: undefined, kind: "all" },
-    { key: "Pass", count: totalSummary.Pass, label: "pass", icon: "✓", kind: "pass" },
-    { key: "Fail", count: totalSummary.Fail, label: "fail", icon: "×", kind: "fail" },
+    ...(totalSummary.Pass ? [{ key: "Pass", count: totalSummary.Pass, label: "pass", icon: "✓", kind: "pass" }] : []),
+    ...(totalSummary.Fail ? [{ key: "Fail", count: totalSummary.Fail, label: "fail", icon: "×", kind: "fail" }] : []),
     ...(totalSummary.Indeterminate ? [{
       key: "Indeterminate", count: totalSummary.Indeterminate, label: "undetermined", icon: "?", kind: "indeterminate",
     }] : []),
@@ -737,6 +755,14 @@ function renderRules(report, verificationKind, provenance, copyText, announcer) 
       const matching = group.rows.some(({ summaryRow }) => !summaryRow.hidden);
       group.section.hidden = !matching;
       if (!matching) setGroupExpanded(group, false);
+      const visibleSummary = activeFilter === "All" ? group.summary : Object.fromEntries(
+        SUMMARY_STATUSES.map(([label, canonical]) => [label, canonical === activeFilter ? group.summary[label] : 0]),
+      );
+      const visibleKind = activeFilter === "All" ? undefined : statusPresentation(activeFilter).kind;
+      group.counts.replaceChildren(...group.countSegments.filter((segment) =>
+        visibleKind === undefined || segment.className?.split?.(" ").includes(`status-${visibleKind}`)));
+      const countsText = formatStatusSummary(visibleSummary).replaceAll(" · ", ", ");
+      group.toggle.setAttribute("aria-label", countsText ? `${group.name}, ${countsText}` : group.name);
     }
     for (const [key, button] of buttons) {
       button.setAttribute("aria-pressed", String(key === activeFilter));
@@ -797,12 +823,12 @@ function expandableSection(id, title, summary, content, expanded = false, import
   section.append(heading, region);
   return section;
 }
-function renderTopics(report, copyText, announcer) {
+function renderTopics(report, copyText, announcer, provenance) {
   const table = document.createElement("table");
   table.className = "delegation-table responsive-table";
   const head = document.createElement("thead");
   const heading = document.createElement("tr");
-  for (const name of ["Configuration", "Topics", "Result"]) {
+  for (const name of ["Configuration", "Topics"]) {
     const cell = element("th", name);
     cell.setAttribute("scope", "col");
     heading.append(cell);
@@ -818,36 +844,25 @@ function renderTopics(report, copyText, announcer) {
     configuration.append(element("span",
       `${group.values.length} ${noun}${group.values.length === 1 ? "" : "s"}`, "row-primary"));
     const chips = document.createElement("div");
-    chips.className = "neuron-chips";
+    chips.className = "delegation-values";
     for (const value of group.values) {
       const id = String(value);
-      const link = safeHttpsLink(shortNeuronId(id), `https://dashboard.internetcomputer.org/neuron/${id}`);
+      const link = safeHttpsLink(neuronLabel(report, id, provenance), `https://dashboard.internetcomputer.org/neuron/${id}`);
       link.title = id;
       link.setAttribute("aria-label", `Neuron ${id}`);
-      chips.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
+      const item = document.createElement("div");
+      item.className = "delegation-value";
+      item.append(link, copyButton(id, "Copy neuron ID", copyText, announcer));
+      chips.append(item);
     }
     configuration.append(chips);
     const topics = document.createElement("td");
     topics.setAttribute("data-label", "Topics");
     topics.append(
       element("span", `${group.topics.length} topic${group.topics.length === 1 ? "" : "s"}`, "row-primary"),
-      element("span", group.topics.map(topicLabel).join(" · "), "table-support"),
+      element("span", group.topics.map((topic) => `${topicLabel(topic)}${group.inheritedTopics.has(topic) ? " (inherited from CatchAll)" : ""}`).join("\n"), "table-support topic-list"),
     );
-    const topicSet = new Set(group.topics);
-    const relevant = report.rules.filter((rule) => rule.relevant_topic?.length
-      && topicSet.has(rule.relevant_topic[0])
-      && variantName(rule.status) !== "Pass");
-    const result = document.createElement("td");
-    result.setAttribute("data-label", "Result");
-    if (!relevant.length) result.append(statusText("Pass"));
-    else for (const rule of sortedFindings(relevant)) {
-      const status = variantName(rule.status);
-      result.append(
-        statusText(status),
-        element("p", `${ruleTitle(rule.rule_id)}: ${rule.message}`, "topic-warning"),
-      );
-    }
-    row.append(configuration, topics, result);
+    row.append(configuration, topics);
     body.append(row);
   }
   table.append(head, body);
@@ -855,18 +870,17 @@ function renderTopics(report, copyText, announcer) {
 }
 
 export function verdictText(report) {
-  const id = String(report.neuron_id);
   switch (variantName(report.overall_status)) {
     case "Compliant":
-      return `Neuron ${id} is compliant with the NNS Dendrite Standard.`;
+      return "Compliant";
     case "NonCompliant":
-      return `Neuron ${id} is not compliant with the NNS Dendrite Standard.`;
+      return "Not Compliant";
     case "Indeterminate":
-      return `Compliance with the NNS Dendrite Standard could not be determined for neuron ${id}.`;
+      return "Indeterminate";
     case "StandardUpdateRequired":
-      return `Neuron ${id} uses configuration not covered by this version of the NNS Dendrite Standard.`;
+      return "Standard Update Required";
     default:
-      return `Compliance with the NNS Dendrite Standard could not be determined for neuron ${id}.`;
+      return "Indeterminate";
   }
 }
 
@@ -877,13 +891,14 @@ const overallPresentation = (status) => ({
   StandardUpdateRequired: statusPresentation("StandardUpdateRequired"),
 })[status] ?? statusPresentation("Indeterminate");
 
-function rawReportSection(report, copyText, announcer) {
+function rawReportCopy(report, copyText, announcer) {
   const json = safeJson(report);
-  const pre = element("pre", json, "raw-report-json");
+  const line = document.createElement("p");
+  line.className = "raw-report-link";
   const copy = document.createElement("button");
   copy.type = "button";
-  copy.className = "button-icon copy-button raw-report-copy";
-  copy.setAttribute("aria-label", "Copy raw report JSON");
+  copy.className = "button-icon copy-button";
+  copy.setAttribute("aria-label", "Copy raw report");
   const icon = element("span", "", "icon icon-copy");
   icon.setAttribute("aria-hidden", "true");
   copy.append(icon);
@@ -891,16 +906,14 @@ function rawReportSection(report, copyText, announcer) {
     try {
       await copyText?.(json);
       copy.classList?.add?.("copy-complete");
-      if (announcer) announcer.textContent = "Raw report JSON copied";
+      if (announcer) announcer.textContent = "Raw report copied";
       globalThis.setTimeout?.(() => copy.classList?.remove?.("copy-complete"), 1_500);
     } catch {
       if (announcer) announcer.textContent = "Copy failed";
     }
   });
-  const content = document.createElement("div");
-  content.className = "raw-report-content";
-  content.append(copy, pre);
-  return expandableSection("raw-report", "Raw report", "Public ComplianceReport JSON", [content]);
+  line.append(element("span", "Raw Report"), copy);
+  return line;
 }
 
 export function renderReport(root, viewModel, options = {}) {
@@ -916,19 +929,39 @@ export function renderReport(root, viewModel, options = {}) {
   root.append(announcer);
   const header = document.createElement("header");
   header.className = "report-header";
-  const title = document.createElement("div");
   const idLine = document.createElement("p");
   idLine.className = "neuron-id";
   idLine.append(
-    element("span", `Neuron ${report.neuron_id}`),
+    element("span", String(report.neuron_id)),
     copyButton(report.neuron_id, "Copy neuron ID", options.copyText, announcer),
   );
-  title.append(
-    element("p", "NNS Dendrite Standard", "eyebrow"),
-    element("h1", known?.name ?? `Neuron ${report.neuron_id}`),
-    idLine,
+  header.append(
+    element("p", `NNS Dendrite Standard · ${report.standard_version}`, "eyebrow report-eyebrow"),
+    element("h1", known?.name ?? `Neuron ${report.neuron_id}`, "report-title"),
   );
-  header.append(title);
+  const exactStatus = variantName(report.overall_status);
+  const presentation = overallPresentation(exactStatus);
+  header.append(
+    element("h2", verdictText(report), `header-verdict status-${presentation.kind}`),
+    idLine,
+    rawReportCopy(report, options.copyText, announcer),
+  );
+  const metrics = document.createElement("dl");
+  metrics.className = "metrics header-metrics";
+  const refreshedAt = target?.voting_power_refreshed_timestamp_seconds?.[0];
+  const freshness = refreshedAt === undefined
+    ? "Unavailable"
+    : elapsedDaysHours(report.checked_at_timestamp_seconds, refreshedAt);
+  const freshnessValue = element("span", freshness);
+  if (refreshedAt !== undefined) freshnessValue.title = checkedAtUtc(refreshedAt);
+  metrics.append(
+    metric("Dissolve delay", formatDuration(optional(target?.dissolve_delay_seconds))),
+    metric("Dissolving state", target?.dissolving?.length ? (target.dissolving[0] ? "Dissolving" : "Locked") : "Unavailable"),
+    metric("Effective stake", formatIcp(optional(target?.effective_stake_e8s))),
+    metric("Hotkeys", target ? String(target.hot_keys.length) : "Unavailable"),
+    metric("Voting-power freshness", freshnessValue),
+  );
+  header.append(metrics);
   if (known?.links?.length) {
     const links = document.createElement("div");
     links.className = "known-links";
@@ -939,32 +972,21 @@ export function renderReport(root, viewModel, options = {}) {
     header.append(links);
   }
   root.append(header);
-  const exactStatus = variantName(report.overall_status);
-  const presentation = overallPresentation(exactStatus);
-  const overview = document.createElement("section");
-  overview.id = "overview";
-  overview.className = `overview main-status status-${presentation.kind}`;
-  const verdict = document.createElement("h2");
-  const verdictIcon = element("span", presentation.icon, "status-icon");
-  verdictIcon.setAttribute("aria-hidden", "true");
-  verdict.append(verdictIcon, element("span", verdictText(report)));
-  overview.append(verdict);
-  root.append(overview);
-
+  root.append(renderRules(report, verificationKind, provenance, options.copyText, announcer));
   const managerStatuses = report.managers.map((manager) => variantName(manager.evidence_status));
   const unavailableManagers = managerStatuses.filter((status) => status === "Unavailable").length;
   const missingManagers = managerStatuses.filter((status) => status === "ConfirmedMissing").length;
   const managerSummary = [
-    `${report.managers.length} manager${report.managers.length === 1 ? "" : "s"}`,
+    `${report.managers.length} team member${report.managers.length === 1 ? "" : "s"}`,
     ...(unavailableManagers ? [`${unavailableManagers} unavailable`] : []),
     ...(missingManagers ? [`${missingManagers} missing`] : []),
   ].join(" · ");
   const managerContent = report.managers.length
     ? [renderManagers(report, options.copyText, announcer)]
-    : [element("p", "No managers are listed.", "empty-state")];
+    : [element("p", "No team members are listed.", "empty-state")];
   root.append(expandableSection(
     "managers",
-    "Managers",
+    "Team Members",
     managerSummary,
     managerContent,
     false,
@@ -984,30 +1006,9 @@ export function renderReport(root, viewModel, options = {}) {
     `${topicCount} topic${topicCount === 1 ? "" : "s"}`,
     ...(topicIssues ? [`${topicIssues} issue${topicIssues === 1 ? "" : "s"}`] : []),
   ].join(" · ");
-  root.append(expandableSection("delegation", "Topic delegation", delegationSummary,
-    topicCount ? [renderTopics(report, options.copyText, announcer)] : [
+  root.append(expandableSection("delegation", "Topic Delegation", delegationSummary,
+    topicCount ? [renderTopics(report, options.copyText, announcer, provenance)] : [
       element("p", "No topic configurations are listed.", "empty-state"),
     ], false, topicIssues ? "section-important" : ""));
 
-  root.append(renderRules(report, verificationKind, provenance, options.copyText, announcer));
-
-  const metrics = document.createElement("dl");
-  metrics.className = "metrics";
-  const controller = report.controller?.[0];
-  metrics.append(
-    metric("Dissolve delay", formatDuration(optional(target?.dissolve_delay_seconds))),
-    metric("Dissolving state", target?.dissolving?.length ? (target.dissolving[0] ? "Dissolving" : "Locked") : "Unavailable"),
-    metric("Effective stake", formatIcp(optional(target?.effective_stake_e8s))),
-    metric("Hotkeys", target ? String(target.hot_keys.length) : "Unavailable"),
-    metric("not_for_profit", String(optional(target?.not_for_profit))),
-    metric("Voting-power freshness", target?.voting_power_refreshed_timestamp_seconds?.length
-      ? checkedAtUtc(target.voting_power_refreshed_timestamp_seconds[0]) : "Unavailable"),
-    metric("Controller blackhole", controller?.call_succeeded
-      ? (!controller.module_hash.length && !controller.controllers.length ? "Confirmed" : "Not confirmed")
-      : "Unavailable"),
-  );
-  root.append(
-    expandableSection("characteristics", "Neuron characteristics", "7 values", [metrics]),
-    rawReportSection(report, options.copyText, announcer),
-  );
 }

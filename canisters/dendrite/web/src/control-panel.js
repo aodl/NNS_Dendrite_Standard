@@ -146,7 +146,7 @@ export function renderControlPanel(root, { report, session, nnsActor, pipeline, 
   const follow = document.createElement("fieldset");
   follow.append(element("legend", "1. Replace one topic’s entire followee list"));
   const topic = topicSelect(), followees = input("followees", "Complete replacement: comma-separated neuron IDs"), fixedFollowing = element("p", ""), followReview = element("button", "Review following replacement");
-  const updateFollowInput = () => { const code = Number(topic.value), arbitrary = code === 1 || report.committed_topics?.some((entry) => entry.topic === code); followees.disabled = !arbitrary; fixedFollowing.textContent = arbitrary ? "Enter the complete replacement list." : "Fixed standard-preserving replacement: alpha-vote 2947465672511369."; };
+  const updateFollowInput = () => { const code = Number(topic.value), unrestricted = code === 1 || report.committed_topics?.some((entry) => entry.topic === code); followees.disabled = false; fixedFollowing.textContent = unrestricted ? "Enter the complete replacement list." : "Enter exactly one approved default: alpha-vote 2947465672511369, omega-vote 18363645821499695760, or omega-reject 18422777432977120264."; };
   topic.addEventListener("change", updateFollowInput); updateFollowInput();
   followReview.type = "button";
   followReview.addEventListener("click", async () => { try {

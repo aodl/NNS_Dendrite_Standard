@@ -488,8 +488,8 @@ test("public and private explicit receivers use returned readability without exi
 test("SetFollowing and manager-vote preparation derive exact commands from fresh reads", async () => {
   const fresh = report({ committed_topics: [{ topic: 4 }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
   const actor = { list_neurons: async ({ neuron_ids }) => ({ full_neurons: neuron_ids.map((id) => ({ id: [{ id }], known_neuron_data: [{ name: `Known ${id}` }] })) }) };
-  const prepared = await prepareStandardSetFollowing([{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 17, followeeIds: [999n] }])({ report: fresh, nnsActor: actor });
-  assert.deepEqual(prepared.command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [2_947_465_672_511_369n]);
+  const prepared = await prepareStandardSetFollowing([{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 17, followeeIds: [18_363_645_821_499_695_760n] }])({ report: fresh, nnsActor: actor });
+  assert.deepEqual(prepared.command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [18_363_645_821_499_695_760n]);
   const info = { id: [{ id: 7n }], status: 1, topic: 1, ballots: [[10n, { vote: 0 }]], deadline_timestamp_seconds: [1n], proposer: [{ id: 10n }], proposal: [{ title: ["Title"], summary: "Summary", action: [{ ManageNeuron: { id: [{ id: 20n }], neuron_id_or_subaccount: [], command: [{ RefreshVotingPower: {} }] } }] }] };
   const vote = await prepareManagerVote(7n, 1)({ nnsActor: { get_proposal_info: async () => [info] }, targetId: 20n, managerId: 10n });
   assert.equal(vote.command.RegisterVote.vote, 1); assert.match(vote.details.join(" "), /Managed target: 20/);
@@ -510,13 +510,16 @@ test("invalid preparation and changed direct fingerprints fail closed", async ()
   assert.equal(calls, 0); assert.equal(pipeline.pending, undefined);
 });
 
-test("primary following enforces manager, committed omega, and fixed alpha policies", () => {
+test("primary following enforces manager, committed omega, and approved default policies", () => {
   const value = report({ committed_topics: [{ topic: 4, delegate_ids: [10n] }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
   const candidates = [10n, 11n, 12n, 13n, 14n].map((id) => ({ id, known: true }));
   assert.deepEqual(buildPrimaryFollowCommand(value, 1, candidates.map((entry) => entry.id), candidates).Follow.followees.map((entry) => entry.id), [10n, 11n, 12n, 13n, 14n]);
   assert.deepEqual(buildPrimaryFollowCommand(value, 4, [10n, 11n, 12n]).Follow.followees.map((entry) => entry.id), [10n, 11n, 12n]);
   assert.equal(buildPrimaryFollowCommand(value, 0).Follow.followees[0].id, 2_947_465_672_511_369n);
   assert.equal(buildPrimaryFollowCommand(value, 17).Follow.followees[0].id, 2_947_465_672_511_369n);
+  assert.equal(buildPrimaryFollowCommand(value, 17, [18_363_645_821_499_695_760n]).Follow.followees[0].id, 18_363_645_821_499_695_760n);
+  assert.equal(buildPrimaryFollowCommand(value, 17, [18_422_777_432_977_120_264n]).Follow.followees[0].id, 18_422_777_432_977_120_264n);
+  assert.throws(() => buildPrimaryFollowCommand(value, 17, [999n]), /alpha-vote, omega-vote, or omega-reject/);
   assert.throws(() => buildPrimaryFollowCommand(value, 99), /update required/);
   assert.throws(() => buildPrimaryFollowCommand(value, 1, [10n, 10n, 11n, 12n, 13n], candidates), /distinct/);
   assert.throws(() => buildPrimaryFollowCommand(value, 4, [10n, 11n, 99n]), /known target managers/);
@@ -568,10 +571,10 @@ test("control panel renders primary workflows and performs no mutation before ex
     find(root, (node) => node.name === "followees").value = "1,2,3,4,5";
     await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
     assert.match(JSON.stringify(root), /Known 1/);
-    find(root, (node) => node.name === "topic").value = "17";
-    find(root, (node) => node.name === "followees").value = "999";
+    find(root, (node) => node.name === "topic").value = "2";
+    find(root, (node) => node.name === "followees").value = "18363645821499695760";
     await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
-    assert.match(JSON.stringify(root), /2947465672511369/); assert.doesNotMatch(JSON.stringify(root), /followees[^]*nat:999/);
+    assert.match(JSON.stringify(root), /18363645821499695760/); assert.doesNotMatch(JSON.stringify(root), /followees[^]*nat:999/);
     find(root, (node) => node.name === "topic").value = "";
     await find(root, (node) => node.textContent === "Review following replacement").dispatch("click");
     assert.match(JSON.stringify(root), /explicit recognised topic/);
@@ -760,9 +763,9 @@ test("all current Configure operations use explicit typed builders", () => {
 
 test("SetFollowing applies the same standard candidate rules to every row", () => {
   const value = report({ committed_topics: [{ topic: 4 }], managers: [manager(), manager({ neuron_id: 11n }), manager({ neuron_id: 12n })] });
-  const command = buildStandardSetFollowingCommand(value, [{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 0, followeeIds: [99n] }]);
+  const command = buildStandardSetFollowingCommand(value, [{ topic: 4, followeeIds: [10n, 11n, 12n] }, { topic: 0, followeeIds: [18_422_777_432_977_120_264n] }]);
   assert.deepEqual(command.SetFollowing.topic_following[0][0].followees[0].map((entry) => entry.id), [10n, 11n, 12n]);
-  assert.deepEqual(command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [2_947_465_672_511_369n]);
+  assert.deepEqual(command.SetFollowing.topic_following[0][1].followees[0].map((entry) => entry.id), [18_422_777_432_977_120_264n]);
   assert.throws(() => buildStandardSetFollowingCommand(value, [{ topic: 4, followeeIds: [10n, 99n, 12n] }]), /known target managers/);
 });
 

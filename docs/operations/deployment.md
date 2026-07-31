@@ -35,12 +35,18 @@ alter this evidence policy or authorize browser transactions.
 
 ## Controller policy
 
-The Dendrite application is not the blackholed target-neuron controller canister. It
-must retain reviewed upgrade control because a controller can replace both verifier
-code and the served transaction-signing frontend. Long-term control must be documented
-as secured individual control, multisig, Orbit, SNS, or another reviewed mechanism.
-Never call Dendrite immutable unless live controller state proves it. This tranche
-changes no controller.
+The Dendrite application is distinct from the target-neuron controller canister.
+Dendrite retains reviewed upgrade control during development and qualification because
+a controller can replace both verifier code and the served transaction-signing
+frontend. Its intended terminal state is an irreversible blackhole.
+
+Blackholing Dendrite is a separate final operator gate, never part of routine
+deployment. It requires the final reviewed artifact and module hash, byte-identical
+reproducible builds, completed automated and manual qualification, frozen origin and
+identity configuration, adequate cycles, and an explicit public record. Remove all
+Dendrite controllers only after those conditions pass. Afterwards no defect, upstream
+compatibility break, or frontend issue can be repaired. Never call Dendrite immutable
+unless live controller state proves the empty controller list.
 
 ## Cycles policy
 
@@ -125,7 +131,7 @@ Do not delete/recreate the canister and do not use `reinstall` as a generic reme
 ## Target-neuron operational boundary
 
 Dendrite verifies but does not perform target-neuron setup. A target needs 5–15
-distinct known managers, committed-topic delegates, exact alpha-vote/omega-reject
+distinct known managers, committed-topic delegates, approved singleton defaults,
 following, maximum locked delay, no hotkeys, and `not_for_profit = false`. Blackholing
 is the final irreversible step: uninstall the separate controller canister's Wasm and
 remove all controllers only after every other failure is resolved. A failed lookup,

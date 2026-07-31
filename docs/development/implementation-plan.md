@@ -9,9 +9,9 @@ Starting boundary: `84bb21d4a0fe7c583cdcc69639a7f5e63a457618`.
   check from Rust/browser evaluator output, totals, fixtures, and overall status.
 - [x] Retain their fail-closed properties as report-construction and
   dependency-to-rule invariants.
-- [x] Use 25 direct rules, 39 compliant-fixture evaluations, and six explicit groups.
-- [x] Stop adding alpha-vote and omega-reject solely as metadata dependencies; reduce
-  the derived graph bound to 270.
+- [x] Use 24 direct rules, 38 compliant-fixture evaluations, and six explicit groups.
+- [x] Stop adding default-reference neurons solely as metadata dependencies; derive
+  the 960-neuron graph bound from 64 bounded following entries and 15 followees.
 - [x] Present proposal-based dissolution through the security effect of
   `not_for_profit = false`.
 - [x] Start every normal report disclosure collapsed; filters never expand groups.
@@ -25,9 +25,9 @@ Starting boundary: `e4e3cdbd61eaf71148877858518e0cc2ba3aa5ff`.
 
 - [x] Preserve route-loaded public reports with no Dendrite request, report action
   toolbar, or public consensus state; retain Retry only after a load failure.
-- [x] Render exact `overall_status` verdict wording and order Managers, Topic
-  delegation, Standard rules, collapsed Neuron characteristics, Raw report, and
-  collapsed Management.
+- [x] Render exact `overall_status` verdict wording with header characteristics and a
+  copy-only Raw Report control, followed by Team Members, Topic delegation, and Standard
+  rules; provide canonical-origin sign-in in the navbar and applicable account controls.
 - [x] Replace the former binary rule control with single-select All, Pass, Fail, and
   nonzero additional status-count filters using native `aria-pressed` buttons.
 - [x] Keep seven severity-aware rule-group disclosures, complete semantic-colour group
@@ -494,7 +494,7 @@ auditable surface are explicit success criteria.
   IDs, duplicates, topic keys, pinned collection bounds, and stake arithmetic.
 - [x] Align known-neuron byte/link bounds and committed-topic interpretation with the
   pinned source while ignoring dependency committed-topic variants.
-- [x] Correct `KNOWN-003`, `KNOWN-004`, manager, alpha/omega, topic-local delegate, and
+- [x] Correct `KNOWN-003`, manager, alpha/omega, topic-local delegate, and
   evidence-integrity rule semantics without broad post-processing.
 - [x] Make the heap-only in-flight guard prune abandoned entries by a documented
   maximum age, retaining duplicate, concurrency, start-window, and cycle limits.

@@ -2,19 +2,11 @@
 // Source: rs/nns/governance/canister/governance.did
 type NeuronId = record { id : nat64 };
 type Followees = record { followees : vec NeuronId };
-type TopicToFollow = variant {
-  CatchAll; NeuronManagement; ExchangeRate; NetworkEconomics; Governance;
-  NodeAdmin; ParticipantManagement; SubnetManagement; Kyc;
-  NodeProviderRewards; IcOsVersionDeployment; IcOsVersionElection;
-  SnsAndCommunityFund; ApiBoundaryNodeManagement; SubnetRental;
-  ApplicationCanisterManagement; ProtocolCanisterManagement;
-  ServiceNervousSystemManagement
-};
 type KnownNeuronData = record {
   name : text;
   description : opt text;
   links : opt vec text;
-  committed_topics : opt vec opt TopicToFollow;
+  committed_topics : opt vec opt reserved;
 };
 type DissolveState = variant {
   DissolveDelaySeconds : nat64;

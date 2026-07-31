@@ -29,6 +29,7 @@ distribution, timers, indexers, analytics, and background work remain out of sco
 ## 2. Fixed standard constants
 
 - Alpha-vote: `2947465672511369`.
+- Omega-vote: `18363645821499695760`.
 - Omega-reject: `18422777432977120264`; it is never omega-vote.
 - Source revision: `d55a0f4d4edfabe49d8fd543aff473084cb741f2`.
 - `ONE_DAY_SECONDS = 86_400`, `ONE_YEAR_SECONDS = (4 * 365 + 1) *
@@ -82,7 +83,7 @@ generic summary-field list.
 ## 4. Direct Standard rules
 
 The public catalogue contains only requirements of the neuron and its configured
-governance relationships. It has 25 distinct rules in six explicit groups; a topic
+governance relationships. It has 23 distinct rules in six explicit groups; a topic
 rule may have multiple underlying evaluations without increasing the distinct-rule
 count.
 
@@ -91,7 +92,6 @@ count.
 - `DENDRITE-KNOWN-001`: Neuron data is public.
 - `DENDRITE-KNOWN-002`: Neuron is registered as a known neuron.
 - `DENDRITE-KNOWN-003`: At least one topic is committed.
-- `DENDRITE-KNOWN-004`: Committed topics are recognised and unique.
 
 ### Lock and voting power
 
@@ -123,16 +123,17 @@ count.
 - `DENDRITE-COMMIT-001`: Each committed topic has at least 3 delegates.
 - `DENDRITE-COMMIT-002`: No committed topic repeats a delegate.
 - `DENDRITE-COMMIT-003`: Every committed delegate is also a manager.
-- `DENDRITE-COMMIT-004`: Every committed delegate follows only omega-reject,
-  neuron `18422777432977120264`, on that topic.
+- `DENDRITE-COMMIT-004`: Every manager that the target follows as a delegate follows
+  only omega-reject, neuron `18422777432977120264`, on that same topic. This applies
+  independently of commitment classification. Neuron Management is exempt.
 
 ### Default following
 
-- `DENDRITE-DEFAULT-001`: Every uncommitted topic follows only alpha-vote, neuron
-  `2947465672511369`.
-- `DENDRITE-DEFAULT-002`: Catch-all follows only alpha-vote, neuron
-  `2947465672511369`.
-- `DENDRITE-DEFAULT-003`: No unsupported topic code is configured.
+- `DENDRITE-DEFAULT-001`: Every currently recognised uncommitted topic follows exactly
+  one approved default: alpha-vote neuron `2947465672511369`, omega-vote neuron
+  `18363645821499695760`, or omega-reject neuron `18422777432977120264`.
+- `DENDRITE-DEFAULT-002`: Catch-all follows exactly one approved default from that same
+  set.
 
 Report integrity is an implementation invariant, not a scored neuron rule. Every
 unavailable lookup makes all and only its dependent substantive rules indeterminate;
@@ -140,6 +141,13 @@ required unavailable data can never pass. Standard version, source revision,
 timestamp validity, source-failure bounds, and construction consistency are
 preconditions for a normal report. A broken precondition returns a bounded analysis
 error, including during transaction preflight, and never blames the neuron.
+
+Commitment is determined structurally from the numeric following map so a blackholed
+Dendrite does not depend on an evolving topic-name catalogue. A concrete topic is
+committed when it is declared by known-neuron metadata or has a non-empty following
+list other than an approved singleton default. Unknown declared Candid variants are
+descriptive compatibility evidence only; additional uncommitted numeric topics are
+inert. CatchAll and Neuron Management never become committed topics.
 
 Raw following vectors and map-like Candid vectors must remain intact until duplicate
 checks finish. Duplicate topic keys, duplicate target/dependency records, unexpected
@@ -150,27 +158,28 @@ batch; Dendrite canister time is not cross-compared with NNS timestamps.
 
 ## 5. Topics and graph bound
 
-Recognise the complete `TopicToFollow` domain from the pinned source: CatchAll,
+Recognise the current topic-code domain from the pinned source for labels and default
+coverage: CatchAll,
 Neuron Management, Exchange Rate, Network Economics, Governance, Node Admin,
 Participant Management, Subnet Management, Application Canister Management, KYC,
 Node Provider Rewards, IC OS Version Deployment, IC OS Version Election, SNS and
 Community Fund, API Boundary Node Management, Subnet Rental, Protocol Canister
-Management, and Service Nervous System Management. Reserved topic code 11 and any
-future non-empty code require a standard update.
+Management, and Service Nervous System Management. Reserved topic code 11 and future
+numeric codes use safe numeric fallback labels and structural commitment evaluation.
 
-The defensive graph proof includes every recognised topic list because an invalid
-target may commit CatchAll or Neuron Management. With 18 recognised topic lists, at
-most 15 followees per list, the unique dependency set cannot exceed
-`18 * 15 = 270` IDs. Alpha-vote and omega-reject are not added solely as reference
-metadata dependencies. The implementation derives this bound from the
-recognised domain and followee limit rather than maintaining a bare literal.
+The defensive graph proof uses the bounded following map rather than the current topic
+catalogue. With at most 64 topic entries and 15 followees per entry, the unique
+dependency set cannot exceed `64 * 15 = 960` IDs. Alpha-vote, omega-vote, and
+omega-reject are not added solely as reference metadata dependencies.
 
 Known-neuron data is bounded in bytes exactly as in the pinned source: name 200,
 description 3,000, at most 10 links, and 100 per link. Valid strings are preserved
-exactly rather than truncated. Semantic interpretation uses the 18-variant recognised
-`TopicToFollow` domain, while target committed-topic and following-map wire vectors use
-a separate defensive bound of 64 entries so modest future variants reach standard-
-update rules. Dependency committed topics are not interpreted. Each followee vector
+exactly rather than truncated. `committed_topics` entries are decoded as bounded
+`reserved` values: they remain descriptive metadata and a future Governance variant
+cannot make the response undecodable. Numeric following keys alone supply
+future-stable compliance semantics and labels use the current 18-code catalogue.
+Target committed-topic and following-map wire vectors have a defensive bound of 64
+entries. Dependency committed topics are not interpreted. Each followee vector
 remains bounded to 15. Hotkeys, controller lists, module hashes, and returned full-
 neuron collections retain their pinned bounds. Impossible stake subtraction or
 addition invalidates the batch.
@@ -241,9 +250,9 @@ response that omits a requested full public neuron is evidence, not a source fai
    report. If no valid NNS snapshot timestamp exists, return a bounded analysis error.
    In either case, make no dependency or controller call.
 4. Otherwise preserve raw following vectors; extract raw managers and committed-topic
-   delegates; build the unique dependency set. Do not add alpha-vote or omega-reject
-   solely to inspect their metadata.
-5. Enforce the derived 270-dependency invariant.
+   delegates; build the unique dependency set. Do not add alpha-vote, omega-vote, or
+   omega-reject solely to inspect their metadata.
+5. Enforce the derived 960-dependency invariant.
 6. Split dependencies into batches of at most 50 IDs and call `list_neurons` once per
    batch.
 7. Validate each batch atomically. Every requested ID becomes `Found`,

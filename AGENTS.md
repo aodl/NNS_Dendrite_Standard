@@ -19,6 +19,7 @@ before changing files and do not weaken a MUST requirement silently.
 ## Fixed protocol constants
 
 - `ALPHA_VOTE_NEURON_ID = 2_947_465_672_511_369u64`.
+- `OMEGA_VOTE_NEURON_ID = 18_363_645_821_499_695_760u64`.
 - `OMEGA_REJECT_NEURON_ID = 18_422_777_432_977_120_264u64`.
 - Omega-reject is not omega-vote.
 - The pinned source revision is `d55a0f4d4edfabe49d8fd543aff473084cb741f2`.

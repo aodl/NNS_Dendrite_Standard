@@ -45,12 +45,12 @@ keyboard evidence. It also proves one primary row per distinct rule ID, the 15-t
 default-rule summary, all 15 instances after keyboard expansion, Enter and Space
 operation, whole-row pointer behavior and its interactive-child safeguards, hidden empty
 group headings under filtering, and certified controller status handling. It exercises
-All, Pass, and Fail filters; Managers and Topic delegation near the top; collapsed
-Neuron characteristics, Raw report copying, and collapsed Management at every layout;
+All, Pass, and Fail filters; header characteristics and copy-only Raw Report control;
+Standard Rules, Team Members, and Topic Delegation near the top; navbar authentication at every layout;
 and repeats overflow checks after interaction. Bounded desktop screenshots cover direct
 compliant and non-compliant verdicts, collapsed and expanded rule states, every filter,
-semantic group-count colours, Managers, Topic delegation, Neuron characteristics, Raw
-report, and Management.
+semantic group-count colours, Standard Rules, Team Members, Topic Delegation, header characteristics,
+Raw Report copy control, navbar, and account workspace.
 The harness additionally serves a deterministic test-only report from a temporary
 qualification root. That page is excluded from production assets and exercises failed
 controller-module and retained-controller-list diagnostics, direct compliant and
@@ -68,7 +68,7 @@ Identity or sends an NNS mutation.
 The Rust unit suite deterministically regenerates
 `canisters/dendrite/web/test/fixtures/evaluator.json`. Its 38 cases record Rust overall
 status, quorum and every direct rule status with stable names and timestamps. The
-fully compliant fixture has exactly 39 evaluations and 25 distinct rules. Frontend tests
+fully compliant fixture has exactly 37 evaluations and 23 distinct rules. Frontend tests
 apply the same named mutations to BigInt-safe browser evidence and require exact
 policy-field equality. The cases cover compliant, missing/unavailable/contradictory
 evidence, target posture, manager cardinality and availability, exact alpha/default/committed
@@ -78,7 +78,7 @@ Frontend state and presentation tests separately prove that every rule occurs on
 canonical order; all policy statuses have icon and text; unknown IDs fall back safely;
 rule diagnostics, factual reasons, requirement separation, values, topics, local neuron
 and controller links, Raw report copy, single-select status filters, group disclosures
-and semantic status summaries, final section order, collapsed Management,
+and semantic status summaries, final section order, navbar and account workspace,
 empty/unavailable states, and accessible expansion
 attributes behave without mutating the report. They also prove that route entry calls
 Governance and the query-reported controller without calling Dendrite, controller

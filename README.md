@@ -10,18 +10,22 @@ public consensus-report mode. The public canister methods remain update
 `check_neuron` and query `http_request`.
 
 The neuron page names the known neuron, states the direct Standard verdict with its
-complete ID, and then presents Managers, Topic delegation, Standard rules, Neuron
-characteristics, Raw report, and Management. Every disclosure starts collapsed.
+complete ID, presents key neuron characteristics in the header, and then presents Team
+Standard Rules, Team Members, and Topic Delegation. Every section disclosure starts collapsed.
 Distinct-rule status totals are the only rule filters. The six direct rule-family
 disclosures show complete, right-aligned semantic-colour totals and never open merely
 because of a result or filter.
-Raw report copies exactly the displayed public `ComplianceReport` JSON. Internet
-Identity, authority, review, receipts, and transaction controls exist only inside
-Management. All presentation state is memory-only.
+The header's Raw Report copy control copies the complete public `ComplianceReport` JSON
+without duplicating it on the page. A branded navbar provides canonical-origin Internet
+Identity sign-in; authenticated controls appear in a top account workspace.
 
 Production identifiers and configuration have one authoritative source in
 [deployment](docs/operations/deployment.md). Factual lifecycle evidence is retained in
 the [production record](docs/operations/production-record.md).
+
+Dendrite retains upgrade control only during development and qualification. Its
+intended terminal state is a reviewed irreversible blackhole after the final artifact,
+configuration, reproducibility evidence, and operator gates are complete.
 
 ## Trust model
 

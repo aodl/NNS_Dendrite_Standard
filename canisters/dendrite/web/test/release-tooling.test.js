@@ -48,6 +48,16 @@ test("production mapping, cache exclusion, manifest, and release sums are strict
   assert.doesNotMatch(yaml, /\b(reinstall|build:|source:)\b/);
 });
 
+test("navbar SVG and document icon handling are CSP-safe in real browsers", () => {
+  const app = readFileSync("canisters/dendrite/web/src/app.js", "utf8");
+  const template = readFileSync("canisters/dendrite/web/index.template.html", "utf8");
+  assert.match(app, /svg\.setAttribute\("class", "brand-icon"\)/);
+  assert.doesNotMatch(app, /svg\.className\s*=/);
+  assert.match(app, /icon\.setAttribute\("class", "brand-icon loading-spinner"\)/);
+  assert.match(readFileSync("canisters/dendrite/web/src/styles.css", "utf8"), /@keyframes dendrite-spin/);
+  assert.doesNotMatch(template, /data:/);
+});
+
 test("browser qualification derives the reviewed Dendrite ID from the production mapping", () => {
   const qualification = readFileSync("tools/scripts/browser-qualification.mjs", "utf8");
   assert.match(qualification, /readFileSync\("\.icp\/data\/mappings\/ic\.ids\.json"/);

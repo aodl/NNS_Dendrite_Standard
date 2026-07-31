@@ -2,29 +2,9 @@
 // Anonymous live analysis exposes only explicit public Governance queries.
 export const idlFactory = ({ IDL }) => {
   const NeuronId = IDL.Record({ 'id' : IDL.Nat64 });
-  const TopicToFollow = IDL.Variant({
-    'Kyc' : IDL.Null,
-    'ServiceNervousSystemManagement' : IDL.Null,
-    'ApiBoundaryNodeManagement' : IDL.Null,
-    'ApplicationCanisterManagement' : IDL.Null,
-    'SubnetRental' : IDL.Null,
-    'NeuronManagement' : IDL.Null,
-    'NodeProviderRewards' : IDL.Null,
-    'SubnetManagement' : IDL.Null,
-    'ExchangeRate' : IDL.Null,
-    'CatchAll' : IDL.Null,
-    'NodeAdmin' : IDL.Null,
-    'IcOsVersionElection' : IDL.Null,
-    'ProtocolCanisterManagement' : IDL.Null,
-    'NetworkEconomics' : IDL.Null,
-    'IcOsVersionDeployment' : IDL.Null,
-    'ParticipantManagement' : IDL.Null,
-    'Governance' : IDL.Null,
-    'SnsAndCommunityFund' : IDL.Null,
-  });
   const KnownNeuronData = IDL.Record({
     'name' : IDL.Text,
-    'committed_topics' : IDL.Opt(IDL.Vec(IDL.Opt(TopicToFollow))),
+    'committed_topics' : IDL.Opt(IDL.Vec(IDL.Opt(IDL.Reserved))),
     'description' : IDL.Opt(IDL.Text),
     'links' : IDL.Opt(IDL.Vec(IDL.Text)),
   });

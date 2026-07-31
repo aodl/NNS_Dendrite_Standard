@@ -84,7 +84,7 @@ const rules = [
     related_neuron_ids: [18422777432977120264n],
   }),
   statusRule("DENDRITE-NM-001", "Warning"),
-  statusRule("DENDRITE-DEFAULT-003", "StandardUpdateRequired"),
+  statusRule("DENDRITE-DEFAULT-001", "StandardUpdateRequired"),
   statusRule("DENDRITE-KNOWN-001", "Pass"),
   statusRule("FUTURE-RULE-900", "Pass"),
 ];
@@ -182,6 +182,9 @@ test("policy status vocabulary has distinct visible text and decorative icons", 
     ["Pass", "Fail", "Indeterminate", "Warning", "Standard update required"],
   );
   const root = render();
+  assert.ok(byText(root, "Target").length);
+  const subtitle = walk(root, (node) => node.className === "neuron-id")[0];
+  assert.ok(byText(subtitle, "42").length);
   for (const [label, icon] of [
     ["Pass", "✓"], ["Fail", "×"], ["Indeterminate", "?"],
     ["Warning", "!"], ["Standard update required", "↻"],
@@ -228,7 +231,6 @@ test("the 1.1 direct-rule title catalogue is exact", () => {
     "DENDRITE-KNOWN-001": "Neuron data is public",
     "DENDRITE-KNOWN-002": "Neuron is registered as a known neuron",
     "DENDRITE-KNOWN-003": "At least one topic is committed",
-    "DENDRITE-KNOWN-004": "Committed topics are recognised and unique",
     "DENDRITE-LOCK-001": "Neuron is locked",
     "DENDRITE-LOCK-002": "Dissolve delay is 2 years",
     "DENDRITE-LOCK-003": "Effective stake is positive",
@@ -246,10 +248,9 @@ test("the 1.1 direct-rule title catalogue is exact", () => {
     "DENDRITE-COMMIT-001": "Each committed topic has at least 3 delegates",
     "DENDRITE-COMMIT-002": "No committed topic repeats a delegate",
     "DENDRITE-COMMIT-003": "Every committed delegate is also a manager",
-    "DENDRITE-COMMIT-004": "Every committed delegate follows only omega-reject",
-    "DENDRITE-DEFAULT-001": "Every uncommitted topic follows only alpha-vote",
-    "DENDRITE-DEFAULT-002": "Catch-all follows only alpha-vote",
-    "DENDRITE-DEFAULT-003": "No unsupported topic code is configured",
+    "DENDRITE-COMMIT-004": "Every followed delegate follows only omega-reject on that topic",
+    "DENDRITE-DEFAULT-001": "Every known uncommitted topic uses an approved default",
+    "DENDRITE-DEFAULT-002": "Catch-all uses an approved default",
   };
   for (const [id, title] of Object.entries(expected)) assert.equal(ruleTitle(id), title, id);
 });
@@ -275,11 +276,11 @@ test("aggregation severity is documented and preserves every report entry", () =
   }
 });
 
-test("fully compliant parity report renders 25 rules from all 39 policy evaluations", () => {
+test("fully compliant parity report renders 23 rules from all 37 policy evaluations", () => {
   const source = fullyCompliantReport();
-  assert.equal(source.rules.length, 39);
+  assert.equal(source.rules.length, 37);
   const aggregates = aggregateRules(source.rules);
-  assert.equal(aggregates.length, 25);
+  assert.equal(aggregates.length, 23);
   const defaultRule = aggregates.find((rule) => rule.rule_id === "DENDRITE-DEFAULT-001");
   assert.equal(defaultRule.entries.length, 15);
   assert.equal(aggregateSummary(defaultRule, "Consensus"), "Pass · 15 of 15 topics pass");
@@ -288,17 +289,17 @@ test("fully compliant parity report renders 25 rules from all 39 policy evaluati
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const root = new FakeNode("main");
   try { renderReport(root, { report: source, verificationKind: "Consensus" }); } finally { globalThis.document = prior; }
-  assert.equal(walk(root, (node) => node.className?.includes?.("rule-summary-row")).length, 25);
-  assert.equal(byText(root, "Every uncommitted topic follows only alpha-vote").length, 1);
+  assert.equal(walk(root, (node) => node.className?.includes?.("rule-summary-row")).length, 23);
+  assert.equal(byText(root, "Every known uncommitted topic uses an approved default").length, 1);
   assert.ok(byText(root, "15 topic evaluations").length);
-  const toggle = byAttribute(root, "aria-label", "Show details for Every uncommitted topic follows only alpha-vote")[0];
+  const toggle = byAttribute(root, "aria-label", "Show details for Every known uncommitted topic uses an approved default")[0];
   const detail = walk(root, (node) => node.id === toggle.attributes["aria-controls"])[0];
   toggle.click();
   assert.equal(walk(detail, (node) => node.tag === "tbody")[0].children.length, 15);
-  assert.equal(source.rules.length, 39);
-  assert.ok(byText(root, "All 25").length);
-  assert.ok(byText(root, "25 pass").length);
-  assert.ok(byText(root, "0 fail").length);
+  assert.equal(source.rules.length, 37);
+  assert.ok(byText(root, "All 23").length);
+  assert.ok(byText(root, "23 pass").length);
+  assert.equal(byText(root, "0 fail").length, 0);
   for (const title of [
     "Neuron identity and commitments",
     "Lock and voting power",
@@ -309,7 +310,7 @@ test("fully compliant parity report renders 25 rules from all 39 policy evaluati
   ]) assert.equal(byText(root, title).length, 1, title);
 });
 
-test("shared status summaries count aggregate rules once and always show pass and fail", () => {
+test("shared status summaries count aggregate rules once and omit zero statuses", () => {
   const aggregates = aggregateRules([
     statusRule("DENDRITE-DEFAULT-001", "Pass", { relevant_topic: [2] }),
     statusRule("DENDRITE-DEFAULT-001", "Fail", { relevant_topic: [3] }),
@@ -320,7 +321,7 @@ test("shared status summaries count aggregate rules once and always show pass an
   assert.equal(summary.totalPolicyEvaluations, 3);
   assert.equal(summary.Fail, 1);
   assert.equal(summary.Indeterminate, 1);
-  assert.equal(formatStatusSummary(summary), "0 pass · 1 fail · 1 indeterminate");
+  assert.equal(formatStatusSummary(summary), "1 fail · 1 indeterminate");
 });
 
 test("controller diagnostics use structured evidence, exact links, and factual outcomes", () => {
@@ -531,7 +532,7 @@ test("single-select status filters change only transient presentation state", ()
   assert.equal(knownGroup.hidden, false);
   assert.equal(walk(knownGroup, (node) => node.className === "rule-group-toggle")[0].attributes["aria-expanded"], "false");
   assert.equal(groups.find((group) => byText(group, "Manager group").length).hidden, true);
-  assert.ok(byText(knownGroup, "1 pass").length);
+  assert.equal(byText(knownGroup, "1 pass").length, 0);
   assert.ok(byText(knownGroup, "1 fail").length);
   fail.click();
   assert.equal(all.attributes["aria-pressed"], "true");
@@ -539,6 +540,8 @@ test("single-select status filters change only transient presentation state", ()
   assert.ok(groups.every((group) => !group.hidden));
   pass.click();
   assert.equal(rows.filter((row) => !row.hidden).length, 4);
+  assert.ok(byText(knownGroup, "1 pass").length);
+  assert.equal(byText(knownGroup, "1 fail").length, 0);
   all.click();
   assert.equal(rows.filter((row) => !row.hidden).length, rules.length);
   assert.equal(JSON.stringify(source, (_key, value) => typeof value === "bigint" ? value.toString() : value), snapshot);
@@ -579,11 +582,12 @@ test("controller uncertainty is directly undetermined and never pass or fail", (
   assert.equal(byText(root, "A fresh transaction preflight is required before management actions.").length, 0);
 });
 
-test("source failures remain in the raw report without a Technical evidence section", () => {
+test("source failures remain available from the copy-only raw report", async () => {
   const prior = globalThis.document;
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   try {
     const root = new FakeNode("main");
+    let copied;
     renderReport(root, {
       report: report(),
       verificationKind: "Preliminary",
@@ -594,15 +598,16 @@ test("source failures remain in the raw report without a Technical evidence sect
           certificateTime: "2026-07-29T00:00:00.000Z",
         },
       },
-    });
+    }, { copyText: async (value) => { copied = value; } });
     assert.equal(byText(root, "Technical evidence").length, 0);
     for (const removed of [
       "Verification metadata", "Raw target evidence", "Controller blackhole evidence",
       "Complete rule table", "Source failures",
     ]) assert.equal(byText(root, removed).length, 0);
-    const raw = walk(root, (node) => node.className === "raw-report-json")[0];
-    assert.match(raw.textContent, /"source_failures"/);
-    assert.match(raw.textContent, /"unavailable"/);
+    assert.equal(walk(root, (node) => node.className === "raw-report-json").length, 0);
+    await byAttribute(root, "aria-label", "Copy raw report")[0].click();
+    assert.match(copied, /"source_failures"/);
+    assert.match(copied, /"unavailable"/);
   } finally {
     globalThis.document = prior;
   }
@@ -619,24 +624,22 @@ test("report header has direct verdicts, no actions, and the final section hiera
   const root = render();
   const sectionIds = walk(root, (node) => ["overview", "rules", "characteristics", "managers", "delegation", "raw-report"].includes(node.id))
     .map((node) => node.id);
-  assert.deepEqual(sectionIds, ["overview", "managers", "delegation", "rules", "characteristics", "raw-report"]);
-  assert.ok(byText(root, "Neuron characteristics").length);
-  assert.equal(walk(root, (node) => node.className === "metrics")[0].children.length, 7);
+  assert.deepEqual(sectionIds, ["rules", "managers", "delegation"]);
+  assert.ok(byText(root, "Standard Rules").length);
+  assert.ok(byText(root, "Topic Delegation").length);
+  assert.equal(byText(root, "Neuron characteristics").length, 0);
+  assert.equal(walk(root, (node) => node.className?.includes?.("header-metrics"))[0].children.length, 5);
   const sectionToggle = walk(root, (node) =>
-    node.className === "section-title" && node.textContent === "Managers")[0].parentNode;
+    node.className === "section-title" && node.textContent === "Team Members")[0].parentNode;
   assert.equal(sectionToggle.attributes["aria-expanded"], "false");
   sectionToggle.click();
   assert.equal(sectionToggle.attributes["aria-expanded"], "true");
-  const characteristics = walk(root, (node) => node.id === "characteristics")[0];
-  assert.equal(walk(characteristics, (node) => node.className?.includes?.("section-toggle"))[0].attributes["aria-expanded"], "false");
-  const raw = walk(root, (node) => node.id === "raw-report")[0];
-  const rawToggle = walk(raw, (node) => node.className?.includes?.("section-toggle"))[0];
-  assert.equal(rawToggle.attributes["aria-expanded"], "false");
   let copied;
   const copyRoot = render("Preliminary", { copyText: async (value) => { copied = value; } });
-  const copy = byAttribute(copyRoot, "aria-label", "Copy raw report JSON")[0];
+  const copy = byAttribute(copyRoot, "aria-label", "Copy raw report")[0];
   await copy.click();
-  assert.equal(copied, walk(copyRoot, (node) => node.className === "raw-report-json")[0].textContent);
+  assert.match(copied, /"standard_version"/);
+  assert.equal(walk(copyRoot, (node) => node.className === "raw-report-json").length, 0);
 
   const empty = report();
   empty.managers = [];
@@ -646,16 +649,16 @@ test("report header has direct verdicts, no actions, and the final section hiera
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const emptyRoot = new FakeNode("main");
   try { renderReport(emptyRoot, empty); } finally { globalThis.document = prior; }
-  assert.ok(byText(emptyRoot, "No managers are listed.").length);
+  assert.ok(byText(emptyRoot, "No team members are listed.").length);
   assert.ok(byText(emptyRoot, "No topic configurations are listed.").length);
 });
 
-test("all overall statuses use the exact complete-ID verdict wording and semantic colour class", () => {
+test("all overall statuses use known-neuron names and semantic colour classes", () => {
   const cases = [
-    ["Compliant", "Neuron 42 is compliant with the NNS Dendrite Standard.", "status-pass"],
-    ["NonCompliant", "Neuron 42 is not compliant with the NNS Dendrite Standard.", "status-fail"],
-    ["Indeterminate", "Compliance with the NNS Dendrite Standard could not be determined for neuron 42.", "status-indeterminate"],
-    ["StandardUpdateRequired", "Neuron 42 uses configuration not covered by this version of the NNS Dendrite Standard.", "status-standardupdaterequired"],
+    ["Compliant", "Compliant", "status-pass"],
+    ["NonCompliant", "Not Compliant", "status-fail"],
+    ["Indeterminate", "Indeterminate", "status-indeterminate"],
+    ["StandardUpdateRequired", "Standard Update Required", "status-standardupdaterequired"],
   ];
   const prior = globalThis.document;
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
@@ -666,28 +669,73 @@ test("all overall statuses use the exact complete-ID verdict wording and semanti
       const root = new FakeNode("main");
       renderReport(root, { report: source, verificationKind: "Preliminary" });
       assert.ok(byText(root, wording).length, status);
-      const overview = walk(root, (node) => node.id === "overview")[0];
-      assert.ok(overview.className.includes(className), status);
+      const verdict = walk(root, (node) => node.className?.includes?.("header-verdict"))[0];
+      assert.ok(verdict.className.includes(className), status);
     }
   } finally {
     globalThis.document = prior;
   }
 });
 
-test("manager and topic presentation uses direct statuses and concise summaries", () => {
-  const root = render();
+test("manager status and topic alert columns are absent", () => {
+  const sourceWithNames = report();
+  sourceWithNames.managers[0].known_neuron = [{ name: "Known manager nine", links: [] }];
+  sourceWithNames.committed_topics[0].delegate_ids = [9n, 10n];
+  sourceWithNames.non_committed_topics.push({ topic: 18, followee_ids: [2947465672511369n] });
+  sourceWithNames.rules = sourceWithNames.rules.map((rule) => rule.rule_id === "DENDRITE-KNOWN-002"
+    ? { ...rule, related_neuron_ids: [9n], message: "neuron 9 is not an eligible manager" }
+    : rule);
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  const root = new FakeNode("main");
+  try { renderReport(root, sourceWithNames); } finally { globalThis.document = prior; }
   const managers = walk(root, (node) => node.id === "managers")[0];
-  assert.ok(byText(managers, "1 manager · 1 unavailable").length);
-  assert.ok(byText(managers, "Status").length);
-  assert.ok(byText(managers, "Unavailable").length);
+  assert.ok(byText(managers, "1 team member · 1 unavailable").length);
+  assert.equal(byText(managers, "Status").length, 0);
+  const managerRows = walk(managers, (node) => node.tag === "tr");
+  assert.ok(managerRows.every((row) => row.children.length === 3));
+  assert.equal(byText(managers, "Readiness").length, 0);
+  const memberLink = walk(managers, (node) => node.tag === "a" && node.className === "row-primary")[0];
+  assert.equal(memberLink.textContent, "Known manager nine");
+  assert.equal(byText(managers, "Dashboard").length, 0);
   const delegation = walk(root, (node) => node.id === "delegation")[0];
-  assert.ok(byText(delegation, "2 configurations · 2 topics · 1 issue").length);
+  assert.ok(byText(delegation, "2 configurations · 3 topics · 1 issue").length);
+  assert.equal(byText(delegation, "Alerts").length, 0);
+  assert.equal(byAttribute(delegation, "aria-label", "Warnings").length, 0);
+  const delegationRows = walk(delegation, (node) => node.tag === "tr");
+  assert.ok(delegationRows.every((row) => row.children.length === 2));
+  assert.equal(walk(delegation, (node) => node.className === "delegation-value").length, 3);
+  assert.ok(walk(delegation, (node) => node.className?.includes?.("topic-list"))
+    .some((node) => node.textContent.includes("\n")));
   const source = report();
   source.rules = source.rules.map((rule) => ({ ...rule, status: { Pass: null } }));
-  const prior = globalThis.document;
   globalThis.document = { createElement: (tag) => new FakeNode(tag) };
   const passing = new FakeNode("main");
   try { renderReport(passing, source); } finally { globalThis.document = prior; }
-  assert.ok(byText(passing, "Pass").length);
-  assert.equal(byText(passing, "No findings").length, 0);
+  const passingDelegation = walk(passing, (node) => node.id === "delegation")[0];
+  assert.equal(byText(passingDelegation, "No alerts").length, 0);
+  assert.equal(walk(passingDelegation, (node) => node.className === "topic-warning").length, 0);
+  assert.equal(byText(passingDelegation, "Pass").length, 0);
+});
+
+test("topic delegation uses retrieved known names and explains CatchAll inheritance", () => {
+  const source = report();
+  const omegaVote = 18363645821499695760n;
+  source.non_committed_topics = [
+    { topic: 0, followee_ids: [omegaVote] },
+    { topic: 2, followee_ids: [] },
+  ];
+  const prior = globalThis.document;
+  globalThis.document = { createElement: (tag) => new FakeNode(tag) };
+  const root = new FakeNode("main");
+  try {
+    renderReport(root, {
+      report: source,
+      verificationKind: "Preliminary",
+      provenance: { knownNeuronNames: [[omegaVote.toString(), "Ωmega-vote"]] },
+    });
+  } finally { globalThis.document = prior; }
+  assert.ok(byText(root, "Ωmega-vote").length);
+  assert.ok(walk(root, (node) => node.textContent?.includes?.("2 — Exchange Rate (inherited from CatchAll)")).length);
+  assert.equal(byText(root, omegaVote.toString()).length, 0);
 });

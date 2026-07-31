@@ -95,32 +95,13 @@ pub struct Followees {
     pub followees: Vec<NeuronId>,
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
-pub enum TopicToFollow {
-    CatchAll,
-    NeuronManagement,
-    ExchangeRate,
-    NetworkEconomics,
-    Governance,
-    NodeAdmin,
-    ParticipantManagement,
-    SubnetManagement,
-    Kyc,
-    NodeProviderRewards,
-    IcOsVersionDeployment,
-    IcOsVersionElection,
-    SnsAndCommunityFund,
-    ApiBoundaryNodeManagement,
-    SubnetRental,
-    ApplicationCanisterManagement,
-    ProtocolCanisterManagement,
-    ServiceNervousSystemManagement,
-}
-#[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub struct KnownNeuronData {
     pub name: String,
     pub description: Option<String>,
     pub links: Option<Vec<String>>,
-    pub committed_topics: Option<Vec<Option<TopicToFollow>>>,
+    // Descriptive metadata only. Decode entries opaquely so a future Governance
+    // variant cannot break the live response; following-map keys are authoritative.
+    pub committed_topics: Option<Vec<Option<Reserved>>>,
 }
 #[derive(Clone, Debug, CandidType, Deserialize, Eq, PartialEq)]
 pub enum DissolveState {
@@ -391,6 +372,30 @@ mod tests {
             decode_one::<CanisterInfoResponse>(&encode_one(info.clone()).unwrap()).unwrap(),
             info
         );
+    }
+    #[test]
+    fn future_committed_topic_variants_decode_opaquely() {
+        #[derive(CandidType)]
+        enum FutureTopicToFollow {
+            FutureProtocolTopic,
+        }
+        #[derive(CandidType)]
+        struct FutureKnownNeuronData {
+            name: String,
+            description: Option<String>,
+            links: Option<Vec<String>>,
+            committed_topics: Option<Vec<Option<FutureTopicToFollow>>>,
+        }
+        let wire = encode_one(FutureKnownNeuronData {
+            name: "future-safe".into(),
+            description: None,
+            links: None,
+            committed_topics: Some(vec![Some(FutureTopicToFollow::FutureProtocolTopic)]),
+        })
+        .unwrap();
+        let decoded: KnownNeuronData = decode_one(&wire).unwrap();
+        assert_eq!(decoded.name, "future-safe");
+        assert_eq!(decoded.committed_topics, Some(vec![Some(Reserved)]));
     }
     #[test]
     fn fixed_destinations_are_exact() {
